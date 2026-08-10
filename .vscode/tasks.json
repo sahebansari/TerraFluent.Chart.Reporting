@@ -1,0 +1,428 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build: TerraFluent Solution",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build: TerraFluent Solution",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "test: TerraFluent Tests",
+			"type": "shell",
+			"command": "dotnet test tests\\TerraFluent.Chart.Reporting.Tests\\TerraFluent.Chart.Reporting.Tests.csproj --configuration Release --no-build --logger \"console;verbosity=minimal\"",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "test: TerraFluent Tests",
+			"type": "shell",
+			"command": "dotnet test tests\\TerraFluent.Chart.Reporting.Tests\\TerraFluent.Chart.Reporting.Tests.csproj --configuration Release --logger \"console;verbosity=minimal\"",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build-and-test: Sprint 5",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet test tests\\TerraFluent.Chart.Reporting.Tests\\TerraFluent.Chart.Reporting.Tests.csproj --configuration Release --no-build --logger \"console;verbosity=minimal\"",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build-and-test: Sprint 5",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet test tests\\TerraFluent.Chart.Reporting.Tests\\TerraFluent.Chart.Reporting.Tests.csproj --configuration Release --no-build --logger \"console;verbosity=minimal\"",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-test: Medium fixes",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet test tests\\TerraFluent.Chart.Reporting.Tests\\TerraFluent.Chart.Reporting.Tests.csproj --configuration Release --no-build --logger \"console;verbosity=minimal\"",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build-and-test: Medium fixes",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet test tests\\TerraFluent.Chart.Reporting.Tests\\TerraFluent.Chart.Reporting.Tests.csproj --configuration Release --no-build --logger \"console;verbosity=minimal\"",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build-and-test: Medium fixes",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet test tests\\TerraFluent.Chart.Reporting.Tests\\TerraFluent.Chart.Reporting.Tests.csproj --configuration Release --no-build --logger \"console;verbosity=minimal\"",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-and-run: TerraFluent Samples",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release && dotnet run --project samples\\TerraFluent.Chart.Reporting.Samples\\TerraFluent.Chart.Reporting.Samples.csproj --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-verify",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-verify-2",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "test-verify",
+			"type": "shell",
+			"command": "dotnet test tests/TerraFluent.Chart.Reporting.Tests/TerraFluent.Chart.Reporting.Tests.csproj --configuration Release --no-build --logger \"console;verbosity=minimal\"",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build-offsety",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-datalabel-fix",
+			"type": "shell",
+			"command": "dotnet build TerraFluent.Chart.Reporting.sln --configuration Release",
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		}
+	]
+}

@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;netstandard2.1;net6.0;net8.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TerraFluent.Chart.Reporting</RootNamespace>
+    <AssemblyName>TerraFluent.Chart.Reporting</AssemblyName>
+
+    <!-- Assembly versioning -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>TerraFluent.Chart.Reporting</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>TerraFluent</Authors>
+    <Company>TerraFluent</Company>
+    <Copyright>Copyright © TerraFluent 2025</Copyright>
+    <Description>A fluent C# library for generating SVG charts — server-side, zero JavaScript dependency. Inspired by the HighCharts API design. Supports Line, Spline, Bar, Column, Area, Pie, Scatter, Waterfall, Gauge, and DataRing chart types across Static, Animated, and Interactive render modes.</Description>
+    <PackageTags>svg;chart;reporting;fluent;highcharts;dotnet;server-side;blazor;pdf;email</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/TerraFluent/TerraFluent.Chart.Reporting</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/TerraFluent/TerraFluent.Chart.Reporting</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Initial release — fluent SVG chart generation with zero external dependencies.</PackageReleaseNotes>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Suppress warnings when a language feature is not available in older targets -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <Nullable>annotations</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Bundle the README into the NuGet package -->
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
