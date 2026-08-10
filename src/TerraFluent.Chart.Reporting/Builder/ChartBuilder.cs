@@ -10,6 +10,11 @@ namespace TerraFluent.Chart.Reporting.Builder
     /// Fluent builder for constructing and rendering a chart.
     /// Entry point: <see cref="ChartBuilder.Create()"/>.
     /// </summary>
+    /// <remarks>
+    /// <b>Thread safety:</b> <see cref="ChartBuilder"/> is stateful and <b>not thread-safe</b>.
+    /// Create a separate instance per render call or per thread.
+    /// <see cref="SvgRenderer"/> is stateless and may be shared across threads.
+    /// </remarks>
     public sealed class ChartBuilder : IChartBuilder
     {
         private readonly ChartOptions _options = new ChartOptions();

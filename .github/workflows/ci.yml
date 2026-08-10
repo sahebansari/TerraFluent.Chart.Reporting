@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required for SourceLink
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.x
+            8.x
+            10.x
+
+      - name: Restore
+        run: dotnet restore TerraFluent.Chart.Reporting.sln
+
+      - name: Build (Release)
+        run: dotnet build TerraFluent.Chart.Reporting.sln --configuration Release --no-restore
+
+      - name: Test
+        run: >
+          dotnet test
+          tests/TerraFluent.Chart.Reporting.Tests/TerraFluent.Chart.Reporting.Tests.csproj
+          --configuration Release
+          --no-build
+          --logger "console;verbosity=minimal"
+          --collect:"XPlat Code Coverage"
+          --results-directory coverage
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          directory: coverage
+          flags: unittests
+          fail_ci_if_error: false

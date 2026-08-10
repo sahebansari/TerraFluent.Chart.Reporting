@@ -29,6 +29,20 @@
     <PackageReleaseNotes>Initial release — fluent SVG chart generation with zero external dependencies.</PackageReleaseNotes>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Reproducible / auditable builds -->
+    <Deterministic>true</Deterministic>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+
+    <!-- Symbol package (snupkg) for consumer debuggability -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Detect API breaking changes against last published baseline -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <!-- Uncomment and set once 1.0.0 is published:
+    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion> -->
   </PropertyGroup>
 
   <!-- Suppress warnings when a language feature is not available in older targets -->
@@ -44,6 +58,11 @@
   <!-- Bundle the README into the NuGet package -->
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- SourceLink: embeds source-control info for debuggability -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>

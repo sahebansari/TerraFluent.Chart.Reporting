@@ -19,9 +19,7 @@ public class ChartBuilderTests
             .Series(s => s.AddLine("Revenue", new double?[] { 100, 200, 150, 300 }))
             .RenderToSvg();
 
-        Assert.NotNull(svg);
-        Assert.Contains("<svg", svg);
-        Assert.Contains("Monthly Revenue", svg);
+        SvgAssert.WellFormedAndContains(svg, "Monthly Revenue");
     }
 
     [Fact]
@@ -32,7 +30,7 @@ public class ChartBuilderTests
             .Series(s => s.AddColumn("Sales", new double?[] { 50, 80, 60 }))
             .RenderToSvg();
 
-        Assert.Contains("<rect", svg);
+        SvgAssert.WellFormedAndContains(svg, "<rect");
     }
 
     [Fact]
@@ -43,7 +41,7 @@ public class ChartBuilderTests
             .Series(s => s.AddPie("Share", new double?[] { 30, 50, 20 }))
             .RenderToSvg();
 
-        Assert.Contains("<path", svg);
+        SvgAssert.WellFormedAndContains(svg, "<path");
     }
 
     [Fact]
@@ -54,7 +52,7 @@ public class ChartBuilderTests
             .Series(s => s.AddLine("Data", new double?[] { 1, 2, 3 }))
             .RenderToSvg();
 
-        Assert.DoesNotContain("tooltip-bg", svg);
+        SvgAssert.WellFormedAndExcludes(svg, "tooltip-bg");
     }
 
     [Fact]
@@ -65,7 +63,7 @@ public class ChartBuilderTests
             .Series(s => s.AddLine("Data", new double?[] { 1, 2, 3 }))
             .RenderToSvg();
 
-        Assert.Contains("<script", svg);
+        SvgAssert.WellFormedAndContains(svg, "<script");
     }
 
     [Fact]
@@ -101,7 +99,7 @@ public class ChartBuilderTests
             .Series(s => s.AddLine("Data", new double?[] { 1 }))
             .RenderToSvg();
 
-        Assert.DoesNotContain("<script>alert", svg);
+        SvgAssert.WellFormedAndExcludes(svg, "<script>alert");
         Assert.Contains("&lt;script&gt;", svg);
     }
 

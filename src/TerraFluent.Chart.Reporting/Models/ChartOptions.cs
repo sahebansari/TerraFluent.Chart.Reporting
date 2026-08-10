@@ -362,6 +362,7 @@ namespace TerraFluent.Chart.Reporting.Models
             {
                 WriteIndented = true,
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+                PropertyNameCaseInsensitive = true,
             };
             opts.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
             opts.Converters.Add(new CultureInfoJsonConverter());
