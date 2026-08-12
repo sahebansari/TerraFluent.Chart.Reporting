@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TerraFluent.Chart.Reporting\TerraFluent.Chart.Reporting.csproj" />
+    <ProjectReference Include="..\..\src\TerraFluent.AutoAnalytics\TerraFluent.AutoAnalytics.csproj" />
   </ItemGroup>
 
 </Project>

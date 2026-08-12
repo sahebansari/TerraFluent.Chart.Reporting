@@ -25,6 +25,19 @@ internal sealed class ChartExceptionMiddleware(RequestDelegate next, ILogger<Cha
         {
             await WriteProblem(ctx, 400, "invalid_argument", ex.Message, null);
         }
+        catch (JsonException ex)
+        {
+            await WriteProblem(ctx, 400, "malformed_json", ex.Message, null);
+        }
+        catch (FormatException ex)
+        {
+            await WriteProblem(ctx, 400, "malformed_input", ex.Message, null);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Raised by the analytics engine when ThrowOnValidationError is set and data-quality errors exist.
+            await WriteProblem(ctx, 422, "data_quality_error", ex.Message, null);
+        }
         catch (NotSupportedException ex)
         {
             await WriteProblem(ctx, 400, "unsupported_operation", ex.Message, null);
