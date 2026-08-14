@@ -18,6 +18,8 @@ namespace TerraFluent.Chart.Reporting.Rendering
             int symH    = leg.SymbolHeight;
             double itemGap = 6.0, colGap = 12.0;
             double rowH    = Math.Max(symH + 4.0, leg.ItemFontSize + 4.0);
+            // Per-char width tracks the rendered (font-scaled) legend text so columns never overlap.
+            double charW   = 7.2 * FontScaleOf(options);
 
             // Collect estimated pixel width for each legend item
             var widthList = new System.Collections.Generic.List<double>();
@@ -33,7 +35,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                         if (!series.Data[j].HasValue || series.Data[j]!.Value <= 0) continue;
                         string label = options.XAxis.Categories?.Count > j
                             ? options.XAxis.Categories[j] : $"Slice {j + 1}";
-                        widthList.Add(label.Length * 7.2 + symW + itemGap + colGap);
+                        widthList.Add(label.Length * charW + symW + itemGap + colGap);
                     }
                 }
                 else if (series.Type == ChartType.Parliament)
@@ -41,11 +43,11 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     for (int j = 0; j < series.ParliamentData.Count; j++)
                     {
                         string label = $"{series.ParliamentData[j].Name} ({series.ParliamentData[j].Seats})";
-                        widthList.Add(label.Length * 7.2 + symW + itemGap + colGap);
+                        widthList.Add(label.Length * charW + symW + itemGap + colGap);
                     }
                 }
                 else
-                    widthList.Add(series.Name.Length * 7.2 + symW + itemGap + colGap);
+                    widthList.Add(series.Name.Length * charW + symW + itemGap + colGap);
             }
             if (widthList.Count == 0) return (0, 0);
 
@@ -90,6 +92,8 @@ namespace TerraFluent.Chart.Reporting.Rendering
             double colGap   = 12.0;  // gap after each item in horizontal layout
             double rowH     = Math.Max(symH + 4.0, leg.ItemFontSize + 4.0);
             double maxRowW  = svgWidth - PaddingLeft - PaddingRight;
+            // Per-char width tracks the rendered (font-scaled) legend text so columns never overlap.
+            double charW    = 7.2 * FontScaleOf(options);
 
             // ----- collect items -----
             // Si >= 0 for series-level items (used for legend toggle); Si = -1 for slice-level items.
@@ -156,7 +160,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             double maxItemW = 0;
             for (int i = 0; i < items.Count; i++)
             {
-                double cw = items[i].Label.Length * 7.2 + symW + itemGap + colGap;
+                double cw = items[i].Label.Length * charW + symW + itemGap + colGap;
                 if (cw > maxItemW) maxItemW = cw;
             }
 

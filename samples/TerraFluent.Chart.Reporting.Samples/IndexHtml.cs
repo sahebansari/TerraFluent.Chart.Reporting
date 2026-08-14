@@ -141,7 +141,7 @@ internal static partial class Program
             sb.AppendLine("</div></section>");
         }
 
-        RenderDashboardChartSection(sb, "Trends over time", dashboard.TrendCharts);
+        RenderDashboardChartSection(sb, "Trends", dashboard.TrendCharts);
         RenderDashboardChartSection(sb, "Category comparisons", dashboard.ComparisonCharts);
         RenderDashboardChartSection(sb, "Distributions", dashboard.DistributionCharts);
 

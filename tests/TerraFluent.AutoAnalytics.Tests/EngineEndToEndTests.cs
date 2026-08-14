@@ -86,7 +86,7 @@ public class EngineEndToEndTests
     }
 
     [Fact]
-    public void RangeTicks_FewBins_AreNotForcedDiagonal()
+    public void RangeTicks_FewBins_AreStillDiagonal()
     {
         var spec = new ChartSpec
         {
@@ -96,7 +96,8 @@ public class EngineEndToEndTests
             Series = new[] { new SeriesSpec { Name = "Avg", Values = new double?[] { 1, 2, 3, 4 } } }
         };
         string svg = ChartConfigBuilder.ToSvg(spec);
-        Assert.DoesNotContain("rotate(-45", svg);
+        // Range-style ticks are always angled regardless of count (diagonal for ≤12 bins).
+        Assert.Contains("rotate(-45", svg);
         Assert.DoesNotContain("rotate(-90", svg);
     }
 

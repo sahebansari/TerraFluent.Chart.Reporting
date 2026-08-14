@@ -34,15 +34,14 @@ public static class ChartConfigBuilder
             chart.Labels(categories);
 
             // Category axis: render every tick label (no thinning/skipping) and never abbreviate.
-            // Range-style ticks (e.g. "12k–22k") are wide, so once there are many, angle them to
-            // avoid overlap: diagonal beyond 6 ticks, vertical beyond 12.
+            // Range-style ticks (e.g. "12k–22k") are wide, so always angle them regardless of count:
+            // diagonal (-45), or vertical (-90) once there are many (>12).
             int rangeTicks = categories.Count(IsRangeLabel);
             bool mostlyRanges = rangeTicks > categories.Length / 2;
             chart.LabelLayout(l =>
             {
                 l.Skip(1);
-                if (mostlyRanges && categories.Length > 12) l.Rotation(-90);
-                else if (mostlyRanges && categories.Length > 6) l.Rotation(-45);
+                if (mostlyRanges) l.Rotation(categories.Length > 12 ? -90 : -45);
             });
         }
         else
@@ -64,7 +63,8 @@ public static class ChartConfigBuilder
                     case ChartType.Area:    s.AddArea(series.Name, values); break;
                     case ChartType.Bar:     s.AddBar(series.Name, values); break;
                     case ChartType.Column:  s.AddColumn(series.Name, values); break;
-                    case ChartType.Pie:     s.AddPie(series.Name, values); break;
+                    // Pie labels sit just outside each slice (with a leader line) so shares are readable.
+                    case ChartType.Pie:     s.AddPie(series.Name, values, cfg => cfg.DataLabel.Show().Radius(1.5)); break;
                     case ChartType.Scatter: s.AddScatter(series.Name, values); break;
                     case ChartType.Radar:   s.AddRadar(series.Name, values); break;
                     case ChartType.Gauge:   s.AddGauge(series.Name, scalar); break;

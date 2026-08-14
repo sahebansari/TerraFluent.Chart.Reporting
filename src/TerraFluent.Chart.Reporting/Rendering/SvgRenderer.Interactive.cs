@@ -391,6 +391,10 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 sb.AppendLine("          anim.parentNode.removeChild(anim);");
                 sb.AppendLine("        });");
                 sb.AppendLine("        clone.querySelectorAll('[stroke-dashoffset]').forEach(function(el) {");
+                sb.AppendLine("          // Only draw-on line paths (pathLength convention) reveal by dropping their dash");
+                sb.AppendLine("          // attributes; partial-arc shapes (pie reveal cover, gauge/data-ring arcs) keep dasharray");
+                sb.AppendLine("          // so the baked animate 'to' offset stays correct — else they cover the whole chart.");
+                sb.AppendLine("          if (!el.hasAttribute('pathLength')) return;");
                 sb.AppendLine("          el.removeAttribute('stroke-dashoffset');");
                 sb.AppendLine("          el.removeAttribute('stroke-dasharray');");
                 sb.AppendLine("          el.removeAttribute('pathLength');");
@@ -517,6 +521,10 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 sb.AppendLine("          anim.parentNode.removeChild(anim);");
                 sb.AppendLine("        });");
                 sb.AppendLine("        clone.querySelectorAll('[stroke-dashoffset]').forEach(function(el) {");
+                sb.AppendLine("          // Only draw-on line paths (pathLength convention) reveal by dropping their dash");
+                sb.AppendLine("          // attributes; partial-arc shapes (pie reveal cover, gauge/data-ring arcs) keep dasharray");
+                sb.AppendLine("          // so the baked animate 'to' offset stays correct — else they cover the whole chart.");
+                sb.AppendLine("          if (!el.hasAttribute('pathLength')) return;");
                 sb.AppendLine("          el.removeAttribute('stroke-dashoffset');");
                 sb.AppendLine("          el.removeAttribute('stroke-dasharray');");
                 sb.AppendLine("          el.removeAttribute('pathLength');");

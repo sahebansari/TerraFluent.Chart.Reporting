@@ -47,7 +47,7 @@ internal static class DashboardHtmlRenderer
             sb.AppendLine("</div></section>");
         }
 
-        Section(sb, "Trends over time", dashboard.TrendCharts);
+        Section(sb, "Trends", dashboard.TrendCharts);
         Section(sb, "Category comparisons", dashboard.ComparisonCharts);
         Section(sb, "Distributions", dashboard.DistributionCharts);
 

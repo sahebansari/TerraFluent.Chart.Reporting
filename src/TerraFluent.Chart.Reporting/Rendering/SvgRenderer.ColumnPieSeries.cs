@@ -173,19 +173,20 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     {
                         ex = cx + radius * Math.Cos(midA);
                         ey = cy + radius * Math.Sin(midA);
-                        double cdx  = lx - ex, cdy = ly - ey;
-                        double cLen = Math.Sqrt(cdx * cdx + cdy * cdy);
-                        const double connPad = 7;
-                        if (cLen > connPad + 2)
-                        {
-                            double nx = cdx / cLen, ny = cdy / cLen;
-                            enx = lx - nx * connPad;
-                            eny = ly - ny * connPad;
-                            double bowSize = cLen * 0.45;
-                            cpx = (ex + enx) / 2 + (-Math.Sin(midA)) * bowSize;
-                            cpy = (ey + eny) / 2 + ( Math.Cos(midA)) * bowSize;
+                        // Straight leader from the slice edge to a bend point, then a 5px
+                        // horizontal run into the label. cpx/cpy hold the bend point.
+                        double dir     = Math.Cos(midA) >= 0 ? 1.0 : -1.0;
+                        double fs      = series.DataLabel.TextFontSize ?? 10;
+                        double halfW   = labelText.Length * fs * 0.30;   // approx half the label text width
+                        const double gutter  = 4.0;   // small gap between the leader end and the label text
+                        const double bendLen = 5.0;   // length of the horizontal bend at the end
+                        enx = lx - dir * (halfW + gutter);
+                        eny = ly;
+                        cpx = enx - dir * bendLen;
+                        cpy = eny;
+                        double sdx = cpx - ex, sdy = cpy - ey;
+                        if (Math.Sqrt(sdx * sdx + sdy * sdy) > 2.0)
                             hasConn = true;
-                        }
                     }
                     labels.Add((lx, ly, labelText, hasConn, ex, ey, cpx, cpy, enx, eny));
                 }
@@ -267,7 +268,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             foreach (var (lx, ly, text, hasConn, ex, ey, cpx, cpy, enx, eny) in labels)
             {
                 if (hasConn)
-                    sb.AppendLine($"  <path d=\"M{F(ex)},{F(ey)} Q{F(cpx)},{F(cpy)} {F(enx)},{F(eny)}\" fill=\"none\" stroke=\"{Escape(options.Theme.TextColor)}\" stroke-width=\"0.9\" opacity=\"0.5\"/>");
+                    sb.AppendLine($"  <path d=\"M{F(ex)},{F(ey)} L{F(cpx)},{F(cpy)} L{F(enx)},{F(eny)}\" fill=\"none\" stroke=\"{Escape(options.Theme.TextColor)}\" stroke-width=\"0.9\" opacity=\"0.5\"/>");
 
                 AppendDataLabel(sb, lx, ly, text,
                     series.DataLabel.TextColor ?? options.Theme.TextColor,
