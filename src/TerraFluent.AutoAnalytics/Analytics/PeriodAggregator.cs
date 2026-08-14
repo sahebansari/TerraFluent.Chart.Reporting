@@ -1,0 +1,61 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using TerraFluent.AutoAnalytics.Enums;
+using TerraFluent.AutoAnalytics.Profiling;
+
+namespace TerraFluent.AutoAnalytics.Analytics;
+
+/// <summary>
+/// Collapses a measure into an evenly-spaced, chronologically-ordered per-period series so that
+/// trend/forecast maths operate on one value per calendar period rather than raw per-row values
+/// (which are unevenly spaced and duplicated when a period spans many rows). Additive measures are
+/// summed per period; non-additive per-row attributes are averaged.
+/// </summary>
+internal static class PeriodAggregator
+{
+    /// <summary>
+    /// Per-period values in chronological order. When <paramref name="date"/> is <see langword="null"/>
+    /// the measure's present values are returned in row order (no aggregation possible).
+    /// </summary>
+    public static List<double> Aggregate(ColumnStatistics measure, ColumnStatistics? date, DateGranularity g, bool additive)
+    {
+        var rows = RowAlignment.DateValues(measure, date);
+        if (date is null)
+            return rows.Select(r => r.Value).ToList();
+
+        var acc = new Dictionary<string, (double Sum, int Count, DateTime First)>();
+        foreach (var (d, v) in rows)
+        {
+            string key = PeriodKey(d, g);
+            if (acc.TryGetValue(key, out var a))
+                acc[key] = (a.Sum + v, a.Count + 1, a.First);
+            else
+                acc[key] = (v, 1, d);
+        }
+
+        return acc.Values
+            .OrderBy(a => a.First)
+            .Select(a => additive ? a.Sum : a.Sum / a.Count)
+            .ToList();
+    }
+
+    // Groups a date into a calendar-period key. Unknown/Daily granularity keys by full day so each
+    // distinct date is its own period (identity when the source already has one row per day).
+    private static string PeriodKey(DateTime d, DateGranularity g) => g switch
+    {
+        DateGranularity.Yearly    => d.ToString("yyyy", CultureInfo.InvariantCulture),
+        DateGranularity.Quarterly => $"{d.Year} Q{(d.Month - 1) / 3 + 1}",
+        DateGranularity.Monthly   => d.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+        DateGranularity.Weekly    => WeekKey(d),
+        _                         => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+    };
+
+    private static string WeekKey(DateTime d)
+    {
+        var cal = CultureInfo.InvariantCulture.Calendar;
+        int week = cal.GetWeekOfYear(d, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+        return $"{d.Year}-W{week:00}";
+    }
+}

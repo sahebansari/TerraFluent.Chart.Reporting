@@ -11,6 +11,10 @@ namespace TerraFluent.Chart.Reporting.Models
         /// <summary>HighCharts-inspired default theme (white background, blue-orange palette).</summary>
         public static readonly ChartTheme Default = new ChartTheme();
 
+        /// <summary>Returns a shallow copy of this theme (all scalar/colour settings), so callers can
+        /// tweak one property — e.g. <see cref="FontScale"/> — without mutating a shared instance.</summary>
+        public ChartTheme Clone() => (ChartTheme)MemberwiseClone();
+
         /// <summary>Dark theme (navy background, neon-adjacent palette).</summary>
         public static readonly ChartTheme Dark = new ChartTheme
         {
@@ -346,6 +350,13 @@ namespace TerraFluent.Chart.Reporting.Models
 
         /// <summary>CSS font-family string applied to all chart text.</summary>
         public string FontFamily { get; set; } = "sans-serif";
+
+        /// <summary>
+        /// Global multiplier applied to every chart font size (titles, axis labels/titles, data
+        /// labels, legend). <c>1.0</c> (default) leaves the built-in sizes unchanged; e.g. <c>1.25</c>
+        /// enlarges all text by 25%. The label-layout and gutter maths honour this so nothing clips.
+        /// </summary>
+        public double FontScale { get; set; } = 1.0;
 
         /// <summary>Ordered colour palette used for series and pie slices.</summary>
         public string[] Colors { get; set; } = ChartColor.Palette.Default;

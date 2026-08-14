@@ -1,5 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using TerraFluent.AutoAnalytics.Agent;
+using TerraFluent.AutoAnalytics.Agent.Skills;
 using TerraFluent.AutoAnalytics.Engine;
 using TerraFluent.AutoAnalytics.Insights;
 using TerraFluent.AutoAnalytics.Profiling;
@@ -30,6 +32,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<InsightGenerationEngine>();
         services.AddSingleton<ChartRecommendationEngine>();
         services.AddSingleton<AnalyticsEngine>();
+
+        // Deterministic analytic agent: skill registry + planner.
+        services.AddSingleton<IAnalyticSkill, TrendSkill>();
+        services.AddSingleton<IAnalyticSkill, AnomalySkill>();
+        services.AddSingleton<IAnalyticSkill, CorrelationSkill>();
+        services.AddSingleton<IAnalyticSkill, DominanceSkill>();
+        services.AddSingleton<IAnalyticSkill, ForecastSkill>();
+        services.AddSingleton<IAnalyticSkill, RootCauseSkill>();
+        services.AddSingleton<IAnalyticSkill, SegmentSkill>();
+        services.AddSingleton<IAnalyticSkill, ComparisonSkill>();
+        services.AddSingleton<AnalyticAgent>();
 
         return services;
     }

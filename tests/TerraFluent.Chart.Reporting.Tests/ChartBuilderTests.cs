@@ -259,6 +259,44 @@ public class ChartBuilderTests
     }
 
     [Fact]
+    public void RenderToSvg_HorizontalBar_LongCategoryLabels_WidensLeftGutter()
+    {
+        const string longLabel = "International Operations Division";
+
+        var wide = ChartBuilder.Create()
+            .XAxis(x => x.Categories.AddRange(new[] { longLabel, "B", "C" }))
+            .Series(s => s.AddBar("Values", new double?[] { 30, 60, 90 }))
+            .RenderToSvg();
+
+        var narrow = ChartBuilder.Create()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddBar("Values", new double?[] { 30, 60, 90 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormedAndContains(wide, longLabel);
+        // Long category labels must push the category-axis origin further right so the text
+        // is not clipped at the canvas edge; short labels keep the default gutter.
+        Assert.True(VerticalAxisLineX(wide) > VerticalAxisLineX(narrow),
+            "Expected the left gutter to widen for long bar-chart category labels.");
+    }
+
+    // Returns the x coordinate of the vertical (category) axis line — the left edge of the plot.
+    private static double VerticalAxisLineX(string svg)
+    {
+        var doc = System.Xml.Linq.XDocument.Parse(svg);
+        System.Xml.Linq.XNamespace ns = "http://www.w3.org/2000/svg";
+        foreach (var line in doc.Descendants(ns + "line"))
+        {
+            if ((string?)line.Attribute("class") != "axis-line") continue;
+            var x1 = (string?)line.Attribute("x1");
+            var x2 = (string?)line.Attribute("x2");
+            if (x1 != null && x1 == x2) // vertical line: x1 == x2
+                return double.Parse(x1, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        throw new Xunit.Sdk.XunitException("No vertical axis line found in SVG.");
+    }
+
+    [Fact]
     public void RenderToSvg_Scatter_ContainsCircles_NoLinePath()
     {
         var svg = ChartBuilder.Create()

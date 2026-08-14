@@ -7,11 +7,16 @@ using TerraFluent.AutoAnalytics.Statistics;
 namespace TerraFluent.AutoAnalytics.Analytics;
 
 /// <summary>
-/// Phase 5 — anomaly detection without ML. Combines the Z-score rule (|z| &gt; 3), the IQR fence
-/// (below Q1 − 1.5·IQR or above Q3 + 1.5·IQR) and a sudden-change spike detector over ordered series.
+/// Phase 5 — anomaly detection without ML. Combines the robust modified Z-score (median + MAD,
+/// Iglewicz &amp; Hoaglin: <c>0.6745·(x − median)/MAD</c>, |Mz| &gt; 3.5), the IQR fence
+/// (below Q1 − 1.5·IQR or above Q3 + 1.5·IQR) and a sudden-change spike detector over ordered
+/// series. The modified Z-score is preferred over the classic mean/SD Z-score because a single
+/// large outlier inflates the mean and SD enough to mask itself (and its neighbours).
 /// </summary>
 public sealed class AnomalyEngine
 {
+    private const double ModifiedZThreshold = 3.5; // Iglewicz–Hoaglin recommended cut-off.
+
     private readonly double _zThreshold;
     private readonly double _iqrMultiplier;
 
@@ -45,6 +50,8 @@ public sealed class AnomalyEngine
         var values = measure.NumericValues;
         var stats = measure.Numeric!;
         double mean = stats.Mean, sd = stats.StdDev;
+        double median = stats.Median;
+        double mad = MedianAbsoluteDeviation(values, median);
         double lowerFence = stats.Q1 - _iqrMultiplier * stats.Iqr;
         double upperFence = stats.Q3 + _iqrMultiplier * stats.Iqr;
 
@@ -54,8 +61,14 @@ public sealed class AnomalyEngine
         {
             double v = values[i];
             double z = sd == 0 ? 0 : (v - mean) / sd;
+            // Robust modified Z-score: MAD isn't inflated by the outlier itself, so it flags points
+            // the classic Z-score would mask. Falls back to the classic rule when MAD collapses to 0
+            // (e.g. >50% identical values).
+            double modZ = mad > 0 ? 0.6745 * (v - median) / mad : 0;
 
-            if (sd > 0 && Math.Abs(z) > _zThreshold)
+            if (mad > 0 && Math.Abs(modZ) > ModifiedZThreshold)
+                flagged[i] = new AnomalyPoint { Index = i, Value = v, ZScore = z, Method = "modified-zscore" };
+            else if (mad == 0 && sd > 0 && Math.Abs(z) > _zThreshold)
                 flagged[i] = new AnomalyPoint { Index = i, Value = v, ZScore = z, Method = "zscore" };
             else if (stats.Iqr > 0 && (v < lowerFence || v > upperFence))
                 flagged.TryAdd(i, new AnomalyPoint { Index = i, Value = v, ZScore = z, Method = "iqr" });
@@ -82,5 +95,15 @@ public sealed class AnomalyEngine
         }
 
         return flagged.Values.OrderByDescending(a => Math.Abs(a.ZScore)).ToList();
+    }
+
+    // Median of |xᵢ − median| — a robust scale estimate that (unlike the standard deviation) is
+    // not inflated by the very outliers being detected.
+    private static double MedianAbsoluteDeviation(IReadOnlyList<double> values, double median)
+    {
+        if (values.Count == 0) return 0;
+        var deviations = new double[values.Count];
+        for (int i = 0; i < values.Count; i++) deviations[i] = Math.Abs(values[i] - median);
+        return DescriptiveStatistics.Median(deviations);
     }
 }

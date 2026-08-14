@@ -134,7 +134,9 @@ public sealed record RecommendationDto
             Values = s.Values,
             ScalarValue = s.ScalarValue
         }).ToList(),
-        Svg = includeSvg ? ChartConfigBuilder.ToChartBuilder(rec.Spec).RenderToSvg() : null
+        // Match the dashboard's chart size (560×340) so text scales to the same on-page size —
+        // both are displayed at width:100%, so a wider intrinsic chart would render smaller text.
+        Svg = includeSvg ? ChartConfigBuilder.ToChartBuilder(rec.Spec).Size(560, 340).RenderToSvg() : null
     };
 }
 

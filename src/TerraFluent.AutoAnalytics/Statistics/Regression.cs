@@ -53,6 +53,29 @@ public static class Regression
         return Fit(x, y);
     }
 
+    /// <summary>
+    /// Theil–Sen robust slope over the natural index: the median of the slopes between all point
+    /// pairs. Unlike least squares it is insensitive to outliers (≈29% breakdown point). For large
+    /// series the pair set is thinned by a stride so the cost stays bounded while the estimate holds.
+    /// </summary>
+    public static double TheilSenSlope(IReadOnlyList<double> y)
+    {
+        int n = y.Count;
+        if (n < 2) return 0;
+
+        // Cap the work at ~O(300²) pairs; stride the indices deterministically when larger.
+        int stride = n <= 300 ? 1 : (int)Math.Ceiling(n / 300.0);
+        var slopes = new List<double>();
+        for (int i = 0; i < n; i += stride)
+        for (int j = i + stride; j < n; j += stride)
+            slopes.Add((y[j] - y[i]) / (j - i));
+
+        if (slopes.Count == 0) return 0;
+        slopes.Sort();
+        int mid = slopes.Count / 2;
+        return slopes.Count % 2 == 0 ? (slopes[mid - 1] + slopes[mid]) / 2.0 : slopes[mid];
+    }
+
     /// <summary>Centered/trailing simple moving average with the given window (≥1).</summary>
     public static double[] MovingAverage(IReadOnlyList<double> values, int window)
     {

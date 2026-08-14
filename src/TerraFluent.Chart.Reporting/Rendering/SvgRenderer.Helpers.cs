@@ -207,6 +207,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             const double CharWidthFactor = 0.6; // estimated char width relative to font size
 
             var ll = options.LabelLayout;
+            double scale = FontScaleOf(options); // enlarge label text uniformly (theme-driven)
 
             // ---- Legacy path (no LabelLayout configured) --------------------------------
             if (ll == null)
@@ -214,16 +215,29 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 int maxLen = 0;
                 foreach (var c in cats) if (c.Length > maxLen) maxLen = c.Length;
                 int rot = options.XAxis.LabelRotation
-                    ?? (maxLen * 7.0 > step * 0.8 ? -45 : 0);
+                    ?? (maxLen * 7.0 * scale > step * 0.8 ? -45 : 0);
                 bool xIsDateLeg = options.XAxis.Type == Enums.AxisType.DateTime;
                 int strideLeg = (xIsDateLeg && cats.Count > 12)
                     ? (int)Math.Ceiling(cats.Count / 12.0)
                     : 1;
+
+                // Thin dense category axes so labels don't smear into an unreadable band
+                // (e.g. a scatter that emits one label per data point). Skip enough labels that
+                // the widest one fits within its (possibly rotated) slot.
+                if (!xIsDateLeg && step > 0)
+                {
+                    double charWLeg = 11 * scale * CharWidthFactor;
+                    double radLeg   = Math.Abs(rot) * Math.PI / 180.0;
+                    double projWLeg = maxLen * charWLeg * Math.Cos(radLeg) + 13 * scale * Math.Sin(radLeg) + 6;
+                    int neededLeg   = (int)Math.Ceiling(projWLeg / step);
+                    if (neededLeg > strideLeg) strideLeg = neededLeg;
+                }
+
                 return new LabelLayoutResult
                 {
                     Rotation       = rot,
                     Stride         = strideLeg,
-                    FontSize       = 11,
+                    FontSize       = Sz(11, scale),
                     Stagger        = false,
                     StaggerOffset  = 10,
                     WordWrap       = false,
@@ -233,6 +247,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
             // ---- Full collision-detection path ------------------------------------------
             int hPad = ll.HorizontalPadding;
+            // Scale the configured font-size bounds so enlarged charts stay collision-free.
+            int scaledMax = Sz(ll.MaxFontSize, scale);
+            int scaledMin = Sz(ll.MinFontSize, scale);
 
             // Estimate whether labels at given (fontSize, rotation, stride) fit without overlap
             bool FitsAt(int fs, int rot, int stride_)
@@ -251,7 +268,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 return (projW + hPad) <= step * stride_;
             }
 
-            int resolvedFontSize = ll.MaxFontSize;
+            int resolvedFontSize = scaledMax;
             int resolvedRotation = ll.Rotation ?? 0;
             int resolvedStride   = ll.Stride   ?? 1;
 
@@ -260,10 +277,10 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 // Explicit rotation: only apply font scaling if needed
                 if (ll.AutoScale && !FitsAt(resolvedFontSize, resolvedRotation, resolvedStride))
                 {
-                    for (int fs = resolvedFontSize - 1; fs >= ll.MinFontSize; fs--)
+                    for (int fs = resolvedFontSize - 1; fs >= scaledMin; fs--)
                     {
                         if (FitsAt(fs, resolvedRotation, resolvedStride)) { resolvedFontSize = fs; break; }
-                        if (fs == ll.MinFontSize) resolvedFontSize = fs;
+                        if (fs == scaledMin) resolvedFontSize = fs;
                     }
                 }
             }
@@ -273,7 +290,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (!solved && ll.AutoScale)
                 {
                     // Try shrinking the font at 0° first
-                    for (int fs = resolvedFontSize - 1; fs >= ll.MinFontSize; fs--)
+                    for (int fs = resolvedFontSize - 1; fs >= scaledMin; fs--)
                     {
                         if (FitsAt(fs, 0, resolvedStride)) { resolvedFontSize = fs; solved = true; break; }
                     }
@@ -286,16 +303,16 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     {
                         if (Math.Abs(angle) > ll.MaxRotation) break;
                         // Try full font size first, then scaled
-                        if (FitsAt(ll.MaxFontSize, angle, resolvedStride))
+                        if (FitsAt(scaledMax, angle, resolvedStride))
                         {
                             resolvedRotation = angle;
-                            resolvedFontSize = ll.MaxFontSize;
+                            resolvedFontSize = scaledMax;
                             solved = true;
                             break;
                         }
                         if (ll.AutoScale)
                         {
-                            for (int fs = ll.MaxFontSize - 1; fs >= ll.MinFontSize; fs--)
+                            for (int fs = scaledMax - 1; fs >= scaledMin; fs--)
                             {
                                 if (FitsAt(fs, angle, resolvedStride))
                                 {
@@ -311,7 +328,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     if (!solved)
                     {
                         resolvedRotation = -ll.MaxRotation;
-                        resolvedFontSize = ll.MinFontSize;
+                        resolvedFontSize = scaledMin;
                     }
                 }
             }

@@ -45,9 +45,16 @@ public sealed class DataProfilingEngine
     private static ColumnStatistics ProfileNumeric(DataColumn column, ColumnProfile profile)
     {
         var values = new List<double>(column.Values.Count);
-        foreach (var v in column.Values)
+        var byRow  = new double?[column.Values.Count];
+        for (int i = 0; i < column.Values.Count; i++)
+        {
+            var v = column.Values[i];
             if (!ValueParsing.IsMissing(v) && ValueParsing.TryToDouble(v, out var d))
+            {
                 values.Add(d);
+                byRow[i] = d;
+            }
+        }
 
         NumericSummary? summary = null;
         if (values.Count > 0)
@@ -71,18 +78,21 @@ public sealed class DataProfilingEngine
             };
         }
 
-        return new ColumnStatistics { Profile = profile, Numeric = summary, NumericValues = values };
+        return new ColumnStatistics { Profile = profile, Numeric = summary, NumericValues = values, NumericByRow = byRow };
     }
 
     private static ColumnStatistics ProfileCategorical(DataColumn column, ColumnProfile profile)
     {
         var labels = new List<string>(column.Values.Count);
+        var byRow  = new string?[column.Values.Count];
         var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (var v in column.Values)
+        for (int i = 0; i < column.Values.Count; i++)
         {
+            var v = column.Values[i];
             if (ValueParsing.IsMissing(v)) continue;
             var s = v!.ToString()!;
             labels.Add(s);
+            byRow[i] = s;
             counts[s] = counts.TryGetValue(s, out var c) ? c + 1 : 1;
         }
 
@@ -98,15 +108,22 @@ public sealed class DataProfilingEngine
             .ToList();
 
         var summary = new CategoricalSummary { DistinctCount = counts.Count, TopCategories = top };
-        return new ColumnStatistics { Profile = profile, Categorical = summary, Labels = labels };
+        return new ColumnStatistics { Profile = profile, Categorical = summary, Labels = labels, LabelByRow = byRow };
     }
 
     private static ColumnStatistics ProfileDate(DataColumn column, ColumnProfile profile)
     {
         var dates = new List<DateTime>(column.Values.Count);
-        foreach (var v in column.Values)
+        var byRow = new DateTime?[column.Values.Count];
+        for (int i = 0; i < column.Values.Count; i++)
+        {
+            var v = column.Values[i];
             if (!ValueParsing.IsMissing(v) && ValueParsing.TryToDate(v, out var dt))
+            {
                 dates.Add(dt);
+                byRow[i] = dt;
+            }
+        }
 
         DateSummary? summary = null;
         if (dates.Count > 0)
@@ -121,7 +138,7 @@ public sealed class DataProfilingEngine
             };
         }
 
-        return new ColumnStatistics { Profile = profile, Date = summary, Dates = dates };
+        return new ColumnStatistics { Profile = profile, Date = summary, Dates = dates, DateByRow = byRow };
     }
 
     private static DateGranularity InferGranularity(IReadOnlyList<DateTime> ordered)

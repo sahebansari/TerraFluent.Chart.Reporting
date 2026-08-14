@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -231,6 +232,261 @@ public sealed class AnalyticsEndpointsTests : IClassFixture<WebApplicationFactor
         string html = await response.Content.ReadAsStringAsync();
         Assert.Contains("<!DOCTYPE html>", html, StringComparison.Ordinal);
         Assert.Contains("<svg", html, StringComparison.Ordinal);
+    }
+
+    // ── agent (ask) ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Ask_OpenEnded_ReturnsTraceWithStepsAndInsights()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/analytics/ask",
+            new { data = SampleCsv });
+
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+        var root = doc.RootElement;
+
+        Assert.False(string.IsNullOrEmpty(root.GetProperty("headline").GetString()));
+        Assert.True(root.GetProperty("steps").GetArrayLength() > 0);
+        Assert.True(root.GetProperty("insights").GetArrayLength() > 0);
+    }
+
+    [Fact]
+    public async Task Ask_ForecastQuestion_ProducesForecastStep()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/analytics/ask?includeSvg=true",
+            new { data = SampleCsv, question = "forecast Revenue" });
+
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+        var steps = doc.RootElement.GetProperty("steps");
+
+        bool hasForecast = steps.EnumerateArray().Any(s => s.GetProperty("skill").GetString() == "Forecast");
+        Assert.True(hasForecast);
+
+        // includeSvg should embed rendered SVG on the supporting charts.
+        var charts = doc.RootElement.GetProperty("charts");
+        if (charts.GetArrayLength() > 0)
+            Assert.Contains("<svg", charts[0].GetProperty("svg").GetString()!, StringComparison.Ordinal);
+    }
+
+    // ── aggregate & filter ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Aggregate_ByRegion_ReturnsBuckets()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/analytics/aggregate?measure=Revenue&dimension=Region&aggregation=Sum",
+            new { data = SampleCsv });
+
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+        var root = doc.RootElement;
+
+        Assert.False(root.GetProperty("isPivot").GetBoolean());
+        Assert.True(root.GetProperty("buckets").GetArrayLength() > 0);
+        Assert.Equal("Sum", root.GetProperty("aggregation").GetString());
+    }
+
+    [Fact]
+    public async Task Aggregate_MissingMeasure_ReturnsBadRequest()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/analytics/aggregate?dimension=Region",
+            new { data = SampleCsv });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Analyze_WithFilter_RestrictsRows()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/analytics/analyze",
+            new { data = SampleCsv, filter = "Region = NA" });
+
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+        // SampleCsv has 2 NA rows out of 6.
+        Assert.Equal(2, doc.RootElement.GetProperty("summary").GetProperty("rowCount").GetInt32());
+    }
+
+    // ── sessions (multi-turn) ────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Session_CreateThenAsk_BuildsOnPriorTurns()
+    {
+        var client = _factory.CreateClient();
+
+        var createResponse = await client.PostAsJsonAsync("/api/analytics/sessions",
+            new { data = SampleCsv });
+        createResponse.EnsureSuccessStatusCode();
+        var created = await ReadJsonAsync(createResponse);
+        string sessionId = created.RootElement.GetProperty("sessionId").GetString()!;
+        Assert.False(string.IsNullOrEmpty(sessionId));
+
+        // First turn: open-ended explore.
+        var firstResponse = await client.PostAsJsonAsync($"/api/analytics/sessions/{sessionId}/ask",
+            new { question = (string?)null });
+        firstResponse.EnsureSuccessStatusCode();
+        var first = await ReadJsonAsync(firstResponse);
+        Assert.True(first.RootElement.GetProperty("insights").GetArrayLength() > 0);
+
+        // Second identical turn: memory suppresses already-reported insights.
+        var secondResponse = await client.PostAsJsonAsync($"/api/analytics/sessions/{sessionId}/ask",
+            new { question = (string?)null });
+        secondResponse.EnsureSuccessStatusCode();
+        var second = await ReadJsonAsync(secondResponse);
+        Assert.Equal(0, second.RootElement.GetProperty("insights").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Session_UnknownId_ReturnsNotFound()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/analytics/sessions/does-not-exist/ask",
+            new { question = "explore" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    // ── hardening: validation, headers, versioning, aggregate pivot ──────────────
+
+    [Fact]
+    public async Task Analyze_WithOutOfRangeMaxInsights_ReturnsBadRequest()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/analytics/analyze",
+            new { data = SampleCsv, maxInsights = 0 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Responses_IncludeSecurityHeaders()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/analytics/analyze",
+            new { data = SampleCsv });
+
+        response.EnsureSuccessStatusCode();
+        Assert.True(response.Headers.Contains("X-Content-Type-Options"));
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").First());
+        Assert.True(response.Headers.Contains("X-Frame-Options"));
+    }
+
+    [Fact]
+    public async Task V1RouteAlias_Works()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/v1/analytics/analyze",
+            new { data = SampleCsv });
+
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+        Assert.Equal(6, doc.RootElement.GetProperty("summary").GetProperty("rowCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task Aggregate_TwoDimensions_ReturnsPivot()
+    {
+        var client = _factory.CreateClient();
+        const string pivotCsv =
+            "Region,Product,Revenue\n" +
+            "East,Alpha,12000\nWest,Beta,7000\nEast,Beta,15000\nWest,Alpha,8000\n";
+
+        var response = await client.PostAsJsonAsync(
+            "/api/analytics/aggregate?measure=Revenue&dimension=Region&secondDimension=Product&aggregation=Sum",
+            new { data = pivotCsv });
+
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("isPivot").GetBoolean());
+        Assert.True(root.GetProperty("cells").GetArrayLength() > 0);
+    }
+
+    [Fact]
+    public async Task Ask_CompareQuestion_ProducesComparisonStep()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/analytics/ask",
+            new { data = SampleCsv, question = "compare Revenue to last month" });
+
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+        bool hasComparison = doc.RootElement.GetProperty("steps").EnumerateArray()
+            .Any(s => s.GetProperty("skill").GetString() == "Comparison");
+        Assert.True(hasComparison);
+    }
+
+    [Fact]
+    public async Task Session_AskWithQuestion_BuildsFocusedTrace()
+    {
+        var client = _factory.CreateClient();
+
+        var create = await client.PostAsJsonAsync("/api/analytics/sessions", new { data = SampleCsv });
+        create.EnsureSuccessStatusCode();
+        string id = (await ReadJsonAsync(create)).RootElement.GetProperty("sessionId").GetString()!;
+
+        var ask = await client.PostAsJsonAsync($"/api/analytics/sessions/{id}/ask",
+            new { question = "forecast Revenue" });
+        ask.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(ask);
+        bool hasForecast = doc.RootElement.GetProperty("steps").EnumerateArray()
+            .Any(s => s.GetProperty("skill").GetString() == "Forecast");
+        Assert.True(hasForecast);
+    }
+
+    [Fact]
+    public async Task Health_LiveAndReady_RespondOk()
+    {
+        var client = _factory.CreateClient();
+
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
+    }
+
+    [Fact]
+    public async Task AnalyzeCsvRaw_WithFilterAndTuning_IsHonoured()
+    {
+        var client = _factory.CreateClient();
+        var content = new StringContent(SampleCsv, Encoding.UTF8, "text/csv");
+
+        var response = await client.PostAsync(
+            "/api/analytics/analyze/csv?filter=Region%20%3D%20NA&maxInsights=5", content);
+
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+        // Filter applied (2 NA rows) and analysis still succeeds.
+        Assert.Equal(2, doc.RootElement.GetProperty("summary").GetProperty("rowCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task AnalyzeCsvRaw_WithOutOfRangeTuning_ReturnsBadRequest()
+    {
+        var client = _factory.CreateClient();
+        var content = new StringContent(SampleCsv, Encoding.UTF8, "text/csv");
+
+        var response = await client.PostAsync("/api/analytics/analyze/csv?maxInsights=0", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     // ── helpers ────────────────────────────────────────────────────────────────

@@ -16,13 +16,23 @@ namespace TerraFluent.Chart.Reporting.Rendering
             var mode = options.RenderMode;
             string p = $"#{svgId} ";   // CSS scope prefix, e.g. "#pc-3 "
 
+            // Global font-size multiplier from the theme (1.0 = default). Applied to every text class
+            // so charts can be enlarged uniformly; the layout maths read the same scale so nothing clips.
+            double fs = t.FontScale <= 0 ? 1.0 : t.FontScale;
+            int titlePx    = Sz(16, fs);
+            int subtitlePx = Sz(12, fs);
+            int axisLblPx  = Sz(11, fs);
+            int axisTtlPx  = Sz(12, fs);
+            int dataLblPx  = Sz(10, fs);
+            double legendPx = options.Legend.ItemFontSize * fs;
+
             sb.AppendLine("  <style>");
-            sb.AppendLine($"    {p}.chart-title   {{ font: bold 16px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.chart-subtitle{{ font: 12px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.axis-label    {{ font: 11px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.axis-title    {{ font: 12px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.legend-label  {{ font: {options.Legend.ItemFontSize}px {Escape(t.FontFamily)}; fill: {Escape(options.Legend.ItemFontColor ?? t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.data-label    {{ font: bold 10px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; pointer-events: none; }}");
+            sb.AppendLine($"    {p}.chart-title   {{ font: bold {titlePx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.chart-subtitle{{ font: {subtitlePx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.axis-label    {{ font: {axisLblPx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.axis-title    {{ font: {axisTtlPx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.legend-label  {{ font: {legendPx.ToString("0.#", CultureInfo.InvariantCulture)}px {Escape(t.FontFamily)}; fill: {Escape(options.Legend.ItemFontColor ?? t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.data-label    {{ font: bold {dataLblPx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; pointer-events: none; }}");
             sb.AppendLine($"    {p}.axis-line     {{ stroke: {Escape(t.AxisLineColor)}; stroke-width: 1; }}");
             sb.AppendLine($"    {p}.grid-line     {{ stroke-width: 1; fill: none; }}");
 
@@ -131,6 +141,16 @@ namespace TerraFluent.Chart.Reporting.Rendering
             sb.AppendLine($"    {p}.axis-title,");
             sb.AppendLine($"    {p}.data-label {{ direction: rtl; }}");
         }
+
+        // Effective font-size multiplier for the current chart (theme FontScale, clamped to > 0).
+        private static double FontScaleOf(ChartOptions options)
+        {
+            double s = options.Theme.FontScale;
+            return s <= 0 ? 1.0 : s;
+        }
+
+        // Scales a base pixel size by the font scale and rounds to the nearest whole pixel.
+        private static int Sz(double basePx, double scale) => (int)Math.Round(basePx * scale);
 
         // ------------------------------------------------------------------ axes
 

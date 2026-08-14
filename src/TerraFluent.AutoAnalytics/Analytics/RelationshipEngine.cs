@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TerraFluent.AutoAnalytics.Enums;
 using TerraFluent.AutoAnalytics.Profiling;
+using TerraFluent.AutoAnalytics.Schema;
 using TerraFluent.AutoAnalytics.Statistics;
 
 namespace TerraFluent.AutoAnalytics.Analytics;
@@ -27,13 +28,13 @@ public sealed class RelationshipEngine
         for (int i = 0; i < measures.Count; i++)
         for (int j = i + 1; j < measures.Count; j++)
         {
-            var x = measures[i].NumericValues;
-            var y = measures[j].NumericValues;
-            int n = Math.Min(x.Count, y.Count);
+            // Pair the two measures by ORIGINAL ROW, keeping only rows where both are present.
+            // (Each column's NumericValues has missing cells compacted out independently, so
+            // aligning by list index would correlate mismatched rows once any value is missing.)
+            var (xs, ys) = RowAlignment.NumericPairs(measures[i], measures[j]);
+            int n = xs.Count;
             if (n < 3) continue;
 
-            var xs = x.Take(n).ToList();
-            var ys = y.Take(n).ToList();
             double pearson = Correlation.Pearson(xs, ys);
             double spearman = Correlation.Spearman(xs, ys);
 
@@ -43,15 +44,19 @@ public sealed class RelationshipEngine
                 ColumnY = measures[j].Name,
                 Pearson = pearson,
                 Spearman = spearman,
-                Strength = Classify(pearson),
-                SampleSize = n
+                Strength = Classify(pearson, spearman),
+                SampleSize = n,
+                PValue = Correlation.PValue(pearson, n)
             });
         }
 
         return results.OrderByDescending(r => Math.Abs(r.Pearson)).ToList();
     }
 
-    /// <summary>Aggregates each measure by each low-cardinality dimension (summed).</summary>
+    /// <summary>
+    /// Aggregates each measure by each low-cardinality dimension. Additive measures (revenue, cost,
+    /// quantity) are summed; non-additive per-row attributes (age, tenure, ratings) are averaged.
+    /// </summary>
     public IReadOnlyList<GroupAnalysisResult> GroupAnalyses(DatasetProfile profile)
     {
         var results = new List<GroupAnalysisResult>();
@@ -72,17 +77,30 @@ public sealed class RelationshipEngine
 
     private static GroupAnalysisResult? Aggregate(ColumnStatistics dimension, ColumnStatistics measure)
     {
-        var labels = dimension.Labels;
-        var values = measure.NumericValues;
-        int n = Math.Min(labels.Count, values.Count);
-        if (n == 0) return null;
+        // Pair dimension label with measure value by ORIGINAL ROW (complete-case), so a missing
+        // label or value never shifts the remaining rows into the wrong group.
+        var pairs = RowAlignment.LabelValues(dimension, measure);
+        if (pairs.Count == 0) return null;
 
-        var sums = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-        for (int i = 0; i < n; i++)
-            sums[labels[i]] = sums.TryGetValue(labels[i], out var s) ? s + values[i] : values[i];
+        // Additive measures (revenue, cost, quantity) are summed; non-additive per-row attributes
+        // (age, tenure, ratings) are averaged.
+        bool additive = MeasureSemantics.IsAdditive(measure.Profile, measure.Numeric?.Min, measure.Numeric?.Max);
 
-        double total = sums.Values.Sum();
-        var buckets = sums.OrderByDescending(kv => kv.Value)
+        // Accumulate a running sum and count per group so we can emit a sum or an average.
+        var groups = new Dictionary<string, (double Sum, int Count)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (label, value) in pairs)
+        {
+            groups.TryGetValue(label, out var acc);
+            groups[label] = (acc.Sum + value, acc.Count + 1);
+        }
+
+        var aggregated = groups.ToDictionary(
+            kv => kv.Key,
+            kv => additive ? kv.Value.Sum : kv.Value.Sum / kv.Value.Count,
+            StringComparer.OrdinalIgnoreCase);
+
+        double total = aggregated.Values.Sum();
+        var buckets = aggregated.OrderByDescending(kv => kv.Value)
             .Select(kv => new GroupBucket
             {
                 Key = kv.Key,
@@ -95,7 +113,8 @@ public sealed class RelationshipEngine
         {
             Dimension = dimension.Name,
             Measure = measure.Name,
-            Aggregation = "sum",
+            Aggregation = additive ? "sum" : "average",
+            IsAdditive = additive,
             Total = total,
             Buckets = buckets
         };
@@ -104,9 +123,11 @@ public sealed class RelationshipEngine
     private static IReadOnlyList<GroupAnalysisResult> Order(List<GroupAnalysisResult> results) =>
         results.OrderByDescending(r => r.Top?.Share ?? 0).ToList();
 
-    private static CorrelationStrength Classify(double r)
+    private static CorrelationStrength Classify(double pearson, double spearman)
     {
-        double a = Math.Abs(r);
+        // Use the stronger of the linear (Pearson) and monotonic (Spearman) coefficients so a
+        // strong but curved/monotonic relationship isn't dismissed by a weaker linear r.
+        double a = Math.Max(Math.Abs(pearson), Math.Abs(spearman));
         return a switch
         {
             >= 0.9 => CorrelationStrength.VeryStrong,

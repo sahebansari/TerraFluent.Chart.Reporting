@@ -31,5 +31,18 @@ public sealed class ColumnStatistics
     /// <summary>Non-missing dates in row order (empty for non-date columns).</summary>
     public IReadOnlyList<DateTime> Dates { get; init; } = Array.Empty<DateTime>();
 
+    /// <summary>
+    /// Row-aligned numeric values: index = original dataset row, <c>null</c> where the cell is
+    /// missing or non-numeric. Unlike <see cref="NumericValues"/> (which compacts out missing cells)
+    /// this preserves positional alignment so cross-column analytics can pair rows correctly.
+    /// </summary>
+    public IReadOnlyList<double?> NumericByRow { get; init; } = Array.Empty<double?>();
+
+    /// <summary>Row-aligned string labels: index = original row, <c>null</c> where missing.</summary>
+    public IReadOnlyList<string?> LabelByRow { get; init; } = Array.Empty<string?>();
+
+    /// <summary>Row-aligned dates: index = original row, <c>null</c> where missing/unparseable.</summary>
+    public IReadOnlyList<DateTime?> DateByRow { get; init; } = Array.Empty<DateTime?>();
+
     public string Name => Profile.Name;
 }

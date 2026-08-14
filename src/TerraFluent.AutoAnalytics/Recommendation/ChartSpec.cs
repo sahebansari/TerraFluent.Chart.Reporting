@@ -24,6 +24,11 @@ public sealed class ChartSpec
     public IReadOnlyList<string> Categories { get; init; } = new List<string>();
     public IReadOnlyList<SeriesSpec> Series { get; init; } = new List<SeriesSpec>();
 
+    /// <summary>Optional category/independent (x) axis title.</summary>
+    public string XAxisTitle { get; init; } = string.Empty;
+    /// <summary>Optional value/dependent (y) axis title.</summary>
+    public string YAxisTitle { get; init; } = string.Empty;
+
     public int Width { get; init; } = 720;
     public int Height { get; init; } = 420;
 

@@ -6,6 +6,7 @@ using TerraFluent.AutoAnalytics.Engine;
 using TerraFluent.AutoAnalytics.Enums;
 using TerraFluent.AutoAnalytics.Profiling;
 using TerraFluent.AutoAnalytics.Recommendation;
+using TerraFluent.AutoAnalytics.Schema;
 using ChartType = TerraFluent.Chart.Reporting.Enums.ChartType;
 
 namespace TerraFluent.AutoAnalytics.Dashboard;
@@ -60,13 +61,18 @@ public static class DashboardBuilder
             bool isCurrency = m.Profile.Type == ColumnType.Currency || m.Profile.Role is SemanticRole.RevenueMetric or SemanticRole.CostMetric or SemanticRole.ProfitMetric;
             bool isPercent = m.Profile.Type == ColumnType.Percentage;
 
-            double headline = isPercent ? n.Mean : n.Sum;
+            // Per-entity attributes (age, tenure, ratings, …) are not additive — summing them is
+            // meaningless, so surface their average instead of a total.
+            bool useAverage = isPercent || !MeasureSemantics.IsAdditive(m.Profile, n.Min, n.Max);
+
+            double headline = useAverage ? n.Mean : n.Sum;
+            string mDisp = DisplayText.Humanize(m.Name);
             cards.Add(new KpiCard
             {
-                Label = m.Name,
+                Label = mDisp,
                 RawValue = headline,
                 DisplayValue = Format(headline, isCurrency, isPercent),
-                Caption = isPercent ? $"average {m.Name}" : $"total {m.Name}"
+                Caption = $"{(useAverage ? "average" : "total")} {mDisp}"
             });
         }
         return cards;
@@ -96,7 +102,7 @@ public static class DashboardBuilder
             >= 1_000_000_000 => (value / 1_000_000_000).ToString("0.##", CultureInfo.InvariantCulture) + "B",
             >= 1_000_000 => (value / 1_000_000).ToString("0.##", CultureInfo.InvariantCulture) + "M",
             >= 1_000 => (value / 1_000).ToString("0.##", CultureInfo.InvariantCulture) + "k",
-            _ => value.ToString("0.##", CultureInfo.InvariantCulture)
+            _ => DisplayText.FormatNumber(value)
         };
     }
 }

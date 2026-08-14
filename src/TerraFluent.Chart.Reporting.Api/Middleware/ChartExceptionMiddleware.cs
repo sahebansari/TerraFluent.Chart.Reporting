@@ -15,11 +15,19 @@ internal sealed class ChartExceptionMiddleware(RequestDelegate next, ILogger<Cha
         {
             await next(ctx);
         }
+        catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested)
+        {
+            // The client disconnected; nothing to write.
+        }
         catch (DataQualityException ex)
         {
             await WriteProblem(ctx, 422, "data_quality_error",
                 "One or more data-quality errors prevented rendering.",
                 new { findings = ex.Report.Warnings.Select(w => new { severity = w.Severity.ToString(), message = w.Message }) });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            await WriteProblem(ctx, 404, "not_found", ex.Message, null);
         }
         catch (ArgumentException ex)
         {
@@ -73,6 +81,8 @@ internal sealed class ChartExceptionMiddleware(RequestDelegate next, ILogger<Cha
     private static string ReasonPhrase(int status) => status switch
     {
         400 => "Bad Request",
+        401 => "Unauthorized",
+        404 => "Not Found",
         422 => "Unprocessable Content",
         500 => "Internal Server Error",
         _   => "Error"

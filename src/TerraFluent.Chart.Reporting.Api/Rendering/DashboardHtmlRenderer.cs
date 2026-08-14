@@ -82,7 +82,6 @@ internal static class DashboardHtmlRenderer
         foreach (var chart in charts)
         {
             string svg = ChartConfigBuilder.ToChartBuilder(chart.Spec)
-                .AsAnimated()
                 .Size(560, 340)
                 .RenderToSvg();
 

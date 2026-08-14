@@ -69,4 +69,60 @@ public class StatisticsTests
         var y = new List<double> { 100, 110, 134 };
         Assert.Equal(0.34, Regression.GrowthRate(y), 3);
     }
+
+    [Fact]
+    public void TheilSen_IsRobustToASingleOutlier()
+    {
+        // Clean line y = 2x (slope 2). One wild outlier barely moves the median-of-slopes estimate,
+        // whereas least squares would be dragged toward it.
+        var y = new List<double> { 0, 2, 4, 6, 8, 10, 12, 999, 16, 18 };
+        double robust = Regression.TheilSenSlope(y);
+        Assert.Equal(2.0, robust, 1);
+    }
+
+    [Fact]
+    public void PValue_StrongCorrelation_IsSignificant()
+    {
+        // Near-perfect correlation over 8 points is highly significant (p ≪ 0.05).
+        Assert.True(Correlation.PValue(0.98, 8) < 0.01);
+    }
+
+    [Fact]
+    public void PValue_WeakCorrelation_SmallSample_IsNotSignificant()
+    {
+        // A weak coefficient on a tiny sample cannot be distinguished from noise.
+        Assert.True(Correlation.PValue(0.20, 5) > 0.05);
+    }
+
+    [Fact]
+    public void PValue_TooFewPoints_ReturnsOne()
+        => Assert.Equal(1.0, Correlation.PValue(0.9, 2), 6);
+
+    [Fact]
+    public void DetectSeasonLength_FindsRepeatingPeriod()
+    {
+        // Three cycles of a length-4 seasonal pattern.
+        var series = new List<double>();
+        for (int c = 0; c < 3; c++) series.AddRange(new double[] { 10, 20, 15, 5 });
+        Assert.Equal(4, Forecasting.DetectSeasonLength(series));
+    }
+
+    [Fact]
+    public void HoltWinters_ProjectsSeasonalPattern()
+    {
+        // Rising level with a strong length-4 season; the seasonal forecast should track the cycle.
+        var series = new List<double>();
+        for (int c = 0; c < 4; c++)
+        {
+            double baseLevel = 100 + c * 20;
+            series.AddRange(new[] { baseLevel + 10, baseLevel + 30, baseLevel + 20, baseLevel });
+        }
+        var f = Forecasting.Forecast(series, horizon: 4);
+
+        Assert.Equal("holt-winters", f.Method);
+        Assert.Equal(4, f.SeasonLength);
+        Assert.Equal(4, f.Points.Count);
+        // Peak of the next cycle (2nd step) should exceed its trough (4th step).
+        Assert.True(f.Points[1].Value > f.Points[3].Value);
+    }
 }

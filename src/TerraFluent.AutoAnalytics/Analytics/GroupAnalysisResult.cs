@@ -20,6 +20,8 @@ public sealed class GroupAnalysisResult
     public string Dimension { get; init; } = string.Empty;
     public string Measure { get; init; } = string.Empty;
     public string Aggregation { get; init; } = "sum";
+    /// <summary>True when the measure is additive (summed); false when averaged per group.</summary>
+    public bool IsAdditive { get; init; } = true;
     public double Total { get; init; }
     public IReadOnlyList<GroupBucket> Buckets { get; init; } = new List<GroupBucket>();
 

@@ -12,6 +12,7 @@ namespace TerraFluent.Chart.Reporting.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/charts")]
+[Route("api/v1/charts")]
 [Produces("application/json")]
 public sealed class ChartsController : ControllerBase
 {
@@ -237,7 +238,7 @@ public sealed class ChartsController : ControllerBase
     [ProducesResponseType(typeof(string[]), StatusCodes.Status200OK)]
     public IActionResult GetThemes() => Ok(new[]
     {
-        "Default", "Dark", "Pastel", "Monochrome", "Ocean", "Sunset", "Forest",
+        "Vivid", "Default", "Dark", "Pastel", "Monochrome", "Ocean", "Sunset", "Forest",
         "Neon", "Minimal", "Warm", "Arctic", "Business", "Material",
         "TrafficLight", "Accessible", "HighContrast"
     });
@@ -263,8 +264,45 @@ public sealed class ChartsController : ControllerBase
         if (body.ValueKind == JsonValueKind.Null || body.ValueKind == JsonValueKind.Undefined)
             throw new ArgumentException("Request body must be a valid JSON object representing ChartOptions.");
 
-        return ChartBuilder.FromJson(body.GetRawText());
+        var builder = ChartBuilder.FromJson(body.GetRawText());
+        ApplyThemeName(builder, body);
+        return builder;
     }
+
+    // Applies a built-in theme when the body carries a top-level "themeName" string.
+    // Vivid is used as the fallback so charts render with the vivid palette by default.
+    private static void ApplyThemeName(ChartBuilder builder, JsonElement body)
+    {
+        string? name = null;
+        if (body.ValueKind == JsonValueKind.Object
+            && body.TryGetProperty("themeName", out var tn)
+            && tn.ValueKind == JsonValueKind.String)
+            name = tn.GetString();
+
+        builder.Theme(ResolveTheme(name) ?? ChartTheme.Vivid);
+    }
+
+    private static ChartTheme? ResolveTheme(string? name) => name?.Trim().ToLowerInvariant() switch
+    {
+        "vivid"        => ChartTheme.Vivid,
+        "default"      => ChartTheme.Default,
+        "dark"         => ChartTheme.Dark,
+        "pastel"       => ChartTheme.Pastel,
+        "monochrome"   => ChartTheme.Monochrome,
+        "ocean"        => ChartTheme.Ocean,
+        "sunset"       => ChartTheme.Sunset,
+        "forest"       => ChartTheme.Forest,
+        "neon"         => ChartTheme.Neon,
+        "minimal"      => ChartTheme.Minimal,
+        "warm"         => ChartTheme.Warm,
+        "arctic"       => ChartTheme.Arctic,
+        "business"     => ChartTheme.Business,
+        "material"     => ChartTheme.Material,
+        "trafficlight" => ChartTheme.TrafficLight,
+        "accessible"   => ChartTheme.Accessible,
+        "highcontrast" => ChartTheme.HighContrast,
+        _              => null,
+    };
 
     // Forces Static render mode so raster pipelines receive clean SVG (no JS, no hover rules).
     private static ChartBuilder BuildFromJsonStatic(JsonElement body)

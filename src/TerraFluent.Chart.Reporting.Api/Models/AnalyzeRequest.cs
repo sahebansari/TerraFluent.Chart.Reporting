@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace TerraFluent.Chart.Reporting.Api.Models;
 
 /// <summary>Input format of the raw data supplied to an analytics endpoint.</summary>
@@ -26,16 +28,32 @@ public sealed class AnalyzeRequest
     /// <summary>Optional friendly dataset name used in the summary and dashboard title.</summary>
     public string? DatasetName { get; set; }
 
+    /// <summary>
+    /// Optional natural-language question for the analytic agent (e.g. "why did revenue change?",
+    /// "forecast revenue", "which region leads?"). Ignored by non-agent endpoints.
+    /// </summary>
+    public string? Question { get; set; }
+
+    /// <summary>
+    /// Optional row filter applied before analysis, e.g. <c>region = EU and revenue &gt; 10000</c>.
+    /// Conditions are combined with logical AND. Unknown columns are ignored.
+    /// </summary>
+    public string? Filter { get; set; }
+
     /// <summary>Maximum insights to return (highest-scoring kept). Default 25.</summary>
+    [Range(1, 500)]
     public int? MaxInsights { get; set; }
 
     /// <summary>Maximum chart recommendations to return (highest-scoring kept). Default 12.</summary>
+    [Range(1, 200)]
     public int? MaxRecommendations { get; set; }
 
     /// <summary>Cap on measure×dimension group combinations evaluated. Default 12.</summary>
+    [Range(1, 200)]
     public int? MaxGroupCombinations { get; set; }
 
     /// <summary>Absolute z-score threshold for anomaly flagging. Default 3.0.</summary>
+    [Range(0.1, 10.0)]
     public double? ZScoreThreshold { get; set; }
 
     /// <summary>When <see langword="true"/>, a data-quality error aborts the analysis (HTTP 422).</summary>

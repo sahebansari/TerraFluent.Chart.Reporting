@@ -9,8 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TerraFluent.Chart.Reporting
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TerraFluent.Chart.Reporting.Samples", "samples\TerraFluent.Chart.Reporting.Samples\TerraFluent.Chart.Reporting.Samples.csproj", "{C3D4E5F6-A7B8-9012-CDEF-123456789012}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TerraFluent.Chart.Reporting.Benchmarks", "tests\TerraFluent.Chart.Reporting.Benchmarks\TerraFluent.Chart.Reporting.Benchmarks.csproj", "{253AB5EF-F109-4D24-BBB3-B459062B9DDB}"
@@ -24,6 +22,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TerraFluent.AutoAnalytics.Tests", "tests\TerraFluent.AutoAnalytics.Tests\TerraFluent.AutoAnalytics.Tests.csproj", "{3B930F0D-AE57-437E-BFD4-F47AB1CECC2A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TerraFluent.Chart.Reporting.Api.Tests", "tests\TerraFluent.Chart.Reporting.Api.Tests\TerraFluent.Chart.Reporting.Api.Tests.csproj", "{1E57E407-F11A-48F4-8BE3-7B12AFEF7BC7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TerraFluent.Chart.Reporting.Web", "src\TerraFluent.Chart.Reporting.Web\TerraFluent.Chart.Reporting.Web.csproj", "{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -131,6 +131,18 @@ Global
 		{1E57E407-F11A-48F4-8BE3-7B12AFEF7BC7}.Release|x64.Build.0 = Release|Any CPU
 		{1E57E407-F11A-48F4-8BE3-7B12AFEF7BC7}.Release|x86.ActiveCfg = Release|Any CPU
 		{1E57E407-F11A-48F4-8BE3-7B12AFEF7BC7}.Release|x86.Build.0 = Release|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Debug|x86.Build.0 = Debug|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Release|x64.Build.0 = Release|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -141,5 +153,6 @@ Global
 		{6DAFB8F0-1AD1-4D35-9854-FC14FCFDB273} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{3B930F0D-AE57-437E-BFD4-F47AB1CECC2A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{1E57E407-F11A-48F4-8BE3-7B12AFEF7BC7} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{D1C53BB9-01D2-4502-A0ED-A5BF458C27DE} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

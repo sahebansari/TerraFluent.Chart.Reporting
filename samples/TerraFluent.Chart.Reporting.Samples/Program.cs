@@ -482,10 +482,25 @@ internal static partial class Program
         }
         finally { Console.ResetColor(); }
 
+        Console.Write("  Generating agent report ... ");
+        try
+        {
+            AutoAnalyticsAgentSample.Generate(OutputDir);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("OK");
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"FAILED \u2014 {ex.Message}");
+        }
+        finally { Console.ResetColor(); }
+
         Console.WriteLine();
         Console.WriteLine($"Output folder : {OutputDir}");
         Console.WriteLine($"Showcase page : {Path.Combine(OutputDir, "index.html")}");
         Console.WriteLine($"Auto dashboard: {Path.Combine(OutputDir, "dashboard.html")}");
+        Console.WriteLine($"Agent report  : {Path.Combine(OutputDir, "agent-report.html")}");
         Console.WriteLine("Open index.html in a browser to view all charts.");
     }
 

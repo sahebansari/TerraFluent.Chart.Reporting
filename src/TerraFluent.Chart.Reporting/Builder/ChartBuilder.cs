@@ -411,6 +411,7 @@ namespace TerraFluent.Chart.Reporting.Builder
                 AxisLineColor       = t.AxisLineColor,
                 TextColor           = t.TextColor,
                 FontFamily          = t.FontFamily,
+                FontScale           = t.FontScale,
                 Colors              = colors
             };
             return this;

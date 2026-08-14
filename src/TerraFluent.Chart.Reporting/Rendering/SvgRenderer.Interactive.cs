@@ -934,7 +934,11 @@ namespace TerraFluent.Chart.Reporting.Rendering
             if (!childOpts.Width.HasValue) childOpts.Width = svgWidth;
             if (childOpts.Height <= 0)     childOpts.Height = svgHeight;
 
+            // The nested render reassigns the [ThreadStatic] PaddingLeft; restore the parent's
+            // value afterwards so the back button and any later parent drawing stay aligned.
+            int savedPaddingLeft = PaddingLeft;
             string childSvg = new SvgRenderer().Render(childOpts);
+            PaddingLeft = savedPaddingLeft;
 
             int svgOpen  = childSvg.IndexOf("<svg", StringComparison.Ordinal);
             int svgGT    = svgOpen >= 0 ? childSvg.IndexOf('>', svgOpen) : -1;

@@ -17,7 +17,14 @@ namespace TerraFluent.Chart.Reporting.Rendering
         // (axis titles/labels), so nothing touches the canvas edge.
         private const int CanvasPadding = 32;
 
-        private const int PaddingLeft   = 76;
+        // Default left padding. Horizontal bar charts widen it dynamically (see ComputeLeftPadding)
+        // so long category labels on the value/category axis are not clipped at the canvas edge.
+        private const int PaddingLeftDefault = 76;
+
+        // Effective left padding for the current render. [ThreadStatic] keeps concurrent renders
+        // isolated; it is assigned at the top of every Render() call before any layout runs.
+        [ThreadStatic] private static int PaddingLeft;
+
         private const int PaddingRight  = 32;
         private const int PaddingTop    = 92;
         private const int PaddingBottom = 96;
@@ -39,6 +46,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
             int svgWidth  = options.Width  ?? 600;
             int svgHeight = options.Height;
+
+            // Widen the left gutter for horizontal bar charts so long category labels fit.
+            PaddingLeft = ComputeLeftPadding(options, svgWidth);
 
             // Give secondary Y-axis labels room on the right (they sit at plotWidth + 8px)
             bool hasSecondaryAxis = options.YAxis2 != null
@@ -303,6 +313,93 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
 
             sb.AppendLine("</svg>");
             return sb.ToString();
+        }
+
+        // Horizontal bar charts draw category labels in the left gutter (anchored at PaddingLeft - 8).
+        // Estimate the widest label and widen the gutter so long text is not clipped at the edge,
+        // capped so labels never consume more than ~45% of the canvas width.
+        private static int ComputeLeftPadding(ChartOptions options, int svgWidth)
+        {
+            int cap = (int)(svgWidth * 0.45);
+            double scale = FontScaleOf(options); // widen the gutter proportionally when text is enlarged
+
+            bool isBar = options.Series.Exists(s => s.Visible && s.Type == ChartType.Bar);
+            var cats   = options.XAxis?.Categories;
+            if (isBar && cats != null && cats.Count > 0)
+            {
+                int maxLen = 0;
+                foreach (var c in cats)
+                {
+                    int len = c?.Length ?? 0;
+                    if (len > maxLen) maxLen = len;
+                }
+                if (maxLen == 0) return PaddingLeftDefault;
+
+                // .axis-label is 11px (× scale); estimated glyph width ≈ fontSize × 0.6.
+                int catLabelWidth = (int)Math.Ceiling(maxLen * 11 * scale * 0.6);
+
+                // Category labels grow LEFTWARD from x = PaddingLeft − 8. When a category-axis
+                // title is present it is drawn rotated at x = CanvasPadding, so reserve an extra
+                // title band before the labels; otherwise just add the 8px offset + breathing room.
+                int catNeeded = string.IsNullOrEmpty(options.XAxis?.Title)
+                    ? catLabelWidth + 14
+                    : CanvasPadding + (int)Math.Ceiling(22 * scale) + catLabelWidth + 8;
+                return Math.Max(PaddingLeftDefault, Math.Min(catNeeded, cap));
+            }
+
+            // Vertical charts (column/line/area/…): the numeric Y-axis tick labels grow LEFTWARD
+            // from x = PaddingLeft − 6. Reserve room for the widest label plus the rotated axis
+            // title band so wide labels (e.g. "1,234,567") never overlap the Y-axis title.
+            int labelWidth = EstimateMaxYTickLabelWidth(options);
+            if (labelWidth <= 0) return PaddingLeftDefault;
+
+            // Title band: rotated 12px (× scale) axis title occupies a ~14px horizontal strip near
+            // the left edge (at x = CanvasPadding) plus an 8px gap; 0 when there is no title.
+            int titleBand = string.IsNullOrEmpty(options.YAxis?.Title) ? 0 : (int)Math.Ceiling(22 * scale);
+            // Label left edge = PaddingLeft − 6 − labelWidth; keep it clear of the title band /
+            // canvas edge (CanvasPadding) with a small gap.
+            int needed = CanvasPadding + titleBand + labelWidth + 6;
+            return Math.Max(PaddingLeftDefault, Math.Min(needed, cap));
+        }
+
+        /// <summary>
+        /// Estimates the pixel width of the widest primary Y-axis tick label for the current
+        /// options, replicating the tick generation and formatting used by <c>AppendAxes</c>.
+        /// Returns 0 when the axis is hidden or has no ticks.
+        /// </summary>
+        private static int EstimateMaxYTickLabelWidth(ChartOptions options)
+        {
+            if (options.YAxis == null || !options.YAxis.Visible) return 0;
+
+            bool yLog = IsLog(options.YAxis);
+            var (yMinRaw, yMaxRaw) = ResolveYBounds(options.YAxis, options.Series);
+            string? yTickFmt = options.YAxis.LabelFormat
+                ?? (options.Stacking == Stacking.Percent ? "{value}%" : null);
+
+            List<double> yTicks;
+            if (yLog)
+            {
+                yTicks = GenerateLogTicks(yMinRaw, yMaxRaw);
+            }
+            else
+            {
+                double tickStep = options.YAxis.TickInterval.HasValue && options.YAxis.TickInterval.Value > 0
+                    ? options.YAxis.TickInterval.Value
+                    : NiceStep((yMaxRaw - yMinRaw) / 5);
+                double firstTick = Math.Floor(yMinRaw / tickStep) * tickStep;
+                yTicks = EnumerateLinearTicks(firstTick, yMaxRaw, tickStep);
+            }
+
+            int maxLen = 0;
+            foreach (double tick in yTicks)
+            {
+                int len = FormatAxisTick(tick, yTickFmt).Length;
+                if (len > maxLen) maxLen = len;
+            }
+            if (maxLen == 0) return 0;
+
+            // .axis-label is 11px (× scale); estimated glyph width ≈ fontSize × 0.6.
+            return (int)Math.Ceiling(maxLen * 11 * FontScaleOf(options) * 0.6);
         }
 
     }
