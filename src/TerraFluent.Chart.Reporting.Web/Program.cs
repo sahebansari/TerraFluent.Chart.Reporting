@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using Microsoft.AspNetCore.StaticFiles;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,8 +22,16 @@ builder.Services.AddHttpClient("api", client =>
 
 var app = builder.Build();
 
+// Serve text-based static assets as UTF-8 — the default .css/.js mappings omit the
+// charset, so browsers fall back to Windows-1252 and mangle comment glyphs (─, —).
+var contentTypes = new FileExtensionContentTypeProvider();
+contentTypes.Mappings[".css"]  = "text/css; charset=utf-8";
+contentTypes.Mappings[".js"]   = "text/javascript; charset=utf-8";
+contentTypes.Mappings[".json"] = "application/json; charset=utf-8";
+contentTypes.Mappings[".svg"]  = "image/svg+xml; charset=utf-8";
+
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypes });
 
 // ── Reverse proxy: forward every /api/** request to the upstream API ─────────────
 app.Map("/api/{**path}", async (HttpContext ctx, IHttpClientFactory factory) =>

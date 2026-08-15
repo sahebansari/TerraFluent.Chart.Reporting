@@ -971,11 +971,14 @@ namespace TerraFluent.Chart.Reporting.Rendering
             var formats  = options.ExportMenuFormats;
             if (formats == null || formats.Count == 0) return;
 
-            int btnW  = 96;
+            int iconW = 26;   // compact icon-only trigger
             int btnH  = 24;
             int itemH = 26;
-            int btnX  = svgWidth - PaddingRight - btnW;
+            int ddW   = 96;   // dropdown stays wide enough to read the format labels
+            int btnX  = svgWidth - PaddingRight - iconW;
             int btnY  = 8;
+            int ddX   = btnX + iconW - ddW;   // right-align the dropdown under the icon
+            double cx = btnX + iconW / 2.0;
             string textFill  = Escape(options.Theme.TextColor);
             string _themeBg   = options.Theme.BackgroundColor;
             bool   _bgIsLight = _themeBg == null || _themeBg == ChartColor.None
@@ -985,24 +988,29 @@ namespace TerraFluent.Chart.Reporting.Rendering
                                 : ChartColor.WithOpacity(_themeBg ?? ChartColor.White, 0.97);
             string itemTxt    = options.Theme.TextColor;
 
-            // Trigger button
-            sb.AppendLine($"  <g class=\"tf-export-btn tf-export-trigger\" tabindex=\"0\" role=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\" style=\"cursor:pointer;-webkit-user-select:none;user-select:none\">");
-            sb.AppendLine($"    <rect x=\"{btnX}\" y=\"{btnY}\" width=\"{btnW}\" height=\"{btnH}\" rx=\"4\" class=\"tf-export-bg\" fill=\"rgba(128,128,128,0.12)\" stroke=\"rgba(128,128,128,0.30)\" stroke-width=\"1\"/>");
-            sb.AppendLine($"    <text x=\"{F(btnX + btnW / 2.0)}\" y=\"{btnY + 16}\" text-anchor=\"middle\" font-size=\"11\" fill=\"{textFill}\" style=\"pointer-events:none\">{Escape("\u2b07 Export \u25be")}</text>");
+            // Trigger — a download icon (down arrow into a tray) instead of a labelled button.
+            sb.AppendLine($"  <g class=\"tf-export-btn tf-export-trigger\" tabindex=\"0\" role=\"button\" aria-haspopup=\"true\" aria-expanded=\"false\" aria-label=\"Export chart\" style=\"cursor:pointer;-webkit-user-select:none;user-select:none\">");
+            sb.AppendLine($"    <title>Export</title>");
+            sb.AppendLine($"    <rect x=\"{btnX}\" y=\"{btnY}\" width=\"{iconW}\" height=\"{btnH}\" rx=\"4\" class=\"tf-export-bg\" fill=\"rgba(128,128,128,0.12)\" stroke=\"rgba(128,128,128,0.30)\" stroke-width=\"1\"/>");
+            sb.AppendLine($"    <g class=\"tf-export-icon\" fill=\"none\" stroke=\"{textFill}\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"pointer-events:none\">");
+            sb.AppendLine($"      <path d=\"M {F(cx)} {btnY + 6} V {btnY + 14}\"/>");
+            sb.AppendLine($"      <path d=\"M {F(cx - 4)} {btnY + 10} L {F(cx)} {btnY + 14} L {F(cx + 4)} {btnY + 10}\"/>");
+            sb.AppendLine($"      <path d=\"M {F(cx - 6)} {btnY + 16} V {btnY + 19} H {F(cx + 6)} V {btnY + 16}\"/>");
+            sb.AppendLine($"    </g>");
             sb.AppendLine($"  </g>");
 
             // Dropdown panel (hidden by default; JS toggles display)
             int ddY = btnY + btnH + 2;
             int ddH = formats.Count * itemH;
             sb.AppendLine($"  <g class=\"tf-export-dropdown\" style=\"display:none\">");
-            sb.AppendLine($"    <rect x=\"{btnX - 1}\" y=\"{ddY - 1}\" width=\"{btnW + 2}\" height=\"{ddH + 2}\" rx=\"4\" fill=\"{Escape(ddBg)}\" stroke=\"rgba(128,128,128,0.35)\" stroke-width=\"1\"/>");
+            sb.AppendLine($"    <rect x=\"{ddX - 1}\" y=\"{ddY - 1}\" width=\"{ddW + 2}\" height=\"{ddH + 2}\" rx=\"4\" fill=\"{Escape(ddBg)}\" stroke=\"rgba(128,128,128,0.35)\" stroke-width=\"1\"/>");
             for (int i = 0; i < formats.Count; i++)
             {
                 string fmt   = formats[i];
                 int    itemY = ddY + i * itemH;
                 sb.AppendLine($"    <g class=\"tf-export-item\" data-fmt=\"{Escape(fmt)}\">");
-                sb.AppendLine($"      <rect class=\"tf-export-item-bg\" x=\"{btnX}\" y=\"{itemY}\" width=\"{btnW}\" height=\"{itemH}\" fill=\"transparent\"/>");
-                sb.AppendLine($"      <text class=\"tf-export-item-lbl\" x=\"{F(btnX + btnW / 2.0)}\" y=\"{itemY + 17}\" text-anchor=\"middle\" font-size=\"11\" fill=\"{Escape(itemTxt)}\" style=\"pointer-events:none\">{Escape(fmt)}</text>");
+                sb.AppendLine($"      <rect class=\"tf-export-item-bg\" x=\"{ddX}\" y=\"{itemY}\" width=\"{ddW}\" height=\"{itemH}\" fill=\"transparent\"/>");
+                sb.AppendLine($"      <text class=\"tf-export-item-lbl\" x=\"{F(ddX + ddW / 2.0)}\" y=\"{itemY + 17}\" text-anchor=\"middle\" font-size=\"11\" fill=\"{Escape(itemTxt)}\" style=\"pointer-events:none\">{Escape(fmt)}</text>");
                 sb.AppendLine($"    </g>");
             }
             sb.AppendLine($"  </g>");

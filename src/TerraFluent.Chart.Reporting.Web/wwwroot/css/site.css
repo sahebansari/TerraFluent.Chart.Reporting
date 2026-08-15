@@ -24,6 +24,8 @@
   --warn: #c47f17;
   --err: #d0271d;
   --info: #2b6cb0;
+  --blue: #1e3a8a;
+  --blue-dark: #172e6e;
 
   --radius: 12px;
   --radius-sm: 8px;
@@ -165,6 +167,8 @@ body {
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn.ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
 .btn.ghost:hover { background: var(--surface-2); }
+.btn.blue { background: var(--blue); color: #fff; border-color: transparent; }
+.btn.blue:hover { background: var(--blue-dark); }
 .btn.subtle { background: var(--surface-2); color: var(--text); border-color: var(--border); }
 .btn.subtle:hover { background: #eef0f3; }
 .btn.sm { padding: 6px 12px; font-size: 13px; }
@@ -227,6 +231,30 @@ textarea { resize: vertical; min-height: 140px; font-family: "Cascadia Mono", Co
   border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
 .tab.active { color: var(--adp-red); border-bottom-color: var(--adp-red); }
+/* Reserve equal height across Paste/Upload/Samples panes so switching tabs doesn't shift the page. */
+.tab-panes { min-height: 240px; }
+.sample-grid { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 640px) { .sample-grid { grid-template-columns: 1fr; } }
+
+/* ── Dropzone (file upload) ───────────────────────────────────────────── */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; text-align: center;
+  padding: 34px 20px;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.dropzone:hover { border-color: var(--blue); }
+.dropzone.dragover { border-color: var(--blue); background: #eef2ff; color: var(--text); }
+.dropzone .dz-ico { font-size: 30px; line-height: 1; color: var(--blue); }
+.dropzone .dz-title { margin: 6px 0 0; font-weight: 600; font-size: 14px; color: var(--text); }
+.dropzone .dz-sub { margin: 0; font-size: 13px; }
+.dropzone .btn { margin-top: 8px; }
+.dropzone .dz-file { margin: 8px 0 0; font-weight: 600; color: var(--blue); }
 
 /* ── KPIs ─────────────────────────────────────────────────────────────── */
 .kpi {

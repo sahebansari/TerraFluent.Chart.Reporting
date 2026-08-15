@@ -1,0 +1,437 @@
+/* ==========================================================================
+   Core — shared state, DOM/format helpers, API client, modals and the
+   cross-view render helpers used by every Chart Studio view.
+   ========================================================================== */
+
+// ── State ───────────────────────────────────────────────────────────────
+export const state = {
+  dataset: null,        // { name, data, format }
+  columns: [],          // cached ColumnProfileDto[]
+  measureCount: 0,      // number of numeric measures in the active dataset
+  catalogue: null,      // { chartTypes, themes, renderModes }
+  session: null,        // { id, turns: [] }
+};
+
+// ── DOM helpers ─────────────────────────────────────────────────────────
+export const $  = (sel, root = document) => root.querySelector(sel);
+export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+export const content = $("#content");
+
+// Browsers do not run <script> tags inserted via innerHTML, which disables the
+// interactive chart JS (export menu, tooltips). Replace each with a live script node.
+// The data-tf-live guard keeps it idempotent across the studio call and the observer.
+export function reviveScript(old) {
+  const s = document.createElement("script");
+  for (const a of Array.from(old.attributes)) s.setAttribute(a.name, a.value);
+  s.setAttribute("data-tf-live", "1");
+  s.textContent = old.textContent;
+  old.parentNode.replaceChild(s, old);
+}
+export function activateScripts(root) {
+  root.querySelectorAll("script:not([data-tf-live])").forEach(reviveScript);
+}
+
+// ── Chart zoom (lightbox) ────────────────────────────────────────────────
+// A single shared modal enlarges any rendered chart. A MutationObserver decorates
+// every <figure> holding an <svg> with a zoom button, so this works on all pages.
+export function ensureChartModal() {
+  let modal = $("#chartModal");
+  if (modal) return modal;
+  modal = document.createElement("div");
+  modal.id = "chartModal";
+  modal.className = "chart-modal";
+  modal.innerHTML = `
+    <div class="chart-modal-inner" role="dialog" aria-modal="true" aria-label="Enlarged chart">
+      <button class="chart-modal-close" type="button" aria-label="Close">✕</button>
+      <div class="chart-modal-body"></div>
+    </div>`;
+  document.body.appendChild(modal);
+  const close = () => { modal.classList.remove("open"); $(".chart-modal-body", modal).innerHTML = ""; };
+  modal.addEventListener("click", e => { if (e.target === modal) close(); });
+  $(".chart-modal-close", modal).onclick = close;
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("open")) close(); });
+  return modal;
+}
+
+export function openChartModal(svg) {
+  if (!svg) return;
+  const modal = ensureChartModal();
+  const body = $(".chart-modal-body", modal);
+  const clone = svg.cloneNode(true);
+
+  // Derive intrinsic size, then scale up to fill the viewport preserving aspect ratio.
+  let vw = parseFloat(clone.getAttribute("width")) || 0;
+  let vh = parseFloat(clone.getAttribute("height")) || 0;
+  const vb = clone.getAttribute("viewBox");
+  if (vb) { const p = vb.split(/[\s,]+/).map(Number); if (p.length === 4) { vw = p[2]; vh = p[3]; } }
+  if (!vb && vw && vh) clone.setAttribute("viewBox", `0 0 ${vw} ${vh}`);
+  const ar = (vw && vh) ? vw / vh : 16 / 9;
+  const maxW = window.innerWidth * 0.9;
+  const maxH = window.innerHeight * 0.85;
+  let dw = maxW, dh = dw / ar;
+  if (dh > maxH) { dh = maxH; dw = dh * ar; }
+  clone.removeAttribute("width");
+  clone.removeAttribute("height");
+  clone.style.width = Math.round(dw) + "px";
+  clone.style.height = Math.round(dh) + "px";
+  clone.style.maxWidth = "100%";
+
+  body.innerHTML = "";
+  body.appendChild(clone);
+  // Revive the chart's scripts inside the clone so the export menu and tooltips work in the
+  // enlarged view. cloneNode copies the data-tf-live guard, so force fresh nodes here.
+  clone.querySelectorAll("script").forEach(reviveScript);
+  modal.classList.add("open");
+}
+
+export function enhanceFigure(fig) {
+  if (!fig || fig.dataset.zoomable === "1" || !fig.querySelector("svg")) return;
+  fig.dataset.zoomable = "1";
+  if (getComputedStyle(fig).position === "static") fig.style.position = "relative";
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "chart-zoom";
+  btn.title = "Enlarge chart";
+  btn.setAttribute("aria-label", "Enlarge chart");
+  btn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.3-4.3M11 8.5v5M8.5 11h5"/></g></svg>`;
+  btn.onclick = e => { e.stopPropagation(); openChartModal(fig.querySelector("svg")); };
+  fig.appendChild(btn);
+}
+
+export function initChartZoom() {
+  ensureChartModal();
+  const scan = node => {
+    if (node.nodeType !== 1) return;
+    if (node.matches && node.matches("figure")) enhanceFigure(node);
+    if (node.querySelectorAll) node.querySelectorAll("figure").forEach(enhanceFigure);
+    // Revive inert chart <script> tags so the export menu / tooltips work on every page.
+    if (node.matches && node.matches("script:not([data-tf-live])")) reviveScript(node);
+    if (node.querySelectorAll) node.querySelectorAll("script:not([data-tf-live])").forEach(reviveScript);
+  };
+  new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(scan)))
+    .observe(content, { childList: true, subtree: true });
+  content.querySelectorAll("figure").forEach(enhanceFigure);
+}
+
+// ── Code / JSON viewer modal ──────────────────────────────────────────────
+// A shared popup that shows read-only text (e.g. the chart-options request payload) with copy.
+export function showCodeModal(title, code) {
+  let modal = $("#codeModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "codeModal";
+    modal.className = "chart-modal";
+    modal.innerHTML = `
+      <div class="chart-modal-inner" role="dialog" aria-modal="true" aria-label="JSON payload" style="max-width:760px;width:92%">
+        <button class="chart-modal-close" type="button" aria-label="Close">✕</button>
+        <h3 id="codeModalTitle" style="margin:0 0 12px;padding-right:32px"></h3>
+        <pre id="codeModalBody" style="max-height:60vh;overflow:auto;margin:0;padding:14px;border-radius:8px;background:#0f172a;color:#e2e8f0;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;-webkit-user-select:text;user-select:text"></pre>
+        <div class="row" style="margin-top:12px;justify-content:flex-end">
+          <button class="btn" id="codeModalCopy">Copy</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    const close = () => modal.classList.remove("open");
+    modal.addEventListener("click", e => { if (e.target === modal) close(); });
+    $(".chart-modal-close", modal).onclick = close;
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && modal.classList.contains("open")) close(); });
+  }
+  $("#codeModalTitle", modal).textContent = title;
+  $("#codeModalBody", modal).textContent = code;
+  $("#codeModalCopy", modal).onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch {
+      // Clipboard API needs a secure context; fall back to a hidden textarea.
+      const ta = document.createElement("textarea");
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    toast("Copied to clipboard.");
+  };
+  modal.classList.add("open");
+}
+
+export function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+export function fmt(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return "—";
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n / 1e9).toFixed(2) + "B";
+  if (a >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (a >= 1e3) return (n / 1e3).toFixed(2) + "k";
+  return (Math.round(n * 100) / 100).toLocaleString();
+}
+export function scoreClass(s) { return s >= 70 ? "" : s >= 40 ? "mid" : "low"; }
+
+let toastTimer;
+export function toast(msg, isErr = false) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.className = "toast show" + (isErr ? " err" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (t.className = "toast"), 3200);
+}
+
+// ── API client (same-origin proxy) ──────────────────────────────────────
+export const api = {
+  async json(path, { method = "GET", body, query } = {}) {
+    const url = path + qs(query);
+    const opts = { method, headers: {} };
+    if (body !== undefined) {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    const res = await fetch(url, opts);
+    if (!res.ok) throw await problem(res);
+    const ct = res.headers.get("content-type") || "";
+    return ct.includes("json") ? res.json() : res.text();
+  },
+  async text(path, { method = "POST", body, contentType, accept, query } = {}) {
+    const opts = { method, headers: {} };
+    if (accept) opts.headers["Accept"] = accept;
+    if (body !== undefined) {
+      opts.headers["Content-Type"] = contentType || "application/json";
+      opts.body = typeof body === "string" ? body : JSON.stringify(body);
+    }
+    const res = await fetch(path + qs(query), opts);
+    if (!res.ok) throw await problem(res);
+    return res.text();
+  },
+};
+
+export function qs(obj) {
+  if (!obj) return "";
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined && v !== null && v !== "") p.append(k, v);
+  }
+  const s = p.toString();
+  return s ? "?" + s : "";
+}
+
+export async function problem(res) {
+  let msg = `Request failed (${res.status})`;
+  try {
+    const data = await res.json();
+    if (data.detail || data.title) msg = data.detail || data.title;
+    if (Array.isArray(data.findings) && data.findings.length) {
+      msg += ": " + data.findings.map(f => f.message).join("; ");
+    } else if (Array.isArray(data.errors)) {
+      msg += ": " + data.errors.map(e => e.message || e).join("; ");
+    }
+  } catch { /* non-JSON error body */ }
+  const err = new Error(msg);
+  err.status = res.status;
+  return err;
+}
+
+// Build the AnalyzeRequest shared by all analytics endpoints.
+export function analyzeRequest(extra = {}) {
+  return {
+    data: state.dataset.data,
+    format: state.dataset.format || "Auto",
+    datasetName: state.dataset.name || "Dataset",
+    ...extra,
+  };
+}
+
+export function requireDataset() {
+  if (state.dataset) return true;
+  content.innerHTML = emptyState(
+    "▦", "No dataset loaded",
+    "Open <strong>Data Source</strong> to paste, upload, or load a sample dataset before running analytics.",
+    `<button class="btn" data-goto="data">Go to Data Source</button>`
+  );
+  return false;
+}
+
+export function emptyState(icon, title, msg, actions = "") {
+  return `<div class="card"><div class="empty">
+    <div class="em-ico">${icon}</div>
+    <h3>${title}</h3><p>${msg}</p>${actions ? `<div style="margin-top:14px">${actions}</div>` : ""}
+  </div></div>`;
+}
+export function loading(label = "Working…") {
+  return `<div class="loading"><span class="spinner"></span> ${esc(label)}</div>`;
+}
+export function errorBox(e) {
+  return `<div class="alert error"><strong>Could not complete the request.</strong><br>${esc(e.message)}</div>`;
+}
+
+export function setDataset(ds) {
+  state.dataset = ds;
+  state.columns = [];
+  state.measureCount = 0;
+  state.session = null;
+  const badge = $("#dsBadge");
+  badge.classList.add("ready");
+  $("#dsName").textContent = ds.name;
+  $("#dsMeta").textContent = `${ds.format} · ${countRows(ds)} rows`;
+}
+
+export function countRows(ds) {
+  if ((ds.format === "Json") || (ds.format === "Auto" && ds.data.trim().startsWith("["))) {
+    try { return JSON.parse(ds.data).length; } catch { return "?"; }
+  }
+  return Math.max(0, ds.data.trim().split(/\r?\n/).length - 1);
+}
+
+export async function ensureColumns() {
+  if (state.columns.length) return;
+  try {
+    const r = await api.json("/api/analytics/analyze", {
+      method: "POST", body: analyzeRequest(), query: { includeSvg: false },
+    });
+    state.columns = r.columns || [];
+    state.measureCount = r.summary?.measureCount ?? 0;
+  } catch { state.columns = []; }
+}
+
+export async function ensureCatalogue() {
+  if (state.catalogue) return;
+  const [chartTypes, themes, renderModes] = await Promise.all([
+    api.json("/api/charts/catalogue/chart-types"),
+    api.json("/api/charts/catalogue/themes"),
+    api.json("/api/charts/catalogue/render-modes"),
+  ]);
+  state.catalogue = { chartTypes, themes, renderModes };
+}
+
+// ── Analytics Agent health indicator ────────────────────────────────────
+export async function checkApi() {
+  const el = $("#apiStatus"), txt = $("#apiStatusText");
+  txt.textContent = "Agent"; // label is constant; only the dot colour reflects status
+  try {
+    await api.json("/api/charts/catalogue/themes");
+    el.className = "api-status up";
+  } catch {
+    el.className = "api-status down";
+  }
+}
+
+// ── Shared render helpers (dashboard / analyze / agent) ───────────────────
+export function chartCard(svg, title, reason, score) {
+  return `<div class="chart-card"><figure>${svg || ""}</figure>
+    <div class="cap"><span class="tag">${esc(title || "")}</span>${
+      score !== undefined ? ` · suitability ${score}` : ""
+    }${reason ? `<br>${esc(reason)}` : ""}</div></div>`;
+}
+
+export function insightBlock(title, arr) {
+  if (!arr || !arr.length) return "";
+  return `<div class="card"><h3>${title}</h3>${arr.map(insightRow).join("")}</div>`;
+}
+export function insightRow(i) {
+  return `<div class="insight">
+    <div class="score ${scoreClass(i.importanceScore)}">${i.importanceScore ?? ""}</div>
+    <div class="body">
+      <strong>${esc(i.title)}</strong>
+      <p>${esc(i.description)}</p>
+      ${i.kind ? `<span class="kind">${esc(i.kind)}</span>` : ""}
+    </div></div>`;
+}
+
+// ── Dataset-driven question suggestions ─────────────────────────────────
+// Builds up to 20 relevant analyst questions from the active dataset's column profiles.
+// Type/Role values are the API's enum names (Numeric/Currency/…, RevenueMetric/CategoryDimension/…).
+export function buildAgentQuestions(columns) {
+  const cols = Array.isArray(columns) ? columns : [];
+  const MEASURE_TYPES = ["Numeric", "Currency", "Percentage"];
+  const DIM_TYPES = ["Category", "Boolean", "Text"];
+
+  const isId = c => c.type === "Identifier" || c.role === "IdentifierRole";
+  const isMeasure = c => MEASURE_TYPES.includes(c.type) && !isId(c);
+  const isDate = c => c.type === "Date"; // only a real date axis enables trend/forecast/compare
+  const isDim = c => !isId(c) && DIM_TYPES.includes(c.type)
+    && (c.distinctCount ?? 0) >= 2 && (c.distinctCount ?? 0) <= 50;
+
+  const rolePri = r => ({ RevenueMetric: 5, ProfitMetric: 4, CostMetric: 3, QuantityMetric: 2 }[r] || 1);
+  const measures = cols.filter(isMeasure).sort((a, b) =>
+    rolePri(b.role) - rolePri(a.role) || Math.abs(b.sum ?? b.mean ?? 0) - Math.abs(a.sum ?? a.mean ?? 0));
+  const dims = cols.filter(isDim).sort((a, b) => (a.distinctCount ?? 99) - (b.distinctCount ?? 99));
+  const hasDate = cols.some(isDate);
+
+  const out = [];
+  const seen = new Set();
+  const add = s => { const k = s.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(s); } };
+  const full = () => out.length >= 20;
+
+  const m = measures.map(c => c.name), d = dims.map(c => c.name);
+  const m0 = m[0], m1 = m[1], d0 = d[0];
+
+  // Headline mix — one of each capability up front, most relevant first.
+  if (m0 && d0) add(`Which ${d0} has the highest ${m0}?`);
+  if (m0 && hasDate) add(`What is the trend of ${m0} over time?`);
+  if (m0 && hasDate) add(`Forecast ${m0} for the coming periods`);
+  if (m0) add(`Are there any anomalies in ${m0}?`);
+  if (m0 && m1) add(`Is there a relationship between ${m0} and ${m1}?`);
+  if (measures.length >= 2) add(`Segment the data into natural groups`);
+  if (m0 && d0) add(`Show the average ${m0} by ${d0}`);
+  if (m0 && hasDate) add(`Why did ${m0} change?`);
+
+  // Rankings across every dimension × measure.
+  for (const dim of d) { for (const meas of m) { add(`Which ${dim} has the highest ${meas}?`); if (full()) break; } if (full()) break; }
+  // Trends / outliers for the remaining measures.
+  for (const meas of m) { if (full()) break; if (hasDate) add(`How has ${meas} changed over time?`); add(`Are there any outliers in ${meas}?`); }
+  // Distribution, comparison and pairwise relationships to round out the set.
+  if (m0) add(`How is ${m0} distributed?`);
+  if (m0 && hasDate) add(`Compare ${m0} month over month`);
+  for (let i = 0; i < m.length && !full(); i++)
+    for (let j = i + 1; j < m.length && !full(); j++)
+      add(`Is there a relationship between ${m[i]} and ${m[j]}?`);
+  for (const dim of d) { for (const meas of m) { add(`Show the average ${meas} by ${dim}`); if (full()) break; } if (full()) break; }
+
+  return out.slice(0, 20);
+}
+
+// ── Sample datasets ─────────────────────────────────────────────────────
+export function buildSalesCsv() {
+  const regions = ["North America", "Europe", "Asia Pacific"];
+  const products = ["Alpha", "Beta", "Gamma"];
+  let rows = ["Month,Region,Product,Revenue,Cost,Units"];
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(Date.UTC(2023, i, 1));
+    const region = regions[i % regions.length];
+    const product = products[Math.floor(i / 2) % products.length];
+    let base = 12000 + i * 650 + Math.sin(i / 2) * 1400;
+    if (i === 15) base *= 3.1;
+    const revenue = Math.round(base);
+    const cost = Math.round(revenue * (0.55 + (i % 3) * 0.03));
+    const units = Math.round(revenue / 95);
+    rows.push([d.toISOString().slice(0, 10), region, product, revenue, cost, units].join(","));
+  }
+  return rows.join("\n");
+}
+
+export const SAMPLES = {
+  sales: { name: "Global Sales 2023–2024", format: "Csv", data: buildSalesCsv() },
+  web:   { name: "Web Traffic", format: "Csv", data:
+`Week,Channel,Sessions,Conversions
+2024-W01,Organic,4200,180
+2024-W01,Paid,3100,210
+2024-W02,Organic,4550,201
+2024-W02,Paid,2980,190
+2024-W03,Organic,4810,220
+2024-W03,Paid,3320,240
+2024-W04,Organic,5010,244
+2024-W04,Paid,3500,265
+2024-W05,Organic,5320,270
+2024-W05,Paid,3610,281
+2024-W06,Organic,5590,299
+2024-W06,Paid,3990,320` },
+  hr: { name: "Headcount", format: "Json", data:
+`[
+  { "Department": "Engineering", "Headcount": 128, "AttritionRate": 0.07, "OpenRoles": 12 },
+  { "Department": "Sales", "Headcount": 86, "AttritionRate": 0.14, "OpenRoles": 9 },
+  { "Department": "Marketing", "Headcount": 34, "AttritionRate": 0.11, "OpenRoles": 3 },
+  { "Department": "Support", "Headcount": 52, "AttritionRate": 0.18, "OpenRoles": 6 },
+  { "Department": "Finance", "Headcount": 21, "AttritionRate": 0.05, "OpenRoles": 1 },
+  { "Department": "Operations", "Headcount": 44, "AttritionRate": 0.09, "OpenRoles": 4 }
+]` },
+};

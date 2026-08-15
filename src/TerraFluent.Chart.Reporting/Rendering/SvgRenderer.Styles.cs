@@ -114,6 +114,8 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 // Export button / menu focus styles
                 sb.AppendLine($"    {p}.tf-export-btn:focus {{ outline: none; }}");
                 sb.AppendLine($"    {p}.tf-export-btn:focus-visible {{ outline: 2px solid {ApplyAlpha(t.AccentColor, 0.7)}; outline-offset: 2px; }}");
+                // Export icon trigger hover feedback
+                sb.AppendLine($"    {p}.tf-export-btn:hover .tf-export-bg {{ fill: {ApplyAlpha(t.AccentColor, 0.18)}; stroke: {ApplyAlpha(t.AccentColor, 0.5)}; }}");
                 // Export menu dropdown item hover effect
                 sb.AppendLine($"    {p}.tf-export-item {{ cursor: pointer; }}");
                 sb.AppendLine($"    {p}.tf-export-item:hover .tf-export-item-bg {{ fill: {ApplyAlpha(t.AccentColor, 0.7)}; }}");
