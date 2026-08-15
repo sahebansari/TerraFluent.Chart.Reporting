@@ -60,7 +60,11 @@ namespace TerraFluent.Chart.Reporting.Rendering
             // Compute this so the full label text stays within the SVG viewport.
             int labelVertH = 0;
             bool isBarChart = options.Series.Exists(s => s.Visible && s.Type == ChartType.Bar);
-            if (!isBarChart && options.XAxis.Categories != null && options.XAxis.Categories.Count > 0)
+            // Axis-free charts (pie, gauge, donut, funnel, …) keep their slice names in XAxis.Categories
+            // but render no X-axis, so reserving bottom space for rotated tick labels would only shrink
+            // the plot (and the pie radius). Only reserve it when a cartesian X-axis is actually drawn.
+            bool drawsXAxisLabels = !isBarChart && !AllVisibleSeriesAxisFree(options);
+            if (drawsXAxisLabels && options.XAxis.Categories != null && options.XAxis.Categories.Count > 0)
             {
                 var cats     = options.XAxis.Categories;
                 int maxLen   = 0;

@@ -48,8 +48,10 @@ public sealed class TrendEngine
         double mean = DescriptiveStatistics.Mean(series);
         double sd = DescriptiveStatistics.StdDev(series);
         double volatility = mean == 0 ? 0 : Math.Abs(sd / mean);
+        double autocorr = Lag1Autocorrelation(series);
+        int seasonLength = Forecasting.DetectSeasonLength(series);
 
-        var kind = ClassifyTrend(fit, robustSlope, growth, volatility, series);
+        var kind = ClassifyTrend(fit, robustSlope, growth, volatility, seasonLength);
 
         return new TrendResult
         {
@@ -60,8 +62,24 @@ public sealed class TrendEngine
             RSquared = fit.RSquared,
             GrowthRate = double.IsInfinity(growth) ? 0 : growth,
             Volatility = volatility,
-            PointCount = series.Count
+            PointCount = series.Count,
+            Autocorrelation = autocorr,
+            SeasonLength = seasonLength
         };
+    }
+
+    // Lag-1 autocorrelation: how strongly each period resembles the one before it. Near 0 for white
+    // noise (a random per-record attribute averaged per day), high for persistent/trending series.
+    private static double Lag1Autocorrelation(IReadOnlyList<double> series)
+    {
+        int n = series.Count;
+        if (n < 3) return 0;
+        double mean = DescriptiveStatistics.Mean(series);
+        double num = 0, denom = 0;
+        for (int i = 0; i < n; i++) { double d = series[i] - mean; denom += d * d; }
+        if (denom <= 0) return 0;
+        for (int i = 1; i < n; i++) num += (series[i] - mean) * (series[i - 1] - mean);
+        return num / denom;
     }
 
     // Growth from the fitted trend line (predicted end vs predicted start) rather than the raw
@@ -75,7 +93,7 @@ public sealed class TrendEngine
         return (end - start) / Math.Abs(start);
     }
 
-    private static TrendKind ClassifyTrend(LinearFit fit, double robustSlope, double growth, double volatility, IReadOnlyList<double> series)
+    private static TrendKind ClassifyTrend(LinearFit fit, double robustSlope, double growth, double volatility, int seasonLength)
     {
         // Strong linear fit => directional trend.
         if (fit.RSquared >= 0.5)
@@ -85,27 +103,18 @@ public sealed class TrendEngine
             return TrendKind.Stable;
         }
 
-        // Weak fit but high dispersion => volatile; low dispersion => stable.
-        if (volatility >= 0.35) return TrendKind.Volatile;
-        if (HasSeasonalSigns(series)) return TrendKind.Seasonal;
-        // Weak/noisy fit: use the robust Theil–Sen slope sign for direction so a single outlier
-        // can't flip Rising/Declining the way an endpoint-driven growth figure might.
-        if (Math.Abs(growth) < 0.05) return TrendKind.Stable;
-        return robustSlope > 0 ? TrendKind.Rising : TrendKind.Declining;
-    }
+        // Even under a weak linear fit, a clear net move whose direction the robust Theil–Sen slope
+        // agrees with is a genuine trend — and takes precedence over a short alternation that the
+        // autocorrelation function might otherwise read as a "season".
+        if (Math.Abs(growth) >= 0.05 && Math.Sign(robustSlope) == Math.Sign(growth))
+            return growth > 0 ? TrendKind.Rising : TrendKind.Declining;
 
-    // Cheap seasonality heuristic: count direction reversals; many regular reversals ≈ periodic.
-    private static bool HasSeasonalSigns(IReadOnlyList<double> series)
-    {
-        if (series.Count < 6) return false;
-        int reversals = 0;
-        for (int i = 2; i < series.Count; i++)
-        {
-            double prev = series[i - 1] - series[i - 2];
-            double curr = series[i] - series[i - 1];
-            if (prev != 0 && curr != 0 && Math.Sign(prev) != Math.Sign(curr)) reversals++;
-        }
-        double ratio = (double)reversals / (series.Count - 2);
-        return ratio >= 0.4 && ratio <= 0.75;
+        // No net direction: a repeating cycle of at least three periods is real seasonality (a
+        // length-2 flip-flop is treated as volatility/noise below, not a calendar season).
+        if (seasonLength >= 3) return TrendKind.Seasonal;
+        // High dispersion with no direction => volatile; otherwise broadly flat.
+        if (volatility >= 0.35) return TrendKind.Volatile;
+        return TrendKind.Stable;
     }
 }
+

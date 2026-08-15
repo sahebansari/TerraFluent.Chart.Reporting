@@ -222,6 +222,7 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(208, 39, 29, .12);
 }
 textarea { resize: vertical; min-height: 140px; font-family: "Cascadia Mono", Consolas, monospace; font-size: 13px; line-height: 1.5; }
+#dsData { min-height: 180px; }
 .hint { font-size: 12px; color: var(--text-faint); font-weight: 400; }
 
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }

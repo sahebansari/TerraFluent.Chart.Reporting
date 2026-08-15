@@ -10,6 +10,20 @@ namespace TerraFluent.Chart.Reporting.Rendering
 {
     public partial class SvgRenderer
     {
+        // Chart types that draw no cartesian axes; their category labels are slice/segment names,
+        // not X-axis ticks, so no bottom space should be reserved for rotated axis labels.
+        private static readonly ChartType[] AxisFreeChartTypes =
+        {
+            ChartType.Pie, ChartType.Gauge, ChartType.DataRing,
+            ChartType.Funnel, ChartType.Treemap, ChartType.Heatmap,
+            ChartType.Parliament, ChartType.Radar,
+            ChartType.Stream, ChartType.Sankey
+        };
+
+        /// <summary>True when every visible series is an axis-free type (pie, gauge, donut, …).</summary>
+        private static bool AllVisibleSeriesAxisFree(ChartOptions options) =>
+            !options.Series.Exists(s => s.Visible && System.Array.IndexOf(AxisFreeChartTypes, s.Type) < 0);
+
         private static void AppendAxes(StringBuilder sb, ChartOptions options,
             int svgWidth, int svgHeight, int plotWidth, int plotHeight, int xAxisTitleY = -1,
             System.Globalization.CultureInfo? displayCulture = null, string? svgId = null)
@@ -18,11 +32,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             if (options.Series.Exists(s => (s.Type == ChartType.Bar || s.Type == ChartType.Gantt) && s.Visible)) return;
 
             // Chart types that have no axes — skip entirely when ALL visible series are axis-free
-            var axisFreetypes = new[] { ChartType.Pie, ChartType.Gauge, ChartType.DataRing,
-                                        ChartType.Funnel, ChartType.Treemap, ChartType.Heatmap,
-                                        ChartType.Parliament, ChartType.Radar,
-                                        ChartType.Stream, ChartType.Sankey };
-            if (!options.Series.Exists(s => s.Visible && System.Array.IndexOf(axisFreetypes, s.Type) < 0)) return;
+            if (AllVisibleSeriesAxisFree(options)) return;
 
             // ---- Y axis -------------------------------------------------------
             if (options.YAxis.Visible)

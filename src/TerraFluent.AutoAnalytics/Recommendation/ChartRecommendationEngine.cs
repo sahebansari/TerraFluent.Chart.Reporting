@@ -5,6 +5,7 @@ using System.Linq;
 using TerraFluent.AutoAnalytics.Analytics;
 using TerraFluent.AutoAnalytics.Enums;
 using TerraFluent.AutoAnalytics.Profiling;
+using TerraFluent.AutoAnalytics.Schema;
 using ChartType = TerraFluent.Chart.Reporting.Enums.ChartType;
 
 namespace TerraFluent.AutoAnalytics.Recommendation;
@@ -17,6 +18,10 @@ namespace TerraFluent.AutoAnalytics.Recommendation;
 public sealed class ChartRecommendationEngine
 {
     private readonly int _maxCategories;
+
+    // Above this many periods a time-series line is only kept when it carries real temporal signal;
+    // at or below it, the series is short enough to read at a glance so it is always charted.
+    private const int DenseSeriesThreshold = 24;
 
     public ChartRecommendationEngine(int maxCategories = 12)
         => _maxCategories = maxCategories;
@@ -45,17 +50,26 @@ public sealed class ChartRecommendationEngine
 
         foreach (var measure in profile.Measures)
         {
-            // Pair each value with its row's date (complete-case) and order by date, so missing
-            // cells never plot a value against the wrong date.
-            var ordered = RowAlignment.DateValues(measure, date);
+            // Collapse to one point per calendar period (summed if additive, else averaged) so the
+            // chart shows a readable trend line instead of one overlapping tick/point per raw row.
+            var gran     = date.Date?.Granularity ?? DateGranularity.Daily;
+            bool additive = MeasureSemantics.IsAdditive(measure.Profile, measure.Numeric?.Min, measure.Numeric?.Max);
+            var ordered   = PeriodAggregator.AggregateLabeled(measure, date, gran, additive);
             int n = ordered.Count;
             if (n < 3) continue;
 
-            var gran   = date.Date?.Granularity ?? DateGranularity.Daily;
-            var labels = ordered.Select(p => FormatDate(p.Date, gran)).ToList();
+            var trend = findings.Trends.FirstOrDefault(t => t.Measure == measure.Name);
+
+            // A time-series line only tells a story when time actually explains the measure. Once a
+            // series is dense, a flat cloud with no trend, season or period-to-period persistence
+            // (e.g. a random per-record attribute plotted over a transaction date) is just noise —
+            // skip it so the genuinely informative category/distribution charts surface instead.
+            if (n > DenseSeriesThreshold && (trend is null || !trend.HasTemporalSignal))
+                continue;
+
+            var labels = ordered.Select(p => FormatDate(p.Period, gran)).ToList();
             var values = ordered.Select(p => (double?)p.Value).ToList();
 
-            var trend = findings.Trends.FirstOrDefault(t => t.Measure == measure.Name);
             int score = 78 + (trend is { RSquared: >= 0.5 } ? 15 : 0) + (n >= 12 ? 5 : 0);
             score = Math.Min(score, 98);
 
@@ -70,21 +84,23 @@ public sealed class ChartRecommendationEngine
 
             string measureDisp = DisplayText.Humanize(measure.Name);
             string dateDisp    = DisplayText.Humanize(date.Name);
+            // Non-additive attributes are averaged per period, so label them as such.
+            string metricLabel = additive ? measureDisp : $"Average {measureDisp}";
 
             yield return new RecommendedChart
             {
                 ChartType = ChartType.Line,
                 SuitabilityScore = score,
                 Reason = $"Time-based dataset detected ({n} {dateDisp} observations). " +
-                         $"Line chart best shows how {measureDisp} changes over time.{trendNote}",
+                         $"Line chart best shows how {metricLabel} changes over time.{trendNote}",
                 Spec = new ChartSpec
                 {
                     Type = ChartType.Line,
-                    Title = $"{measureDisp} over {dateDisp}",
+                    Title = $"{metricLabel} over {dateDisp}",
                     XAxisTitle = dateDisp,
-                    YAxisTitle = measureDisp,
+                    YAxisTitle = metricLabel,
                     Categories = labels,
-                    Series = new[] { new SeriesSpec { Name = measureDisp, Values = values } }
+                    Series = new[] { new SeriesSpec { Name = metricLabel, Values = values } }
                 }
             };
         }

@@ -2,7 +2,8 @@
    ADP Analytics & Reporting Studio — SPA entry point.
    Wires the sidebar router to each view module and boots the app.
    ========================================================================== */
-import { $, $$, content, toast, setDataset, checkApi, initChartZoom, SAMPLES } from "./core.js";
+import { $, $$, content, toast, setDataset, checkApi, initChartZoom } from "./core.js";
+import { SAMPLES } from "./samples.js";
 import { renderDataView } from "./view-data.js";
 import { renderDashboardView } from "./view-dashboard.js";
 import { renderAnalyzeView } from "./view-analyze.js";
@@ -38,11 +39,6 @@ function setView(name) {
 function init() {
   $$(".nav-item").forEach(b => b.onclick = () => setView(b.dataset.view));
   $("#menuToggle").onclick = () => $("#sidebar").classList.toggle("collapsed");
-  $("#loadSampleTop").onclick = () => {
-    setDataset({ ...SAMPLES.sales });
-    toast("Sample sales dataset loaded.");
-    setView(current === "data" ? "dashboard" : current);
-  };
   content.addEventListener("click", e => {
     const goto = e.target.closest("[data-goto]");
     if (goto) setView(goto.dataset.goto);

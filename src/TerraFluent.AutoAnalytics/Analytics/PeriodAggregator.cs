@@ -41,6 +41,33 @@ internal static class PeriodAggregator
             .ToList();
     }
 
+    /// <summary>
+    /// Per-period (anchor date, aggregated value) pairs in chronological order — one entry per
+    /// distinct calendar period so a time-series chart plots one point per period rather than one
+    /// per row. Additive measures are summed per period; non-additive attributes are averaged.
+    /// </summary>
+    public static List<(DateTime Period, double Value)> AggregateLabeled(ColumnStatistics measure, ColumnStatistics? date, DateGranularity g, bool additive)
+    {
+        var rows = RowAlignment.DateValues(measure, date);
+        if (date is null)
+            return rows.Select(r => (r.Date, r.Value)).ToList();
+
+        var acc = new Dictionary<string, (double Sum, int Count, DateTime First)>();
+        foreach (var (d, v) in rows)
+        {
+            string key = PeriodKey(d, g);
+            if (acc.TryGetValue(key, out var a))
+                acc[key] = (a.Sum + v, a.Count + 1, a.First);
+            else
+                acc[key] = (v, 1, d);
+        }
+
+        return acc.Values
+            .OrderBy(a => a.First)
+            .Select(a => (a.First, additive ? a.Sum : a.Sum / a.Count))
+            .ToList();
+    }
+
     // Groups a date into a calendar-period key. Unknown/Daily granularity keys by full day so each
     // distinct date is its own period (identity when the source already has one row per day).
     private static string PeriodKey(DateTime d, DateGranularity g) => g switch

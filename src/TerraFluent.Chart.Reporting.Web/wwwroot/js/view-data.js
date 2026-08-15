@@ -1,5 +1,6 @@
 /* Data Source view — paste/upload/sample dataset selection and preview. */
-import { $, $$, content, state, esc, toast, setDataset, countRows, SAMPLES } from "./core.js";
+import { $, $$, content, state, esc, toast, setDataset, countRows } from "./core.js";
+import { SAMPLES } from "./samples.js";
 
 export function renderDataView() {
   const ds = state.dataset;
@@ -48,6 +49,9 @@ export function renderDataView() {
           ${sampleCard("sales", "Monthly Sales", "24 months · region &amp; product · revenue/cost/units · one anomaly")}
           ${sampleCard("web", "Web Traffic", "12 weeks · channel · sessions/conversions")}
           ${sampleCard("hr", "Headcount (JSON)", "Departments · headcount &amp; attrition as JSON")}
+          ${sampleCard("orders", "E-commerce Orders", "~5,000 orders · channel/category/country · totals &amp; status")}
+          ${sampleCard("sensors", "IoT Sensor Readings", "~5,000 readings · devices/sites · temperature/vibration alerts")}
+          ${sampleCard("tickets", "Support Tickets", "~5,000 tickets · priority/channel/agent · resolution &amp; CSAT")}
         </div>
       </div>
       </div>
@@ -147,7 +151,7 @@ function renderPreview() {
   } catch { host.innerHTML = ""; return; }
 
   host.innerHTML = `<div class="card">
-    <h3>Preview <span class="hint">first ${rows.length} rows</span></h3>
+    <h3>Preview <span class="hint">first ${rows.length} of ${countRows(ds)} rows</span></h3>
     <div class="table-wrap"><table class="data"><thead><tr>${
       head.map(h => `<th>${esc(h)}</th>`).join("")
     }</tr></thead><tbody>${

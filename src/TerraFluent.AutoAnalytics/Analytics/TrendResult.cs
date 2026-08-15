@@ -17,4 +17,18 @@ public sealed class TrendResult
     /// <summary>Coefficient of variation (StdDev/Mean) — volatility measure.</summary>
     public double Volatility { get; init; }
     public int PointCount { get; init; }
+    /// <summary>Lag-1 autocorrelation of the per-period series (−1..1) — persistence from one period to the next.</summary>
+    public double Autocorrelation { get; init; }
+    /// <summary>Detected seasonal period length (0 = no clear seasonality).</summary>
+    public int SeasonLength { get; init; }
+
+    /// <summary>
+    /// True when the series carries genuine temporal structure worth charting over time: a
+    /// reasonably linear direction, a detected season, or meaningful period-to-period persistence.
+    /// A flat cloud of noise (random per-record attribute over a transaction date) has none of these.
+    /// </summary>
+    public bool HasTemporalSignal =>
+        (Kind is TrendKind.Rising or TrendKind.Declining && RSquared >= 0.25)
+        || SeasonLength > 0
+        || System.Math.Abs(Autocorrelation) >= 0.25;
 }
