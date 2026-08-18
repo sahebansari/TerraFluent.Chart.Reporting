@@ -55,7 +55,12 @@ internal static class DashboardHtmlRenderer
         {
             sb.AppendLine("<section><h2>Anomalies detected</h2><ul class=\"panel anomalies\">");
             foreach (var a in dashboard.Anomalies)
-                sb.AppendLine($"  <li><strong>{Enc(a.Title)}</strong><span>{Enc(a.Description)}</span></li>");
+            {
+                sb.AppendLine("  <li>");
+                sb.AppendLine($"    <span class=\"score tip\" data-tip=\"Severity score (0\u2013100): how far this anomaly stands out from the norm\">{a.ImportanceScore}</span>");
+                sb.AppendLine($"    <div><strong>{Enc(a.Title)}</strong><span>{Enc(a.Description)}</span></div>");
+                sb.AppendLine("  </li>");
+            }
             sb.AppendLine("</ul></section>");
         }
 
@@ -63,7 +68,7 @@ internal static class DashboardHtmlRenderer
         foreach (var insight in dashboard.KeyInsights)
         {
             sb.AppendLine("  <li>");
-            sb.AppendLine($"    <span class=\"score\">{insight.ImportanceScore}</span>");
+            sb.AppendLine($"    <span class=\"score tip\" data-tip=\"Importance score (0\u2013100): how noteworthy this insight is\">{insight.ImportanceScore}</span>");
             sb.AppendLine($"    <div><strong>{Enc(insight.Title)}</strong><span>{Enc(insight.Description)}</span></div>");
             sb.AppendLine("  </li>");
         }
@@ -129,7 +134,13 @@ internal static class DashboardHtmlRenderer
           .panel strong { display:block; }
           .panel span { color:#64748b; font-size:14px; }
           .anomalies li { border-left:4px solid #ef4444; }
-          .insights .score { background:#4f46e5; color:#fff; font-weight:700; border-radius:8px; padding:4px 10px; font-size:13px; min-width:34px; text-align:center; }
+          .anomalies .score { background:#ef4444; color:#fff; font-weight:700; border-radius:8px; padding:4px 10px; font-size:13px; min-width:34px; text-align:center; }
+          .insights .score { background:#5b21b6; color:#fff; font-weight:700; border-radius:8px; padding:4px 10px; font-size:13px; min-width:34px; text-align:center; }
+          .tip { position:relative; }
+          .tip::after { content:attr(data-tip); position:absolute; left:0; bottom:calc(100% + 9px); width:max-content; max-width:240px; white-space:normal; text-align:left; background:#1e293b; color:#fff; font-size:12px; font-weight:500; line-height:1.4; padding:8px 10px; border-radius:8px; box-shadow:0 8px 24px rgba(15,23,42,.22); opacity:0; visibility:hidden; transform:translateY(4px); transition:opacity .15s ease, transform .15s ease; pointer-events:none; z-index:60; }
+          .tip::before { content:""; position:absolute; left:16px; bottom:calc(100% + 3px); border:6px solid transparent; border-top-color:#1e293b; opacity:0; visibility:hidden; transition:opacity .15s ease; pointer-events:none; z-index:60; }
+          .tip:hover::after { opacity:1; visibility:visible; transform:translateY(0); }
+          .tip:hover::before { opacity:1; visibility:visible; }
           footer { text-align:center; padding:20px; color:#94a3b8; font-size:13px; }
         </style>
         """;

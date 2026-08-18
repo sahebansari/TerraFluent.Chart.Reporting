@@ -9,6 +9,10 @@ export function renderDataView() {
       <div class="section-head">
         <div class="titles"><h2>Data Source</h2><p>Provide the dataset that every analysis, dashboard and chart will use.</p></div>
       </div>
+      <div class="privacy-note">
+        <span class="privacy-ico" aria-hidden="true">🔒</span>
+        <div><strong>Your data stays private.</strong> It is processed in memory only — never written to a database, disk, or browser storage. Nothing is retained after you leave; analytic sessions self-expire after 30 minutes.</div>
+      </div>
       <div class="row" style="margin-bottom:16px">
         <label class="field" style="flex:2 1 240px">Dataset name
           <input type="text" id="dsNameInput" placeholder="e.g. Global Sales 2024" value="${esc(ds?.name || "")}">

@@ -19,7 +19,7 @@ export async function renderDashboardView() {
   content.innerHTML = `
     <div class="card">
       <div class="section-head">
-        <div class="titles"><h2>Auto Dashboard</h2><p>KPIs, trend, comparison and distribution charts generated automatically from <strong>${esc(state.dataset.name)}</strong>.</p></div>
+        <div class="titles"><h2>Smart Dashboard</h2><p>KPIs, trend, comparison and distribution charts generated automatically from <strong>${esc(state.dataset.name)}</strong>.</p></div>
         <div class="row">
           <label class="field">KPIs<select id="maxKpis" style="width:80px">${kpiOptions}</select></label>
           <button class="btn" id="genDash" style="align-self:flex-end">Generate dashboard</button>

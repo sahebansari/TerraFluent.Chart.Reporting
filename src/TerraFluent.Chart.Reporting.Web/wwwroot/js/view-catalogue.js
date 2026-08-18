@@ -1,5 +1,7 @@
-/* Catalogue view — capabilities exposed by the rendering engine. */
-import { content, state, esc, loading, errorBox, ensureCatalogue } from "./core.js";
+/* Catalogue view — capabilities exposed by the rendering engine, plus the
+   interactive Chart Playground for composing any chart type. */
+import { $, content, state, esc, loading, errorBox, ensureCatalogue } from "./core.js";
+import { renderPlayground } from "./chart-playground.js";
 
 export async function renderCatalogueView() {
   content.innerHTML = `<div class="card">${loading("Loading catalogue…")}</div>`;
@@ -19,5 +21,9 @@ export async function renderCatalogueView() {
       <div class="card"><h3>Themes <span class="badge muted">${cat.themes.length}</span></h3>
         <div class="stat-row">${chips(cat.themes)}</div></div>
     </div>
-    <div class="card"><h3>Render modes</h3>${modes}</div>`;
+    <div class="card"><h3>Render modes</h3>${modes}</div>
+    <div id="playgroundHost" style="margin-top:8px"></div>`;
+
+  // Mount the interactive composer beneath the catalogue reference.
+  renderPlayground($("#playgroundHost"));
 }

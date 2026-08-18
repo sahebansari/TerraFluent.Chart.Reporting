@@ -6,6 +6,7 @@
   --adp-red: #d0271d;
   --adp-red-dark: #a81e16;
   --adp-red-soft: #fdecea;
+  --kpi-purple: #5b21b6;
   --charcoal: #1c1f26;
   --charcoal-2: #262a33;
   --charcoal-3: #333844;
@@ -111,6 +112,7 @@ body {
 .ds-badge .ds-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); flex: 0 0 auto; }
 .ds-badge.ready .ds-dot { background: var(--ok); box-shadow: 0 0 0 3px rgba(31, 157, 85, .18); }
 .ds-badge strong { display: block; color: #fff; font-size: 13px; }
+.privacy-chip { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, .55); letter-spacing: .01em; }
 .ds-badge span { color: #8a92a0; font-size: 12px; }
 
 /* ── Main / topbar ────────────────────────────────────────────────────── */
@@ -188,6 +190,9 @@ body {
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .section-head .titles h2 { font-size: 20px; margin: 0; }
 .section-head .titles p { margin: 4px 0 0; color: var(--text-muted); font-size: 13px; }
+.privacy-note { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 18px; padding: 12px 16px; background: #f2fbf5; border: 1px solid #b7e4c7; border-radius: 14px; font-size: 13px; color: var(--text); line-height: 1.45; }
+.privacy-note strong { color: var(--ok); }
+.privacy-ico { flex: 0 0 auto; font-size: 15px; line-height: 1.4; }
 
 .grid { display: grid; gap: 16px; }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
@@ -330,6 +335,38 @@ figure:hover .chart-zoom,
 }
 .insight .score.low { background: var(--text-faint); }
 .insight .score.mid { background: var(--warn); }
+.insight .score.keyinsight { background: var(--kpi-purple); }
+
+/* ── Custom CSS tooltip (replaces the native title bubble) ─────────────── */
+.tip { position: relative; }
+.tip::after {
+  content: attr(data-tip);
+  position: absolute; left: 0; bottom: calc(100% + 9px);
+  width: max-content; max-width: 240px; white-space: normal; text-align: left;
+  background: #1e293b; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.4;
+  padding: 8px 10px; border-radius: 8px; box-shadow: 0 8px 24px rgba(15, 23, 42, .22);
+  opacity: 0; visibility: hidden; transform: translateY(4px);
+  transition: opacity .15s ease, transform .15s ease; pointer-events: none; z-index: 60;
+}
+.tip::before {
+  content: ""; position: absolute; left: 16px; bottom: calc(100% + 3px);
+  border: 6px solid transparent; border-top-color: #1e293b;
+  opacity: 0; visibility: hidden; transition: opacity .15s ease; pointer-events: none; z-index: 60;
+}
+.tip:hover::after, .tip:focus-visible::after { opacity: 1; visibility: visible; transform: translateY(0); }
+.tip:hover::before, .tip:focus-visible::before { opacity: 1; visibility: visible; }
+
+/* ── Chart Studio advanced panel ──────────────────────────────────────── */
+.studio-advanced { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 14px; background: var(--surface-2); }
+.studio-advanced > summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--text-muted); padding: 12px 0; list-style: none; user-select: none; }
+.studio-advanced > summary::-webkit-details-marker { display: none; }
+.studio-advanced > summary::before { content: "▸ "; color: var(--text-faint); }
+.studio-advanced[open] > summary::before { content: "▾ "; }
+.studio-advanced[open] { padding-bottom: 14px; }
+select[multiple] { padding: 4px; }
+.measure-checks { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 6px; }
+.measure-check { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; color: var(--text); cursor: pointer; }
+.measure-check input { width: auto; }
 .insight .body strong { display: block; font-size: 14px; }
 .insight .body p { margin: 3px 0 0; color: var(--text-muted); font-size: 13px; }
 .insight .kind { display: inline-block; margin-top: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; background: var(--adp-red-soft); color: var(--adp-red-dark); padding: 2px 8px; border-radius: 999px; font-weight: 700; }

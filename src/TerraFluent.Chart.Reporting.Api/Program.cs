@@ -38,7 +38,7 @@ builder.Services.AddSwaggerGen(opts =>
                       "POST a ChartOptions JSON body to render Line, Column, Pie, Area, Scatter, " +
                       "Heatmap, Candlestick and more; or POST raw CSV/JSON data to the analytics " +
                       "endpoints to get profiling, insights, anomalies, chart recommendations and " +
-                      "a ready-to-embed auto dashboard — no AI, fully deterministic."
+                      "a ready-to-embed smart dashboard — no AI, fully deterministic."
     });
 
     opts.AddSecurityDefinition("ApiKey", new()

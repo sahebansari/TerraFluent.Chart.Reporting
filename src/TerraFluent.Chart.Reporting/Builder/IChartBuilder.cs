@@ -137,6 +137,10 @@ namespace TerraFluent.Chart.Reporting.Builder
         IChartBuilder YAxisFormat(string format);
         /// <summary>Sets the X-axis tick-label format string.</summary>
         IChartBuilder XAxisFormat(string format);
+        /// <summary>Shows or hides the background grid lines across the plot area for both axes.</summary>
+        IChartBuilder GridLines(bool visible = true);
+        /// <summary>Hides the background grid lines across the plot area for both axes.</summary>
+        IChartBuilder HideGridLines();
         /// <summary>Sets the Y-axis tick interval in data units. Must be greater than zero.</summary>
         IChartBuilder YAxisTickInterval(double interval);
         /// <summary>Sets the X-axis tick interval in data units. Must be greater than zero.</summary>

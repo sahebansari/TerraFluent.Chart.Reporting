@@ -2315,4 +2315,38 @@ internal static partial class Program
                     .WithDrilldown(3, MakeChild("Q4 — Monthly Breakdown", new double?[] { 52, 55, 55 }, new[] { "Oct","Nov","Dec" }))))
             .RenderToSvg();
     }
+
+    private static string GridLinesToggleChart()
+    {
+        string[] months = { "Jan", "Feb", "Mar", "Apr", "May", "Jun" };
+        double?[] data = { 42, 58, 51, 67, 72, 85 };
+
+        // Left: default background grid visible.
+        string withGrid = ChartBuilder.Create()
+            .Theme(GlobalTheme)
+            .Title("Grid Lines Visible")
+            .Subtitle("default \u2014 GridLines(true)")
+            .Size(560, 380)
+            .AsAnimated()
+            .XAxis(x => x.Categories.AddRange(months))
+            .YAxis(y => { y.Title = "Revenue ($k)"; y.Min = 0; })
+            .GridLines(true)
+            .Series(s => s.AddColumn("Revenue", data))
+            .RenderToSvg();
+
+        // Right: background grid hidden via HideGridLines().
+        string noGrid = ChartBuilder.Create()
+            .Theme(GlobalTheme)
+            .Title("Grid Lines Hidden")
+            .Subtitle("HideGridLines()")
+            .Size(560, 380)
+            .AsAnimated()
+            .XAxis(x => x.Categories.AddRange(months))
+            .YAxis(y => { y.Title = "Revenue ($k)"; y.Min = 0; })
+            .HideGridLines()
+            .Series(s => s.AddColumn("Revenue", data))
+            .RenderToSvg();
+
+        return $"<div style=\"display:flex;gap:12px;flex-wrap:wrap;justify-content:center\">{withGrid}{noGrid}</div>";
+    }
 }

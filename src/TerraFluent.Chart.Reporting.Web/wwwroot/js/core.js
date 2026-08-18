@@ -328,8 +328,12 @@ export function insightBlock(title, arr) {
   return `<div class="card"><h3>${title}</h3>${arr.map(insightRow).join("")}</div>`;
 }
 export function insightRow(i) {
+  const isAnomaly = String(i.kind ?? "").toLowerCase() === "anomaly";
+  const scoreTitle = isAnomaly
+    ? "Severity score (0–100): how far this anomaly stands out from the norm"
+    : "Importance score (0–100): how noteworthy this insight is";
   return `<div class="insight">
-    <div class="score ${scoreClass(i.importanceScore)}">${i.importanceScore ?? ""}</div>
+    <div class="score tip ${scoreClass(i.importanceScore)}${isAnomaly ? "" : " keyinsight"}" data-tip="${esc(scoreTitle)}" aria-label="${esc(scoreTitle)}">${i.importanceScore ?? ""}</div>
     <div class="body">
       <strong>${esc(i.title)}</strong>
       <p>${esc(i.description)}</p>

@@ -35,7 +35,7 @@ public static class DashboardBuilder
 
         return new DashboardDefinition
         {
-            Title = $"{result.Summary.DatasetName} — Auto Dashboard",
+            Title = $"{result.Summary.DatasetName} — Smart Dashboard",
             Kpis = kpis,
             TrendCharts = trend,
             ComparisonCharts = comparison,

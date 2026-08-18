@@ -534,6 +534,22 @@ namespace TerraFluent.Chart.Reporting.Builder
         }
 
         /// <summary>
+        /// Shows or hides the background grid lines across the plot area for both axes in a single call.
+        /// Equivalent to setting <see cref="Axis.GridLineVisible"/> on the X and Y axes.
+        /// </summary>
+        /// <param name="visible"><c>true</c> (default) to show grid lines; <c>false</c> to hide them.</param>
+        public ChartBuilder GridLines(bool visible = true)
+        {
+            _options.XAxis.GridLineVisible = visible;
+            _options.YAxis.GridLineVisible = visible;
+            if (_options.YAxis2 != null) _options.YAxis2.GridLineVisible = visible;
+            return this;
+        }
+
+        /// <summary>Hides the background grid lines across the plot area for both axes. Shorthand for <c>GridLines(false)</c>.</summary>
+        public ChartBuilder HideGridLines() => GridLines(false);
+
+        /// <summary>
         /// Switches the primary Y-axis to a base-10 logarithmic scale. Only positive values plot;
         /// non-positive data is clamped to the axis floor.
         /// </summary>
@@ -1231,6 +1247,8 @@ namespace TerraFluent.Chart.Reporting.Builder
         IChartBuilder IChartBuilder.YAxis(string title, double? min, double? max)               => YAxis(title, min, max);
         IChartBuilder IChartBuilder.YAxisFormat(string format)                                  => YAxisFormat(format);
         IChartBuilder IChartBuilder.XAxisFormat(string format)                                  => XAxisFormat(format);
+        IChartBuilder IChartBuilder.GridLines(bool visible)                                     => GridLines(visible);
+        IChartBuilder IChartBuilder.HideGridLines()                                             => HideGridLines();
         IChartBuilder IChartBuilder.YAxisTickInterval(double interval)                          => YAxisTickInterval(interval);
         IChartBuilder IChartBuilder.XAxisTickInterval(double interval)                          => XAxisTickInterval(interval);
         IChartBuilder IChartBuilder.YAxis2(Action<Models.Axis> configure)                       => YAxis2(configure);

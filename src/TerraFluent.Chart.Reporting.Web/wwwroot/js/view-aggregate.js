@@ -1,6 +1,6 @@
 /* Aggregate view — group a measure by one dimension, or pivot across two. */
 import {
-  $, content, state, esc, fmt, loading, errorBox,
+  $, content, state, esc, fmt, loading, errorBox, toast,
   api, analyzeRequest, requireDataset, ensureColumns,
 } from "./core.js";
 
@@ -9,21 +9,22 @@ export async function renderAggregateView() {
   content.innerHTML = `<div class="card">${loading("Reading columns…")}</div>`;
   await ensureColumns();
 
-  const measures = state.columns.filter(c => c.type === "Numeric" || c.role === "Measure");
-  const dims = state.columns.filter(c => c.role === "Dimension" || c.type === "String" || c.type === "DateTime");
+  const measures = state.columns.filter(c => ["Numeric", "Currency", "Percentage"].includes(c.type) || c.role === "Measure");
+  // GroupBy needs categorical dimensions (with Labels); Date/numeric columns have none, so keep only categoricals.
+  const dims = state.columns.filter(c => ["Category", "Boolean", "Text"].includes(c.type));
   const opt = (c) => `<option value="${esc(c.name)}">${esc(c.name)}</option>`;
-  const pool = state.columns.length ? state.columns : [];
+  const dimPool = dims.length ? dims : state.columns.filter(c => c.type !== "Date");
 
   content.innerHTML = `
     <div class="card">
       <div class="titles"><h2>Aggregation &amp; Pivot</h2><p>Group a measure by one dimension, or pivot across two.</p></div>
       <div class="row" style="margin-top:14px">
         <label class="field" style="flex:1 1 180px">Measure
-          <select id="aggMeasure">${(measures.length ? measures : pool).map(opt).join("")}</select></label>
+          <select id="aggMeasure">${(measures.length ? measures : (state.columns.length ? state.columns : [])).map(opt).join("")}</select></label>
         <label class="field" style="flex:1 1 180px">Dimension
-          <select id="aggDim">${(dims.length ? dims : pool).map(opt).join("")}</select></label>
+          <select id="aggDim">${dimPool.map(opt).join("")}</select></label>
         <label class="field" style="flex:1 1 180px">Second dimension
-          <select id="aggDim2"><option value="">— none (pivot off) —</option>${(dims.length ? dims : pool).map(opt).join("")}</select></label>
+          <select id="aggDim2"><option value="">— none (pivot off) —</option>${dimPool.map(opt).join("")}</select></label>
         <label class="field" style="flex:1 1 140px">Aggregation
           <select id="aggKind">${["Sum","Average","Count","Min","Max","Median"].map(k => `<option>${k}</option>`).join("")}</select></label>
         <button class="btn" id="aggRun" style="align-self:flex-end">Compute</button>
@@ -42,7 +43,12 @@ export async function renderAggregateView() {
           secondDimension: $("#aggDim2").value, aggregation: $("#aggKind").value,
         },
       });
-      out.innerHTML = renderAggregation(r);
+      out.innerHTML = `
+        <div class="row" style="justify-content:flex-end;margin-bottom:12px">
+          <button class="btn blue" id="exportAgg">⬇ Export result</button>
+        </div>
+        ${renderAggregation(r)}`;
+      $("#exportAgg").onclick = () => exportAggregation(r);
     } catch (e) { out.innerHTML = errorBox(e); }
   };
   if (measures.length && dims.length) $("#aggRun").click();
@@ -74,4 +80,70 @@ function renderAggregation(r) {
     <div class="table-wrap"><table class="data">
       <thead><tr><th>${esc(r.dimension)}</th><th class="num">${esc(r.aggregation)}</th><th class="num">Count</th></tr></thead>
       <tbody>${rows}</tbody></table></div></div>`;
+}
+
+// Heading text describing the aggregation, shared by the on-screen card and the export.
+function aggHeading(r) {
+  return r.isPivot
+    ? `${r.aggregation} of ${r.measure} — ${r.dimension} × ${r.secondDimension}`
+    : `${r.aggregation} of ${r.measure} by ${r.dimension}`;
+}
+
+// Builds a self-contained HTML page from the computed aggregation and downloads it client-side.
+function exportAggregation(r) {
+  let table;
+  if (r.isPivot) {
+    const cellMap = new Map((r.cells || []).map(c => [c.row + "||" + c.column, c.value]));
+    const head = `<th></th>${(r.columnKeys || []).map(c => `<th class="num">${esc(c)}</th>`).join("")}`;
+    const body = (r.rowKeys || []).map(row => `<tr><th>${esc(row)}</th>${
+      (r.columnKeys || []).map(col => {
+        const v = cellMap.get(row + "||" + col);
+        return `<td class="num">${v == null ? "—" : fmt(v)}</td>`;
+      }).join("")
+    }</tr>`).join("");
+    table = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  } else {
+    const rows = (r.buckets || []).map(b =>
+      `<tr><th>${esc(b.key)}</th><td class="num">${fmt(b.value)}</td><td class="num">${b.count}</td></tr>`).join("");
+    table = `<table><thead><tr><th>${esc(r.dimension)}</th><th class="num">${esc(r.aggregation)}</th><th class="num">Count</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  const dsName = state.dataset?.name || "Dataset";
+  const heading = aggHeading(r);
+  const fileSlug = (heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "aggregation");
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(heading)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1e293b; background: #f1f5f9; }
+  header { background: #5b21b6; color: #fff; padding: 26px 32px; }
+  header h1 { margin: 0 0 4px; font-size: 20px; }
+  header p { margin: 0; color: rgba(255,255,255,.85); font-size: 13px; }
+  main { padding: 26px 32px; max-width: 1100px; margin: 0 auto; }
+  section { background: #fff; border-radius: 14px; padding: 20px 22px; box-shadow: 0 1px 3px rgba(0,0,0,.08); overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #eef2f7; white-space: nowrap; }
+  thead th { background: #f8fafc; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody th { font-weight: 700; }
+  footer { text-align: center; padding: 20px; color: #94a3b8; font-size: 13px; }
+</style></head><body>
+<header>
+  <h1>${esc(heading)}</h1>
+  <p>${esc(dsName)}</p>
+</header>
+<main><section>${table}</section></main>
+<footer>Generated by TerraFluent.AutoAnalytics — deterministic, no AI.</footer>
+</body></html>`;
+
+  const blob = new Blob([html], { type: "text/html" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fileSlug + ".html";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast("Result exported.");
 }

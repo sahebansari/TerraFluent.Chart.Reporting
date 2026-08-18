@@ -15,7 +15,7 @@ namespace TerraFluent.Chart.Reporting.Api.Controllers;
 /// <summary>
 /// Deterministic auto-analytics as a service. POST raw CSV or JSON data and receive schema
 /// profiling, data-quality validation, ranked insights, anomalies, chart recommendations and a
-/// fully-assembled auto dashboard — no AI, fully reproducible.
+/// fully-assembled smart dashboard — no AI, fully reproducible.
 /// </summary>
 [ApiController]
 [Route("api/analytics")]
@@ -58,6 +58,21 @@ public sealed class AnalyticsController : ControllerBase
     {
         var result = RunAnalysis(request, ct);
         return Ok(AnalyticsResponse.From(result, includeSvg));
+    }
+
+    /// <summary>
+    /// Runs the full analysis and returns a complete, self-contained HTML page (summary, insights,
+    /// chart recommendations and column profiles) ready to display in a browser or embed in a report.
+    /// </summary>
+    [HttpPost("analyze/html")]
+    [Produces("text/html")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public IActionResult AnalyzeHtml([FromBody] AnalyzeRequest request, CancellationToken ct = default)
+    {
+        var result = RunAnalysis(request, ct);
+        return Content(AnalyzeHtmlRenderer.Render(result), "text/html");
     }
 
     /// <summary>
@@ -245,7 +260,7 @@ public sealed class AnalyticsController : ControllerBase
 
     // ── Dashboard ─────────────────────────────────────────────────────────────
     /// <summary>
-    /// Builds an auto dashboard (KPIs, trend/comparison/distribution charts, anomalies, insights)
+    /// Builds a smart dashboard (KPIs, trend/comparison/distribution charts, anomalies, insights)
     /// and returns it as structured JSON with each chart pre-rendered to SVG.
     /// </summary>
     [HttpPost("dashboard")]
@@ -260,7 +275,7 @@ public sealed class AnalyticsController : ControllerBase
     }
 
     /// <summary>
-    /// Builds an auto dashboard and returns a complete, self-contained HTML page ready to display
+    /// Builds a smart dashboard and returns a complete, self-contained HTML page ready to display
     /// in a browser or embed in a report.
     /// </summary>
     [HttpPost("dashboard/html")]

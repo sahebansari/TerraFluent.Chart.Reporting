@@ -453,6 +453,10 @@ internal static partial class Program
             "WithDrilldown() — click a column to open a child detail chart; Back returns to overview.",
             DrilldownChart));
 
+        charts.Add(Run("102_grid_toggle", "Grid Lines Toggle",
+            "GridLines(false) / HideGridLines() — show or hide the background plot grid.",
+            GridLinesToggleChart));
+
         Console.Write("  Generating index.html ... ");
         try
         {
@@ -499,7 +503,7 @@ internal static partial class Program
         Console.WriteLine();
         Console.WriteLine($"Output folder : {OutputDir}");
         Console.WriteLine($"Showcase page : {Path.Combine(OutputDir, "index.html")}");
-        Console.WriteLine($"Auto dashboard: {Path.Combine(OutputDir, "dashboard.html")}");
+        Console.WriteLine($"Smart dashboard: {Path.Combine(OutputDir, "dashboard.html")}");
         Console.WriteLine($"Agent report  : {Path.Combine(OutputDir, "agent-report.html")}");
         Console.WriteLine("Open index.html in a browser to view all charts.");
     }

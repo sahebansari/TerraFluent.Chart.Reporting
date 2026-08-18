@@ -201,7 +201,23 @@ await chart.RenderToStreamAsync(responseStream);
 
 ---
 
+## Data Handling & Privacy
+
+The analytics engine and web app are built around a **process-in-memory, never-persist** principle:
+
+- **No database, no disk storage.** Raw data you analyze is never written to a database or file on the server. The pipeline is a stateless transform: data in → analysis/charts out.
+- **Browser holds nothing.** In the web app, your dataset lives only in in-memory JavaScript — it is **not** saved to `localStorage`, `sessionStorage`, cookies, or IndexedDB, and is cleared on refresh or tab close.
+- **Stateless API endpoints** (`analyze`, `dashboard`, `insights`, `validate`, `aggregate`) parse, compute, and return — the data is garbage-collected after the response.
+- **Sessions are the one exception, and they self-expire.** The multi-turn "Ask the Agent" feature keeps a computed result **in memory only** so follow-up questions are fast. It uses a bounded store with a sliding **30-minute idle TTL** (configurable) and a capacity cap — nothing survives an app restart.
+- **Exports are yours.** "Export dashboard/analysis" produces a self-contained HTML file downloaded to *your* device; the server keeps no copy.
+- **Deterministic, so nothing needs caching.** Identical input always yields identical output, so there is no value in retaining your data server-side.
+
+> If you need scheduled/refreshing reports later, prefer a **live source connector** (pull on demand) over copying data in, and persist the **derived result** rather than the raw rows.
+
+---
+
 ## License
 
 MIT
+
 

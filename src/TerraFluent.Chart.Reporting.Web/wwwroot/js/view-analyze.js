@@ -1,7 +1,7 @@
 /* Analyze view — full profiling, validation, insights and chart recommendations. */
 import {
   $, content, state, esc, fmt, loading, errorBox,
-  api, analyzeRequest, requireDataset, insightRow,
+  api, analyzeRequest, requireDataset, insightRow, toast,
 } from "./core.js";
 
 export function renderAnalyzeView() {
@@ -16,6 +16,7 @@ export function renderAnalyzeView() {
           </label>
           <label class="field">Max insights<input type="number" id="maxIns" value="12" min="1" max="100" style="width:90px"></label>
           <button class="btn" id="runAnalyze" style="align-self:flex-end">Run analysis</button>
+          <button class="btn blue" id="exportAnalysis" style="align-self:flex-end">Export analysis</button>
         </div>
       </div>
     </div>
@@ -33,6 +34,23 @@ export function renderAnalyzeView() {
       state.columns = r.columns || [];
       out.innerHTML = renderAnalysis(r);
     } catch (e) { out.innerHTML = errorBox(e); }
+  };
+  $("#exportAnalysis").onclick = async () => {
+    const btn = $("#exportAnalysis");
+    btn.disabled = true;
+    try {
+      const html = await api.text("/api/analytics/analyze/html", {
+        method: "POST", body: analyzeRequest({ maxInsights: +$("#maxIns").value, maxRecommendations: 12 }),
+      });
+      const blob = new Blob([html], { type: "text/html" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (state.dataset.name || "analysis").replace(/\s+/g, "-").toLowerCase() + "-analysis.html";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast("Analysis exported.");
+    } catch (e) { toast(e.message, true); }
+    finally { btn.disabled = false; }
   };
   $("#runAnalyze").click();
 }

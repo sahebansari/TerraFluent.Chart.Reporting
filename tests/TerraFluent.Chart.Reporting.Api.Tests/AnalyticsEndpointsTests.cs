@@ -234,6 +234,24 @@ public sealed class AnalyticsEndpointsTests : IClassFixture<WebApplicationFactor
         Assert.Contains("<svg", html, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task AnalyzeHtml_ReturnsSelfContainedHtmlPage()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/analytics/analyze/html",
+            new { data = SampleCsv });
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
+
+        string html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("<!DOCTYPE html>", html, StringComparison.Ordinal);
+        Assert.Contains("Analysis", html, StringComparison.Ordinal);
+        Assert.Contains("Column profiles", html, StringComparison.Ordinal);
+        Assert.Contains("<svg", html, StringComparison.Ordinal);
+    }
+
     // ── agent (ask) ────────────────────────────────────────────────────────────
 
     [Fact]
