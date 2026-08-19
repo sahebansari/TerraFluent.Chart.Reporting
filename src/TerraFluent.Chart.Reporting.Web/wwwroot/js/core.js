@@ -2,6 +2,7 @@
    Core — shared state, DOM/format helpers, API client, modals and the
    cross-view render helpers used by every Chart Studio view.
    ========================================================================== */
+import { icon } from "./icons.js";
 
 // ── State ───────────────────────────────────────────────────────────────
 export const state = {
@@ -11,6 +12,45 @@ export const state = {
   catalogue: null,      // { chartTypes, themes, renderModes }
   session: null,        // { id, turns: [] }
 };
+
+// ── User settings / preferences (persisted in browser localStorage) ──────
+// Only preferences are stored — never dataset contents, which stay in memory.
+const SETTINGS_KEY = "tf.studio.settings.v1";
+export const DEFAULT_SETTINGS = {
+  defaultTheme:       "Vivid",
+  defaultRenderMode:  "Interactive",
+  defaultChartType:   "Column",
+  legendPosition:     "Bottom",
+  defaultAggregation: "Sum",
+  showGridLines:      true,
+  showExportMenu:     true,
+  showDataLabels:     false,
+  defaultWidth:       640,
+  defaultHeight:      360,
+  autoPrefetchStudio: true,
+};
+
+export let settings = loadSettings();
+
+export function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS };
+  } catch { return { ...DEFAULT_SETTINGS }; }
+}
+
+export function saveSettings(patch) {
+  settings = { ...settings, ...patch };
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* storage unavailable */ }
+  return settings;
+}
+
+export function resetSettings() {
+  settings = { ...DEFAULT_SETTINGS };
+  try { localStorage.removeItem(SETTINGS_KEY); } catch { /* storage unavailable */ }
+  return settings;
+}
+
 
 // ── DOM helpers ─────────────────────────────────────────────────────────
 export const $  = (sel, root = document) => root.querySelector(sel);
@@ -42,7 +82,7 @@ export function ensureChartModal() {
   modal.className = "chart-modal";
   modal.innerHTML = `
     <div class="chart-modal-inner" role="dialog" aria-modal="true" aria-label="Enlarged chart">
-      <button class="chart-modal-close" type="button" aria-label="Close">✕</button>
+      <button class="chart-modal-close" type="button" aria-label="Close">${icon("x")}</button>
       <div class="chart-modal-body"></div>
     </div>`;
   document.body.appendChild(modal);
@@ -123,11 +163,11 @@ export function showCodeModal(title, code) {
     modal.className = "chart-modal";
     modal.innerHTML = `
       <div class="chart-modal-inner" role="dialog" aria-modal="true" aria-label="JSON payload" style="max-width:760px;width:92%">
-        <button class="chart-modal-close" type="button" aria-label="Close">✕</button>
+        <button class="chart-modal-close" type="button" aria-label="Close">${icon("x")}</button>
         <h3 id="codeModalTitle" style="margin:0 0 12px;padding-right:32px"></h3>
         <pre id="codeModalBody" style="max-height:60vh;overflow:auto;margin:0;padding:14px;border-radius:8px;background:#0f172a;color:#e2e8f0;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;-webkit-user-select:text;user-select:text"></pre>
         <div class="row" style="margin-top:12px;justify-content:flex-end">
-          <button class="btn" id="codeModalCopy">Copy</button>
+          <button class="btn" id="codeModalCopy">${icon("copy")} Copy</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -241,12 +281,24 @@ export function analyzeRequest(extra = {}) {
   };
 }
 
+// Style overrides (from user settings) for the server-rendered recommendation charts shown on the
+// Analyze, Dashboard and Ask-the-Agent pages. Spread into an endpoint's query object.
+export function chartStyleQuery() {
+  return {
+    theme:      settings.defaultTheme,
+    renderMode: settings.defaultRenderMode,
+    exportMenu: settings.showExportMenu,
+    gridLines:  settings.showGridLines,
+  };
+}
+
+
 export function requireDataset() {
   if (state.dataset) return true;
   content.innerHTML = emptyState(
-    "▦", "No dataset loaded",
+    icon("database", 40), "No dataset loaded",
     "Open <strong>Data Source</strong> to paste, upload, or load a sample dataset before running analytics.",
-    `<button class="btn" data-goto="data">Go to Data Source</button>`
+    `<button class="btn" data-goto="data">${icon("database")} Go to Data Source</button>`
   );
   return false;
 }

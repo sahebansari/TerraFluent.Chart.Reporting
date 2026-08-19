@@ -1,8 +1,9 @@
 /* Aggregate view — group a measure by one dimension, or pivot across two. */
 import {
   $, content, state, esc, fmt, loading, errorBox, toast,
-  api, analyzeRequest, requireDataset, ensureColumns,
+  api, analyzeRequest, requireDataset, ensureColumns, settings,
 } from "./core.js";
+import { icon } from "./icons.js";
 
 export async function renderAggregateView() {
   if (!requireDataset()) return;
@@ -26,8 +27,8 @@ export async function renderAggregateView() {
         <label class="field" style="flex:1 1 180px">Second dimension
           <select id="aggDim2"><option value="">— none (pivot off) —</option>${dimPool.map(opt).join("")}</select></label>
         <label class="field" style="flex:1 1 140px">Aggregation
-          <select id="aggKind">${["Sum","Average","Count","Min","Max","Median"].map(k => `<option>${k}</option>`).join("")}</select></label>
-        <button class="btn" id="aggRun" style="align-self:flex-end">Compute</button>
+          <select id="aggKind">${["Sum","Average","Count","Min","Max","Median"].map(k => `<option${k === settings.defaultAggregation ? " selected" : ""}>${k}</option>`).join("")}</select></label>
+        <button class="btn" id="aggRun" style="align-self:flex-end">${icon("sigma")} Compute</button>
       </div>
     </div>
     <div id="aggOut"></div>`;
@@ -45,7 +46,7 @@ export async function renderAggregateView() {
       });
       out.innerHTML = `
         <div class="row" style="justify-content:flex-end;margin-bottom:12px">
-          <button class="btn blue" id="exportAgg">⬇ Export result</button>
+          <button class="btn blue" id="exportAgg">${icon("download")} Export result</button>
         </div>
         ${renderAggregation(r)}`;
       $("#exportAgg").onclick = () => exportAggregation(r);

@@ -11,15 +11,15 @@ export const SANKEY_SAMPLE = {
 };
 
 // Per-chart-type descriptor: starter data + the data shape each type expects.
-//   kind "simple"     → series.data (plain numbers)
-//   kind "range"      → series.rangeData, each value token "low/high"
-//   kind "box"        → series.boxPlotData, token "low/q1/median/q3/high"
-//   kind "ohlc"       → series.ohlcData, token "open/high/low/close"
-//   kind "bubble"     → series.bubbleData, token "x/y/size"
-//   kind "heatmap"    → one series; each editor row = a heatmap row, values = its cells
-//   kind "parliament" → one series; each editor row = a party, value = seat count
-//   kind "gantt"      → one series; each editor row = a task, value token "start/end"
-//   kind "sankey"     → fixed structural sample (SANKEY_SAMPLE)
+//   kind "simple"     -> series.data (plain numbers)
+//   kind "range"      -> series.rangeData, each value token "low/high"
+//   kind "box"        -> series.boxPlotData, token "low/q1/median/q3/high"
+//   kind "ohlc"       -> series.ohlcData, token "open/high/low/close"
+//   kind "bubble"     -> series.bubbleData, token "x/y/size"
+//   kind "heatmap"    -> one series; each editor row = a heatmap row, values = its cells
+//   kind "parliament" -> one series; each editor row = a party, value = seat count
+//   kind "gantt"      -> one series; each editor row = a task, value token "start/end"
+//   kind "sankey"     -> fixed structural sample (SANKEY_SAMPLE)
 export const STUDIO_TYPES = {
   Line:        { title: "Monthly Revenue",     kind: "simple", xTitle: "Month", yTitle: "Amount", cats: "Jan, Feb, Mar, Apr, May, Jun", series: [["Revenue", "120, 150, 170, 140, 190, 210"], ["Cost", "80, 90, 110, 95, 120, 130"]] },
   Spline:      { title: "Temperature Trend",   kind: "simple", xTitle: "Day", yTitle: "Temperature (°C)", cats: "Mon, Tue, Wed, Thu, Fri",       series: [["City A", "18, 21, 19, 24, 22"], ["City B", "14, 16, 15, 18, 17"]] },
@@ -58,6 +58,41 @@ export const STUDIO_TYPES = {
 };
 
 export const STUDIO_DEFAULT = { title: "Sample Chart", kind: "simple", xTitle: "Category", yTitle: "Value", cats: "Q1, Q2, Q3, Q4", series: [["Series 1", "120, 150, 170, 210"]] };
+
+// Minimum dataset shape each chart type needs to be generated from aggregated dataset values.
+// Only "simple" category-vs-measure charts are listed — range/box/ohlc/bubble/heatmap/gantt/sankey
+// need structured tuple data the dataset flow can't produce, so they are never dataset-feasible.
+// m = numeric measures, d = grouping dimensions (Category/Boolean/Text), axis = any labelling
+// column (dimension OR date). Missing keys = no minimum.
+export const STUDIO_TYPE_REQUIREMENTS = {
+  Line:      { m: 1, axis: 1 },
+  Spline:    { m: 1, axis: 1 },
+  Area:      { m: 1, axis: 1 },
+  Stream:    { m: 1, axis: 1 },
+  Column:    { m: 1, axis: 1 },
+  Bar:       { m: 1, axis: 1 },
+  Waterfall: { m: 1, axis: 1 },
+  Scatter:   { m: 1, axis: 1 },
+  Pie:       { m: 1, d: 1 },
+  Funnel:    { m: 1, d: 1 },
+  Treemap:   { m: 1, d: 1 },
+  Radar:     { m: 1, d: 1 },
+  Gauge:     { m: 1 },
+  DataRing:  { m: 1 },
+};
+
+// Returns the Set of chart-type names the given dataset shape can produce.
+export function feasibleChartTypes({ measures = 0, dims = 0, dates = 0 } = {}) {
+  const axis = dims + dates;
+  const ok = new Set();
+  for (const [type, req] of Object.entries(STUDIO_TYPE_REQUIREMENTS)) {
+    if ((req.m || 0) > measures) continue;
+    if ((req.d || 0) > dims) continue;
+    if ((req.axis || 0) > axis) continue;
+    ok.add(type);
+  }
+  return ok;
+}
 
 // Types with no cartesian value axes — the axis-title inputs are hidden for these.
 export const STUDIO_NO_AXIS = new Set(["Pie", "Funnel", "Treemap", "Radar", "Gauge", "DataRing", "Heatmap", "Parliament", "Sankey"]);

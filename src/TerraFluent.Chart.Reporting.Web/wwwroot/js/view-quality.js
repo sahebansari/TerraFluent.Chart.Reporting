@@ -3,6 +3,7 @@ import {
   $, content, state, esc, loading, errorBox,
   api, analyzeRequest, requireDataset,
 } from "./core.js";
+import { icon } from "./icons.js";
 
 export function renderQualityView() {
   if (!requireDataset()) return;
@@ -10,7 +11,7 @@ export function renderQualityView() {
     <div class="card">
       <div class="section-head">
         <div class="titles"><h2>Data Quality</h2><p>Validation report for <strong>${esc(state.dataset.name)}</strong>.</p></div>
-        <button class="btn" id="valRun">Validate</button>
+        <button class="btn" id="valRun">${icon("check-circle")} Validate</button>
       </div>
     </div>
     <div id="valOut"></div>`;

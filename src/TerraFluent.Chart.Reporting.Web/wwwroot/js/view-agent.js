@@ -2,22 +2,23 @@
 import {
   $, $$, content, state, esc, toast, loading, errorBox,
   api, analyzeRequest, requireDataset, ensureColumns, buildAgentQuestions,
-  chartCard, insightRow,
+  chartCard, insightRow, chartStyleQuery,
 } from "./core.js";
+import { icon } from "./icons.js";
 
 export function renderAgentView() {
   if (!requireDataset()) return;
   content.innerHTML = `
     <div class="tabs" id="agentTabs">
-      <button class="tab active" data-tab="oneshot">Single question</button>
-      <button class="tab" data-tab="session">Conversation</button>
+      <button class="tab active" data-tab="oneshot">${icon("help-circle")} Single question</button>
+      <button class="tab" data-tab="session">${icon("message")} Conversation</button>
     </div>
     <div data-apane="oneshot">
       <div class="card">
         <div class="titles"><h2>Ask a question</h2><p>The deterministic agent parses your question, follows the evidence and returns an explainable trace.</p></div>
         <div class="row" style="margin-top:14px">
           <input type="text" id="askQ" placeholder="e.g. why did revenue change?" style="flex:1 1 320px">
-          <button class="btn" id="askBtn">Ask</button>
+          <button class="btn" id="askBtn">${icon("send")} Ask</button>
         </div>
         <div style="margin-top:12px">
           <span class="hint">Suggested questions for this dataset</span>
@@ -30,12 +31,12 @@ export function renderAgentView() {
       <div class="card">
         <div class="section-head">
           <div class="titles"><h2>Multi-turn conversation</h2><p>The session remembers previous turns and resolves follow-ups like “forecast it”.</p></div>
-          <button class="btn blue" id="startSession">Start / reset session</button>
+          <button class="btn blue" id="startSession">${icon("refresh")} Start / reset session</button>
         </div>
         <div class="chat" id="chatLog"></div>
         <div class="row" style="margin-top:14px">
           <input type="text" id="chatQ" placeholder="Ask a follow-up…" style="flex:1 1 320px" disabled>
-          <button class="btn" id="chatBtn" disabled>Send</button>
+          <button class="btn" id="chatBtn" disabled>${icon("send")} Send</button>
         </div>
       </div>
     </div>`;
@@ -51,11 +52,11 @@ export function renderAgentView() {
     out.innerHTML = loading("Investigating…");
     try {
       const r = await api.json("/api/analytics/ask", {
-        method: "POST", body: analyzeRequest({ question: q || null }), query: { includeSvg: true },
+        method: "POST", body: analyzeRequest({ question: q || null }), query: { includeSvg: true, ...chartStyleQuery() },
       });
       out.innerHTML = `
         <div class="row" style="justify-content:flex-end;margin-bottom:12px">
-          <button class="btn blue" id="exportAnswer">⬇ Export answer</button>
+          <button class="btn blue" id="exportAnswer">${icon("download")} Export answer</button>
         </div>
         ${renderAsk(r)}`;
       $("#exportAnswer").onclick = () => exportAgentAnswer(r, q);
@@ -73,7 +74,7 @@ export function renderAgentView() {
     if (!host) return; // the view may have changed while columns loaded
     const questions = buildAgentQuestions(state.columns);
     host.innerHTML = questions.length
-      ? questions.map(q => `<button class="btn subtle sm" data-suggest="${esc(q)}">${esc(q)}</button>`).join("")
+      ? questions.map(q => `<button class="btn subtle sm" data-suggest="${esc(q)}">${icon("help-circle")} ${esc(q)}</button>`).join("")
       : `<span class="hint">Type a question about your data above to begin.</span>`;
   }).catch(() => {
     const host = $("#askSuggest");
@@ -119,7 +120,7 @@ export function renderAgentView() {
 function renderAsk(r) {
   const steps = (r.steps || []).map(s => `
     <li><span class="skill">${esc(s.skill)}</span><span class="rationale">${esc(s.rationale)}</span>
-    ${s.trigger ? `<span class="trigger">↳ ${esc(s.trigger)}</span>` : ""}</li>`).join("");
+    ${s.trigger ? `<span class="trigger">${icon("corner-down-right", 13)} ${esc(s.trigger)}</span>` : ""}</li>`).join("");
   const charts = (r.charts || []).map(c => chartCard(c.svg, c.title, c.reason, c.suitabilityScore)).join("");
   return `
     <div class="card">
@@ -137,7 +138,7 @@ function renderAsk(r) {
 function exportAgentAnswer(r, question) {
   const stripScripts = svg => String(svg || "").replace(/<script[\s\S]*?<\/script>/gi, "");
   const steps = (r.steps || []).map(s =>
-    `<li><span class="skill">${esc(s.skill)}</span> ${esc(s.rationale)}${s.trigger ? ` <em>↳ ${esc(s.trigger)}</em>` : ""}</li>`).join("");
+    `<li><span class="skill">${esc(s.skill)}</span> ${esc(s.rationale)}${s.trigger ? ` <em>${icon("corner-down-right", 12)} ${esc(s.trigger)}</em>` : ""}</li>`).join("");
   const insights = (r.insights || []).map(i => {
     const anomaly = String(i.kind ?? "").toLowerCase() === "anomaly";
     return `<li><span class="score${anomaly ? " anomaly" : ""}">${i.importanceScore ?? ""}</span>

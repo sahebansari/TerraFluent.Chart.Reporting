@@ -22,28 +22,31 @@
 
       <nav class="nav" id="nav">
         <button class="nav-item active" data-view="data">
-          <span class="nav-ico">▦</span><span>Data Source</span>
+          <span class="nav-ico" data-icon="database"></span><span>Data Source</span>
         </button>
         <button class="nav-item" data-view="dashboard">
-          <span class="nav-ico">◫</span><span>Dashboard</span>
+          <span class="nav-ico" data-icon="grid"></span><span>Dashboard</span>
         </button>
         <button class="nav-item" data-view="analyze">
-          <span class="nav-ico">✦</span><span>Analyze</span>
+          <span class="nav-ico" data-icon="bar-chart"></span><span>Analyze</span>
         </button>
         <button class="nav-item" data-view="agent">
-          <span class="nav-ico">✎</span><span>Ask the Agent</span>
+          <span class="nav-ico" data-icon="message"></span><span>Ask the Agent</span>
         </button>
         <button class="nav-item" data-view="aggregate">
-          <span class="nav-ico">∑</span><span>Aggregate</span>
+          <span class="nav-ico" data-icon="sigma"></span><span>Aggregate</span>
         </button>
         <button class="nav-item" data-view="quality">
-          <span class="nav-ico">✓</span><span>Data Quality</span>
+          <span class="nav-ico" data-icon="check-circle"></span><span>Data Quality</span>
         </button>
         <button class="nav-item" data-view="studio">
-          <span class="nav-ico">▤</span><span>Chart Studio</span>
+          <span class="nav-ico" data-icon="trending-up"></span><span>Chart Studio</span>
         </button>
         <button class="nav-item" data-view="catalogue">
-          <span class="nav-ico">☰</span><span>Catalogue</span>
+          <span class="nav-ico" data-icon="list"></span><span>Catalogue</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-ico" data-icon="settings"></span><span>Settings</span>
         </button>
       </nav>
 
@@ -56,7 +59,7 @@
           </div>
         </div>
         <div class="privacy-chip" title="Data is processed in memory only — never written to a database, disk, or browser storage.">
-          <span aria-hidden="true">🔒</span> In-memory only · never stored
+          <span aria-hidden="true" data-icon="lock" data-icon-size="13"></span> In-memory only · never stored
         </div>
       </div>
     </aside>
@@ -65,13 +68,14 @@
     <div class="main">
       <header class="topbar">
         <div class="topbar-left">
-          <button class="icon-btn" id="menuToggle" title="Toggle menu">☰</button>
+          <button class="icon-btn" id="menuToggle" title="Toggle menu" data-icon="menu"></button>
           <h1 id="viewTitle">Data Source</h1>
         </div>
         <div class="topbar-right">
           <span class="api-status" id="apiStatus" title="Analytics Agent status">
             <span class="api-dot"></span><span id="apiStatusText">Agent</span>
           </span>
+          <button class="icon-btn" id="settingsBtn" data-goto="settings" title="Settings" aria-label="Settings" data-icon="settings"></button>
         </div>
       </header>
 

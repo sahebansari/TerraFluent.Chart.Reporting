@@ -2,6 +2,7 @@ using System.Text;
 using TerraFluent.AutoAnalytics.Dashboard;
 using TerraFluent.AutoAnalytics.Engine;
 using TerraFluent.AutoAnalytics.Recommendation;
+using TerraFluent.Chart.Reporting.Api.Models;
 
 namespace TerraFluent.Chart.Reporting.Api.Rendering;
 
@@ -11,7 +12,7 @@ namespace TerraFluent.Chart.Reporting.Api.Rendering;
 /// </summary>
 internal static class DashboardHtmlRenderer
 {
-    public static string Render(DashboardDefinition dashboard, AnalyticsResult result)
+    public static string Render(DashboardDefinition dashboard, AnalyticsResult result, ChartStyle style = default)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
@@ -47,9 +48,9 @@ internal static class DashboardHtmlRenderer
             sb.AppendLine("</div></section>");
         }
 
-        Section(sb, "Trends", dashboard.TrendCharts);
-        Section(sb, "Category comparisons", dashboard.ComparisonCharts);
-        Section(sb, "Distributions", dashboard.DistributionCharts);
+        Section(sb, "Trends", dashboard.TrendCharts, style);
+        Section(sb, "Category comparisons", dashboard.ComparisonCharts, style);
+        Section(sb, "Distributions", dashboard.DistributionCharts, style);
 
         if (dashboard.Anomalies.Count > 0)
         {
@@ -80,14 +81,13 @@ internal static class DashboardHtmlRenderer
         return sb.ToString();
     }
 
-    private static void Section(StringBuilder sb, string title, IReadOnlyList<RecommendedChart> charts)
+    private static void Section(StringBuilder sb, string title, IReadOnlyList<RecommendedChart> charts, ChartStyle style = default)
     {
         if (charts.Count == 0) return;
         sb.AppendLine($"<section><h2>{Enc(title)}</h2><div class=\"chart-grid\">");
         foreach (var chart in charts)
         {
-            string svg = ChartConfigBuilder.ToChartBuilder(chart.Spec)
-                .Size(560, 340)
+            string svg = style.Apply(ChartConfigBuilder.ToChartBuilder(chart.Spec).Size(560, 340))
                 .RenderToSvg();
 
             sb.AppendLine("  <figure class=\"chart-card\">");

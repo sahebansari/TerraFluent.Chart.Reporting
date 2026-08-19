@@ -14,14 +14,14 @@ public sealed record AskResponse
     public required IReadOnlyList<RecommendationDto> Charts { get; init; }
 
     /// <summary>Maps an <see cref="InvestigationTrace"/> to the API response DTO.</summary>
-    public static AskResponse From(InvestigationTrace trace, bool includeSvg = false) => new()
+    public static AskResponse From(InvestigationTrace trace, bool includeSvg = false, ChartStyle style = default) => new()
     {
         Goal = trace.Goal,
         Headline = trace.Headline,
         Narrative = trace.Narrative,
         Steps = trace.Steps.Select(InvestigationStepDto.From).ToList(),
         Insights = trace.Insights.Select(InsightDto.From).ToList(),
-        Charts = trace.Charts.Select(c => RecommendationDto.From(c, includeSvg)).ToList()
+        Charts = trace.Charts.Select(c => RecommendationDto.From(c, includeSvg, style)).ToList()
     };
 }
 

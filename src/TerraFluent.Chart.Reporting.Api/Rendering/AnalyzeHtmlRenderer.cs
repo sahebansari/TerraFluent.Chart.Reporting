@@ -3,6 +3,7 @@ using System.Text;
 using TerraFluent.AutoAnalytics;
 using TerraFluent.AutoAnalytics.Engine;
 using TerraFluent.AutoAnalytics.Recommendation;
+using TerraFluent.Chart.Reporting.Api.Models;
 
 namespace TerraFluent.Chart.Reporting.Api.Rendering;
 
@@ -13,7 +14,7 @@ namespace TerraFluent.Chart.Reporting.Api.Rendering;
 /// </summary>
 internal static class AnalyzeHtmlRenderer
 {
-    public static string Render(AnalyticsResult result)
+    public static string Render(AnalyticsResult result, ChartStyle style = default)
     {
         var s = result.Summary;
         var v = result.Validation;
@@ -76,7 +77,7 @@ internal static class AnalyzeHtmlRenderer
             sb.AppendLine("<section><h2>Chart recommendations</h2><div class=\"chart-grid\">");
             foreach (var rec in result.Recommendations)
             {
-                string svg = ChartConfigBuilder.ToChartBuilder(rec.Spec).Size(560, 340).RenderToSvg();
+                string svg = style.Apply(ChartConfigBuilder.ToChartBuilder(rec.Spec).Size(560, 340)).RenderToSvg();
                 sb.AppendLine("  <figure class=\"chart-card\">");
                 sb.AppendLine($"    <div class=\"chart-badge\">{Enc(rec.ChartName)} · suitability {rec.SuitabilityScore}</div>");
                 sb.AppendLine($"    {svg}");

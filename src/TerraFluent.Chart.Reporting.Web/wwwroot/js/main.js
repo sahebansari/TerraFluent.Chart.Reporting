@@ -3,6 +3,7 @@
    Wires the sidebar router to each view module and boots the app.
    ========================================================================== */
 import { $, $$, content, toast, setDataset, checkApi, initChartZoom } from "./core.js";
+import { renderIcons } from "./icons.js";
 import { SAMPLES } from "./samples.js";
 import { renderDataView } from "./view-data.js";
 import { renderDashboardView } from "./view-dashboard.js";
@@ -12,6 +13,7 @@ import { renderAggregateView } from "./view-aggregate.js";
 import { renderQualityView } from "./view-quality.js";
 import { renderStudioView } from "./view-studio.js";
 import { renderCatalogueView } from "./view-catalogue.js";
+import { renderSettingsView } from "./view-settings.js";
 
 const VIEWS = {
   data:      { title: "Data Source",   render: renderDataView },
@@ -22,6 +24,7 @@ const VIEWS = {
   quality:   { title: "Data Quality",  render: renderQualityView },
   studio:    { title: "Chart Studio",  render: renderStudioView },
   catalogue: { title: "Catalogue",     render: renderCatalogueView },
+  settings:  { title: "Settings",      render: renderSettingsView },
 };
 
 // ── Router ──────────────────────────────────────────────────────────────
@@ -37,8 +40,10 @@ function setView(name) {
 
 // ── Boot ────────────────────────────────────────────────────────────────
 function init() {
+  renderIcons();
   $$(".nav-item").forEach(b => b.onclick = () => setView(b.dataset.view));
   $("#menuToggle").onclick = () => $("#sidebar").classList.toggle("collapsed");
+  $("#settingsBtn").onclick = () => setView("settings");
   content.addEventListener("click", e => {
     const goto = e.target.closest("[data-goto]");
     if (goto) setView(goto.dataset.goto);

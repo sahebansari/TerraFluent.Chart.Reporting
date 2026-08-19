@@ -4,6 +4,7 @@ import {
   $, $$, content, state, esc, toast, loading, errorBox,
   api, ensureCatalogue, activateScripts, showCodeModal,
 } from "./core.js";
+import { icon } from "./icons.js";
 import { STUDIO_TYPES, STUDIO_DEFAULT, STUDIO_NO_AXIS, buildStudioSeries } from "./studio-core.js";
 
 // Renders the composer into the given host element (defaults to the main content area).
@@ -38,7 +39,7 @@ export async function renderPlayground(host = content) {
         </div>
         <p class="hint" id="pgDataFmt" style="margin:12px 0 0;display:none"></p>
         <div id="pgSeriesList"></div>
-        <button class="btn subtle sm" id="pgAddSeries" style="margin-top:10px">+ Add series</button>
+        <button class="btn subtle sm" id="pgAddSeries" style="margin-top:10px">${icon("plus")} Add series</button>
         <div class="row" style="margin-top:14px">
           <label class="field" style="flex:1 1 90px">Height<input type="number" id="pgHeight" value="360" min="150" max="900"></label>
           <label class="field" style="flex:0 0 96px">Background<input type="color" id="pgBg" value="#ffffff" style="height:38px;padding:3px"></label>
@@ -47,9 +48,9 @@ export async function renderPlayground(host = content) {
           </label>
         </div>
         <div class="row" style="margin-top:16px">
-          <button class="btn" id="pgRender">Render</button>
-          <button class="btn blue" id="pgDownloadSvg">Download SVG</button>
-          <button class="btn blue" id="pgViewJson">View JSON</button>
+          <button class="btn" id="pgRender">${icon("play")} Render</button>
+          <button class="btn blue" id="pgDownloadSvg">${icon("download")} Download SVG</button>
+          <button class="btn blue" id="pgViewJson">${icon("code")} View JSON</button>
         </div>
       </div>
       <div class="card">
@@ -70,7 +71,7 @@ export async function renderPlayground(host = content) {
     wrap.innerHTML = `
       <label class="field" style="flex:1 1 110px">Series<input type="text" class="sName" value="${esc(name)}"></label>
       <label class="field" style="flex:2 1 180px">Values<input type="text" class="sVals" value="${esc(vals)}"></label>
-      <button class="icon-btn sDel" title="Remove" style="align-self:flex-end">✕</button>`;
+      <button class="icon-btn sDel" title="Remove" style="align-self:flex-end">${icon("x")}</button>`;
     $("#pgSeriesList").appendChild(wrap);
     wrap.querySelector(".sDel").onclick = () => wrap.remove();
   };

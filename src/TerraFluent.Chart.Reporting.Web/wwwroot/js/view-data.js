@@ -1,5 +1,6 @@
 /* Data Source view — paste/upload/sample dataset selection and preview. */
 import { $, $$, content, state, esc, toast, setDataset, countRows } from "./core.js";
+import { icon } from "./icons.js";
 import { SAMPLES } from "./samples.js";
 
 export function renderDataView() {
@@ -10,7 +11,7 @@ export function renderDataView() {
         <div class="titles"><h2>Data Source</h2><p>Provide the dataset that every analysis, dashboard and chart will use.</p></div>
       </div>
       <div class="privacy-note">
-        <span class="privacy-ico" aria-hidden="true">🔒</span>
+        <span class="privacy-ico" aria-hidden="true">${icon("lock")}</span>
         <div><strong>Your data stays private.</strong> It is processed in memory only — never written to a database, disk, or browser storage. Nothing is retained after you leave; analytic sessions self-expire after 30 minutes.</div>
       </div>
       <div class="row" style="margin-bottom:16px">
@@ -26,9 +27,9 @@ export function renderDataView() {
         </label>
       </div>
       <div class="tabs" id="dataTabs">
-        <button class="tab active" data-tab="paste">Paste data</button>
-        <button class="tab" data-tab="upload">Upload file</button>
-        <button class="tab" data-tab="samples">Samples</button>
+        <button class="tab active" data-tab="paste">${icon("clipboard")} Paste data</button>
+        <button class="tab" data-tab="upload">${icon("upload")} Upload file</button>
+        <button class="tab" data-tab="samples">${icon("layers")} Samples</button>
       </div>
 
       <div class="tab-panes">
@@ -40,10 +41,10 @@ export function renderDataView() {
       <div data-pane="upload" hidden>
         <div class="dropzone" id="dsDrop">
           <input type="file" id="dsFile" accept=".csv,.json,.txt" hidden>
-          <div class="dz-ico">⬆</div>
+          <div class="dz-ico">${icon("upload", 28)}</div>
           <p class="dz-title">Drag &amp; drop a file here</p>
           <p class="dz-sub">CSV, JSON or TXT — or</p>
-          <button class="btn subtle sm" id="dsBrowse" type="button">Browse files</button>
+          <button class="btn subtle sm" id="dsBrowse" type="button">${icon("folder")} Browse files</button>
           <p class="dz-file" id="dsFileName"></p>
         </div>
         <p class="hint" style="margin-top:8px">The file contents replace the raw data above.</p>
@@ -61,7 +62,7 @@ export function renderDataView() {
       </div>
 
       <div class="row" style="margin-top:18px">
-        <button class="btn" id="useData">Use this dataset</button>
+        <button class="btn" id="useData">${icon("check")} Use this dataset</button>
         <div class="spacer"></div>
         <span id="dsCount" class="stat-pill">${ds ? `<strong>Active:</strong> ${esc(ds.name)}` : "No active dataset"}</span>
       </div>
@@ -131,7 +132,7 @@ function sampleCard(key, title, desc) {
   return `<div class="chart-card" style="cursor:default">
     <strong>${title}</strong>
     <p class="cap" style="margin-top:6px">${desc}</p>
-    <button class="btn subtle sm" data-sample="${key}" style="margin-top:10px">Load</button>
+    <button class="btn subtle sm" data-sample="${key}" style="margin-top:10px">${icon("database")} Load</button>
   </div>`;
 }
 

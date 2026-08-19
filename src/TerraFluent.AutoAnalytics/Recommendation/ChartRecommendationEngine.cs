@@ -258,21 +258,15 @@ public sealed class ChartRecommendationEngine
 
         // Target ≈ √n bands, clamped to a sensible range. No hard floor of 6 so small samples
         // (e.g. 10–24 points) form a few well-populated bands instead of many sparse ones.
-        int bins = Math.Max(3, Math.Min(15, (int)Math.Ceiling(Math.Sqrt(n))));
-        // Whole-number fields (years, age, counts) get integer-aligned bands so the x-axis reads as
-        // coherent integers (0–3, 3–5, …) instead of 2.6–5.2. Clamp bins so band width stays >= 1.
+        int targetBins = Math.Max(3, Math.Min(15, (int)Math.Ceiling(Math.Sqrt(n))));
+        // Snap the edges to round numbers so bands read as 5k–10k rather than 6.6k–13.15k.
         bool integralX = IsIntegerValued(xs, n);
-        if (integralX)
-        {
-            int span = (int)Math.Round(max - min);
-            if (span >= 2) bins = Math.Min(bins, span);
-        }
-        double width = (max - min) / bins;
+        var (start, width, bins) = NiceBins(min, max, targetBins, integralX);
         var sum = new double[bins];
         var count = new int[bins];
         for (int i = 0; i < n; i++)
         {
-            int idx = (int)((xs[i] - min) / width);
+            int idx = (int)((xs[i] - start) / width);
             if (idx >= bins) idx = bins - 1;
             if (idx < 0) idx = 0;
             sum[idx] += ys[i];
@@ -284,7 +278,7 @@ public sealed class ChartRecommendationEngine
         for (int b = 0; b < bins; b++)
         {
             if (count[b] == 0) continue; // drop empty bands so the trend stays continuous
-            double lo = min + b * width, hi = lo + width;
+            double lo = start + b * width, hi = lo + width;
             labels.Add($"{FormatBound(lo, integralX)}\u2013{FormatBound(hi, integralX)}");
             means.Add(sum[b] / count[b]);
         }
@@ -353,18 +347,14 @@ public sealed class ChartRecommendationEngine
     private static (List<string> labels, List<int> counts) Histogram(IReadOnlyList<double> values, double min, double max)
     {
         if (max <= min) return (new List<string>(), new List<int>());
-        int bins = Math.Max(5, Math.Min(12, (int)Math.Ceiling(Math.Sqrt(values.Count))));
+        int targetBins = Math.Max(5, Math.Min(12, (int)Math.Ceiling(Math.Sqrt(values.Count))));
         bool integral = IsIntegerValued(values, values.Count);
-        if (integral)
-        {
-            int span = (int)Math.Round(max - min);
-            if (span >= 2) bins = Math.Min(bins, span);
-        }
-        double width = (max - min) / bins;
+        // Snap the edges to round numbers so bins read as 5k–10k rather than 6.6k–13.15k.
+        var (start, width, bins) = NiceBins(min, max, targetBins, integral);
         var counts = new int[bins];
         foreach (var v in values)
         {
-            int idx = (int)((v - min) / width);
+            int idx = (int)((v - start) / width);
             if (idx >= bins) idx = bins - 1;
             if (idx < 0) idx = 0;
             counts[idx]++;
@@ -372,7 +362,7 @@ public sealed class ChartRecommendationEngine
         var labels = new List<string>(bins);
         for (int i = 0; i < bins; i++)
         {
-            double lo = min + i * width, hi = lo + width;
+            double lo = start + i * width, hi = lo + width;
             labels.Add($"{FormatBound(lo, integral)}–{FormatBound(hi, integral)}");
         }
         return (labels, counts.ToList());
@@ -388,6 +378,28 @@ public sealed class ChartRecommendationEngine
     // Rounds a bin boundary to a whole number for integer-valued fields before compact-formatting.
     private static string FormatBound(double value, bool integral) =>
         FormatCompact(integral ? Math.Round(value, MidpointRounding.AwayFromZero) : value);
+
+    // Computes clean bin edges: a rounded start plus a "nice" width (1/2/2.5/5 × 10ⁿ) so bucket
+    // boundaries read as round numbers (e.g. 5k–10k) instead of raw data-driven values (6.6k–13.15k).
+    private static (double start, double width, int bins) NiceBins(double min, double max, int targetBins, bool integral)
+    {
+        double step = NiceStep((max - min) / Math.Max(1, targetBins));
+        if (integral) step = Math.Max(1, Math.Round(step));
+        double start = Math.Floor(min / step) * step;
+        double end   = Math.Ceiling(max / step) * step;
+        int bins = Math.Max(1, (int)Math.Round((end - start) / step));
+        return (start, step, bins);
+    }
+
+    // Rounds a raw step up to the nearest "nice" number: 1, 2, 2.5 or 5 × a power of ten.
+    private static double NiceStep(double raw)
+    {
+        if (raw <= 0 || double.IsNaN(raw) || double.IsInfinity(raw)) return 1;
+        double mag  = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        double norm = raw / mag; // 1 ≤ norm < 10
+        double nice = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+        return nice * mag;
+    }
 
     // Compact, human-readable numeric formatting (avoids "G3"/"G4" scientific notation like 4.77E+04).
     private static string FormatCompact(double value)

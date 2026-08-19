@@ -1,8 +1,9 @@
 /* Analyze view — full profiling, validation, insights and chart recommendations. */
 import {
   $, content, state, esc, fmt, loading, errorBox,
-  api, analyzeRequest, requireDataset, insightRow, toast,
+  api, analyzeRequest, requireDataset, insightRow, toast, chartStyleQuery,
 } from "./core.js";
+import { icon } from "./icons.js";
 
 export function renderAnalyzeView() {
   if (!requireDataset()) return;
@@ -15,8 +16,8 @@ export function renderAnalyzeView() {
             <input type="checkbox" id="incSvg" checked style="width:auto"> Preview charts
           </label>
           <label class="field">Max insights<input type="number" id="maxIns" value="12" min="1" max="100" style="width:90px"></label>
-          <button class="btn" id="runAnalyze" style="align-self:flex-end">Run analysis</button>
-          <button class="btn blue" id="exportAnalysis" style="align-self:flex-end">Export analysis</button>
+          <button class="btn" id="runAnalyze" style="align-self:flex-end">${icon("play")} Run analysis</button>
+          <button class="btn blue" id="exportAnalysis" style="align-self:flex-end">${icon("download")} Export analysis</button>
         </div>
       </div>
     </div>
@@ -29,7 +30,7 @@ export function renderAnalyzeView() {
       const r = await api.json("/api/analytics/analyze", {
         method: "POST",
         body: analyzeRequest({ maxInsights: +$("#maxIns").value, maxRecommendations: 12 }),
-        query: { includeSvg: $("#incSvg").checked },
+        query: { includeSvg: $("#incSvg").checked, ...chartStyleQuery() },
       });
       state.columns = r.columns || [];
       out.innerHTML = renderAnalysis(r);
@@ -41,6 +42,7 @@ export function renderAnalyzeView() {
     try {
       const html = await api.text("/api/analytics/analyze/html", {
         method: "POST", body: analyzeRequest({ maxInsights: +$("#maxIns").value, maxRecommendations: 12 }),
+        query: { ...chartStyleQuery() },
       });
       const blob = new Blob([html], { type: "text/html" });
       const a = document.createElement("a");

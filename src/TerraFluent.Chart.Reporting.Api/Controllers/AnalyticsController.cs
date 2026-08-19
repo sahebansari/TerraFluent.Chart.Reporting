@@ -54,10 +54,13 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(AnalyticsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult Analyze([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false, CancellationToken ct = default)
+    public IActionResult Analyze([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false,
+        [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        CancellationToken ct = default)
     {
         var result = RunAnalysis(request, ct);
-        return Ok(AnalyticsResponse.From(result, includeSvg));
+        return Ok(AnalyticsResponse.From(result, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
     }
 
     /// <summary>
@@ -69,10 +72,13 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult AnalyzeHtml([FromBody] AnalyzeRequest request, CancellationToken ct = default)
+    public IActionResult AnalyzeHtml([FromBody] AnalyzeRequest request,
+        [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        CancellationToken ct = default)
     {
         var result = RunAnalysis(request, ct);
-        return Content(AnalyzeHtmlRenderer.Render(result), "text/html");
+        return Content(AnalyzeHtmlRenderer.Render(result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)), "text/html");
     }
 
     /// <summary>
@@ -182,11 +188,14 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(AskResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult Ask([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false, CancellationToken ct = default)
+    public IActionResult Ask([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false,
+        [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        CancellationToken ct = default)
     {
         var result = RunAnalysis(request, ct);
         var trace = _agent.Investigate(result, request.Question);
-        return Ok(AskResponse.From(trace, includeSvg));
+        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
     }
 
     // ── Sessions (multi-turn agent) ───────────────────────────────────────────
@@ -214,13 +223,15 @@ public sealed class AnalyticsController : ControllerBase
     [HttpPost("sessions/{id}/ask")]
     [ProducesResponseType(typeof(AskResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public IActionResult AskSession(string id, [FromBody] SessionAskRequest request, [FromQuery] bool includeSvg = false)
+    public IActionResult AskSession(string id, [FromBody] SessionAskRequest request, [FromQuery] bool includeSvg = false,
+        [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null)
     {
         var session = _sessions.Get(id)
             ?? throw new KeyNotFoundException($"No active session with id '{id}'.");
 
         var trace = session.Ask(request?.Question);
-        return Ok(AskResponse.From(trace, includeSvg));
+        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
     }
 
     // ── Aggregation ───────────────────────────────────────────────────────────
@@ -267,11 +278,14 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(DashboardResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult Dashboard([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4, CancellationToken ct = default)
+    public IActionResult Dashboard([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4,
+        [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        CancellationToken ct = default)
     {
         var result = RunAnalysis(request, ct);
         var dashboard = DashboardBuilder.Generate(result, maxKpis);
-        return Ok(DashboardResponse.From(dashboard, result));
+        return Ok(DashboardResponse.From(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
     }
 
     /// <summary>
@@ -283,11 +297,14 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult DashboardHtml([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4, CancellationToken ct = default)
+    public IActionResult DashboardHtml([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4,
+        [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        CancellationToken ct = default)
     {
         var result = RunAnalysis(request, ct);
         var dashboard = DashboardBuilder.Generate(result, maxKpis);
-        return Content(DashboardHtmlRenderer.Render(dashboard, result), "text/html");
+        return Content(DashboardHtmlRenderer.Render(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)), "text/html");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

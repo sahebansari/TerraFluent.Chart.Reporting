@@ -1,8 +1,9 @@
 /* Dashboard view — auto-generated KPIs, trend/comparison/distribution charts. */
 import {
   $, content, state, esc, toast, loading, errorBox,
-  api, analyzeRequest, requireDataset, ensureColumns, chartCard, insightBlock,
+  api, analyzeRequest, requireDataset, ensureColumns, chartCard, insightBlock, chartStyleQuery,
 } from "./core.js";
+import { icon } from "./icons.js";
 
 export async function renderDashboardView() {
   if (!requireDataset()) return;
@@ -22,8 +23,8 @@ export async function renderDashboardView() {
         <div class="titles"><h2>Smart Dashboard</h2><p>KPIs, trend, comparison and distribution charts generated automatically from <strong>${esc(state.dataset.name)}</strong>.</p></div>
         <div class="row">
           <label class="field">KPIs<select id="maxKpis" style="width:80px">${kpiOptions}</select></label>
-          <button class="btn" id="genDash" style="align-self:flex-end">Generate dashboard</button>
-          <button class="btn blue" id="exportDash" style="align-self:flex-end">Export dashboard</button>
+          <button class="btn" id="genDash" style="align-self:flex-end">${icon("grid")} Generate dashboard</button>
+          <button class="btn blue" id="exportDash" style="align-self:flex-end">${icon("download")} Export dashboard</button>
         </div>
       </div>
     </div>
@@ -34,7 +35,7 @@ export async function renderDashboardView() {
     out.innerHTML = loading("Building dashboard…");
     try {
       const d = await api.json("/api/analytics/dashboard", {
-        method: "POST", body: analyzeRequest({ maxRecommendations: 24 }), query: { maxKpis: $("#maxKpis").value },
+        method: "POST", body: analyzeRequest({ maxRecommendations: 24 }), query: { maxKpis: $("#maxKpis").value, ...chartStyleQuery() },
       });
       out.innerHTML = renderDashboard(d);
     } catch (e) { out.innerHTML = errorBox(e); }
@@ -44,7 +45,7 @@ export async function renderDashboardView() {
     btn.disabled = true;
     try {
       const html = await api.text("/api/analytics/dashboard/html", {
-        method: "POST", body: analyzeRequest({ maxRecommendations: 24 }), query: { maxKpis: $("#maxKpis").value },
+        method: "POST", body: analyzeRequest({ maxRecommendations: 24 }), query: { maxKpis: $("#maxKpis").value, ...chartStyleQuery() },
       });
       const blob = new Blob([html], { type: "text/html" });
       const a = document.createElement("a");

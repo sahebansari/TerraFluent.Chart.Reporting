@@ -17,7 +17,7 @@ public sealed record DashboardResponse
     public required IReadOnlyList<InsightDto> KeyInsights { get; init; }
 
     /// <summary>Maps a dashboard definition + analysis to the API response, rendering each chart to SVG.</summary>
-    public static DashboardResponse From(DashboardDefinition d, AnalyticsResult result) => new()
+    public static DashboardResponse From(DashboardDefinition d, AnalyticsResult result, ChartStyle style = default) => new()
     {
         Title = d.Title,
         Summary = SummaryDto.From(result.Summary),
@@ -28,9 +28,9 @@ public sealed record DashboardResponse
             RawValue = k.RawValue,
             Caption = k.Caption
         }).ToList(),
-        TrendCharts = d.TrendCharts.Select(DashboardChartDto.From).ToList(),
-        ComparisonCharts = d.ComparisonCharts.Select(DashboardChartDto.From).ToList(),
-        DistributionCharts = d.DistributionCharts.Select(DashboardChartDto.From).ToList(),
+        TrendCharts = d.TrendCharts.Select(c => DashboardChartDto.From(c, style)).ToList(),
+        ComparisonCharts = d.ComparisonCharts.Select(c => DashboardChartDto.From(c, style)).ToList(),
+        DistributionCharts = d.DistributionCharts.Select(c => DashboardChartDto.From(c, style)).ToList(),
         Anomalies = d.Anomalies.Select(InsightDto.From).ToList(),
         KeyInsights = d.KeyInsights.Select(InsightDto.From).ToList()
     };
@@ -54,12 +54,12 @@ public sealed record DashboardChartDto
     public required string Reason { get; init; }
     public required string Svg { get; init; }
 
-    public static DashboardChartDto From(RecommendedChart rec) => new()
+    public static DashboardChartDto From(RecommendedChart rec, ChartStyle style = default) => new()
     {
         ChartType = rec.ChartName,
         SuitabilityScore = rec.SuitabilityScore,
         Title = rec.Spec.Title,
         Reason = rec.Reason,
-        Svg = ChartConfigBuilder.ToChartBuilder(rec.Spec).Size(560, 340).RenderToSvg()
+        Svg = style.Apply(ChartConfigBuilder.ToChartBuilder(rec.Spec).Size(560, 340)).RenderToSvg()
     };
 }

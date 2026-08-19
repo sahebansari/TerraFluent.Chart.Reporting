@@ -16,12 +16,12 @@ public sealed record AnalyticsResponse
     public required IReadOnlyList<ColumnProfileDto> Columns { get; init; }
 
     /// <summary>Maps a domain <see cref="AnalyticsResult"/> to the API response DTO.</summary>
-    public static AnalyticsResponse From(AnalyticsResult r, bool includeSvg = false) => new()
+    public static AnalyticsResponse From(AnalyticsResult r, bool includeSvg = false, ChartStyle style = default) => new()
     {
         Summary = SummaryDto.From(r.Summary),
         Validation = ValidationDto.From(r.Validation),
         Insights = r.Insights.Select(InsightDto.From).ToList(),
-        Recommendations = r.Recommendations.Select(rec => RecommendationDto.From(rec, includeSvg)).ToList(),
+        Recommendations = r.Recommendations.Select(rec => RecommendationDto.From(rec, includeSvg, style)).ToList(),
         Columns = r.Profile.Columns.Select(ColumnProfileDto.From).ToList()
     };
 }
@@ -121,7 +121,7 @@ public sealed record RecommendationDto
     /// <summary>Rendered SVG markup (only populated when the caller requests it).</summary>
     public string? Svg { get; init; }
 
-    public static RecommendationDto From(RecommendedChart rec, bool includeSvg) => new()
+    public static RecommendationDto From(RecommendedChart rec, bool includeSvg, ChartStyle style = default) => new()
     {
         ChartType = rec.ChartName,
         SuitabilityScore = rec.SuitabilityScore,
@@ -136,7 +136,7 @@ public sealed record RecommendationDto
         }).ToList(),
         // Match the dashboard's chart size (560×340) so text scales to the same on-page size —
         // both are displayed at width:100%, so a wider intrinsic chart would render smaller text.
-        Svg = includeSvg ? ChartConfigBuilder.ToChartBuilder(rec.Spec).Size(560, 340).RenderToSvg() : null
+        Svg = includeSvg ? style.Apply(ChartConfigBuilder.ToChartBuilder(rec.Spec).Size(560, 340)).RenderToSvg() : null
     };
 }
 

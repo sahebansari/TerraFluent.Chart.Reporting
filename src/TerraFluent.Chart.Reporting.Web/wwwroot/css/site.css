@@ -105,7 +105,8 @@ body {
 .nav-item:hover { background: var(--charcoal-2); color: #fff; }
 .nav-item.active { background: var(--adp-red); color: #fff; font-weight: 600; }
 .nav-item.active .nav-ico { opacity: 1; }
-.nav-ico { width: 20px; text-align: center; font-size: 15px; opacity: .8; }
+.nav-ico { width: 20px; text-align: center; font-size: 15px; opacity: .8; display: inline-flex; align-items: center; justify-content: center; }
+.nav-ico svg { width: 18px; height: 18px; }
 
 .sidebar-footer { padding: 14px; border-top: 1px solid rgba(255, 255, 255, .07); }
 .ds-badge { display: flex; align-items: center; gap: 10px; background: var(--charcoal-2); padding: 10px 12px; border-radius: var(--radius-sm); }
@@ -113,6 +114,8 @@ body {
 .ds-badge.ready .ds-dot { background: var(--ok); box-shadow: 0 0 0 3px rgba(31, 157, 85, .18); }
 .ds-badge strong { display: block; color: #fff; font-size: 13px; }
 .privacy-chip { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, .55); letter-spacing: .01em; }
+.privacy-chip [data-icon] { display: inline-flex; }
+.privacy-chip svg { width: 13px; height: 13px; }
 .ds-badge span { color: #8a92a0; font-size: 12px; }
 
 /* ── Main / topbar ────────────────────────────────────────────────────── */
@@ -141,8 +144,12 @@ body {
   cursor: pointer;
   font-size: 16px;
   color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .icon-btn:hover { background: var(--surface-2); }
+.icon-btn svg { width: 18px; height: 18px; }
 
 .api-status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
 .api-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-faint); }
@@ -164,7 +171,13 @@ body {
   cursor: pointer;
   transition: background .15s, box-shadow .15s;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }
+.btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.btn.sm svg { width: 14px; height: 14px; }
 .btn:hover { background: var(--adp-red-dark); }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn.ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
@@ -193,6 +206,7 @@ body {
 .privacy-note { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 18px; padding: 12px 16px; background: #f2fbf5; border: 1px solid #b7e4c7; border-radius: 14px; font-size: 13px; color: var(--text); line-height: 1.45; }
 .privacy-note strong { color: var(--ok); }
 .privacy-ico { flex: 0 0 auto; font-size: 15px; line-height: 1.4; }
+.privacy-ico svg { width: 16px; height: 16px; vertical-align: -3px; }
 
 .grid { display: grid; gap: 16px; }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
@@ -235,7 +249,9 @@ textarea { resize: vertical; min-height: 140px; font-family: "Cascadia Mono", Co
   border: none; background: transparent; padding: 10px 14px; cursor: pointer;
   font-family: inherit; font-size: 14px; color: var(--text-muted); font-weight: 600;
   border-bottom: 2px solid transparent; margin-bottom: -1px;
+  display: inline-flex; align-items: center; gap: 7px;
 }
+.tab svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .tab.active { color: var(--adp-red); border-bottom-color: var(--adp-red); }
 /* Reserve equal height across Paste/Upload/Samples panes so switching tabs doesn't shift the page. */
 .tab-panes { min-height: 240px; }
@@ -257,6 +273,7 @@ textarea { resize: vertical; min-height: 140px; font-family: "Cascadia Mono", Co
 .dropzone:hover { border-color: var(--blue); }
 .dropzone.dragover { border-color: var(--blue); background: #eef2ff; color: var(--text); }
 .dropzone .dz-ico { font-size: 30px; line-height: 1; color: var(--blue); }
+.dropzone .dz-ico svg { width: 30px; height: 30px; }
 .dropzone .dz-title { margin: 6px 0 0; font-weight: 600; font-size: 14px; color: var(--text); }
 .dropzone .dz-sub { margin: 0; font-size: 13px; }
 .dropzone .btn { margin-top: 8px; }
@@ -322,7 +339,9 @@ figure:hover .chart-zoom,
   width: 32px; height: 32px; border-radius: var(--radius-sm);
   border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted);
   cursor: pointer; font-size: 15px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
 }
+.chart-modal-close svg { width: 16px; height: 16px; }
 .chart-modal-close:hover { background: var(--adp-red); color: #fff; border-color: var(--adp-red); }
 
 /* ── Insights ─────────────────────────────────────────────────────────── */
@@ -399,6 +418,7 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 .steps .skill { display: inline-block; background: var(--adp-red-soft); color: var(--adp-red-dark); font-weight: 700; font-size: 12px; padding: 2px 9px; border-radius: 999px; margin-right: 8px; }
 .steps .rationale { color: var(--text); font-size: 13px; }
 .steps .trigger { display: block; color: var(--text-faint); font-size: 12px; margin-top: 3px; }
+.steps .trigger svg { width: 13px; height: 13px; vertical-align: -2px; }
 
 .chat { display: flex; flex-direction: column; gap: 12px; }
 .bubble { max-width: 82%; padding: 12px 16px; border-radius: 14px; font-size: 14px; }
@@ -412,6 +432,7 @@ table.data td.num, table.data th.num { text-align: right; font-variant-numeric: 
 /* ── States ───────────────────────────────────────────────────────────── */
 .empty { text-align: center; padding: 48px 24px; color: var(--text-muted); }
 .empty .em-ico { font-size: 40px; opacity: .35; }
+.empty .em-ico svg { width: 44px; height: 44px; stroke-width: 1.5; }
 .empty h3 { margin: 12px 0 4px; color: var(--text); }
 .spinner { width: 20px; height: 20px; border: 3px solid var(--border); border-top-color: var(--adp-red); border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }

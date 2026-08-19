@@ -2,14 +2,15 @@
    options, theme gallery, multi-format export, copy-embed, load-JSON and shareable links. */
 import {
   $, $$, content, state, esc, toast, loading, errorBox,
-  api, ensureCatalogue, ensureColumns, analyzeRequest, activateScripts, showCodeModal, requireDataset,
+  api, ensureCatalogue, ensureColumns, analyzeRequest, activateScripts, showCodeModal, requireDataset, settings,
 } from "./core.js";
+import { icon } from "./icons.js";
 import {
   STUDIO_TYPES, STUDIO_DEFAULT, STUDIO_NO_AXIS, STUDIO_STACKABLE,
-  buildStudioSeries, seriesToRows, studioKind,
+  buildStudioSeries, seriesToRows, studioKind, feasibleChartTypes,
 } from "./studio-core.js";
 
-// Legend position preset → Legend option fragment, and its inverse.
+// Legend position preset -> Legend option fragment, and its inverse.
 const LEGEND_PRESETS = {
   Bottom: { enabled: true, align: "center", verticalAlign: "bottom", layout: "horizontal" },
   Top:    { enabled: true, align: "center", verticalAlign: "top", layout: "horizontal" },
@@ -42,12 +43,25 @@ export async function renderStudioView() {
   if (!requireDataset()) return;
   content.innerHTML = `<div class="card">${loading("Loading catalogue…")}</div>`;
   await ensureCatalogue();
+  await ensureColumns();
   const cat = state.catalogue;
 
-  const typeOpts = cat.chartTypes.map(t => `<option>${esc(t.name)}</option>`).join("");
-  const modeOpts = cat.renderModes.map(m => `<option${m.name === "Interactive" ? " selected" : ""}>${esc(m.name)}</option>`).join("");
-  const themeOpts = cat.themes.map(t => `<option${t === "Vivid" ? " selected" : ""}>${esc(t)}</option>`).join("");
-  const legendOpts = Object.keys(LEGEND_PRESETS).map(p => `<option${p === "Bottom" ? " selected" : ""}>${p}</option>`).join("");
+  // Limit the chart-type list to those the current dataset can actually produce.
+  const cols = state.columns || [];
+  const shape = {
+    measures: cols.filter(isMeasureColumn).length,
+    dims: cols.filter(c => ["Category", "Boolean", "Text"].includes(c.type)).length,
+    dates: cols.filter(c => c.type === "Date").length,
+  };
+  const feasible = feasibleChartTypes(shape);
+  const typePool = cat.chartTypes.map(t => t.name).filter(n => feasible.has(n));
+  const availableTypes = typePool.length ? typePool : cat.chartTypes.map(t => t.name);
+  const defType = availableTypes.includes(settings.defaultChartType) ? settings.defaultChartType : availableTypes[0];
+
+  const typeOpts = availableTypes.map(n => `<option${n === defType ? " selected" : ""}>${esc(n)}</option>`).join("");
+  const modeOpts = cat.renderModes.map(m => `<option${m.name === settings.defaultRenderMode ? " selected" : ""}>${esc(m.name)}</option>`).join("");
+  const themeOpts = cat.themes.map(t => `<option${t === settings.defaultTheme ? " selected" : ""}>${esc(t)}</option>`).join("");
+  const legendOpts = Object.keys(LEGEND_PRESETS).map(p => `<option${p === settings.legendPosition ? " selected" : ""}>${p}</option>`).join("");
 
   const hasDataset = !!state.dataset;
 
@@ -55,14 +69,14 @@ export async function renderStudioView() {
     <div class="card" style="margin-bottom:16px">
       <div class="section-head" style="margin-bottom:12px">
         <div class="titles"><h2>Chart Studio</h2><p>Compose a chart from your dataset or from scratch, then export or share it.</p></div>
-        <button class="btn blue" id="stLoadDsBtn">${hasDataset ? "⤵ Load from your dataset" : "⤵ Load a dataset first"}</button>
+        <button class="btn blue" id="stLoadDsBtn">${icon("corner-down-right")} ${hasDataset ? "Load from your dataset" : "Load a dataset first"}</button>
       </div>
       <div id="stDsPanel" class="privacy-note" style="display:none;background:#eef2ff;border-color:#c7d2fe">
         <div style="flex:1">
           <div class="row" style="align-items:flex-end;gap:12px">
             <label class="field" style="flex:1 1 160px">Category (dimension)<select id="stDsDim"></select></label>
             <label class="field" style="flex:1 1 130px">Aggregation<select id="stDsAgg">${["Sum","Average","Count","Min","Max","Median"].map(k => `<option>${k}</option>`).join("")}</select></label>
-            <button class="btn" id="stDsLoad" style="align-self:flex-end">Load</button>
+            <button class="btn" id="stDsLoad" style="align-self:flex-end">${icon("corner-down-right")} Load</button>
           </div>
           <div class="field" style="margin-top:10px">Measures <span class="hint">tick one or more</span>
             <div id="stDsMeasures" class="measure-checks"></div>
@@ -73,7 +87,7 @@ export async function renderStudioView() {
         <label class="field" style="flex:1 1 180px">Chart type<select id="stType">${typeOpts}</select></label>
         <label class="field" style="flex:1 1 160px">Theme<select id="stTheme">${themeOpts}</select></label>
         <label class="field" style="flex:1 1 160px">Render mode<select id="stMode">${modeOpts}</select></label>
-        <button class="btn subtle" id="stGallery" style="align-self:flex-end">🎨 Theme gallery</button>
+        <button class="btn subtle" id="stGallery" style="align-self:flex-end">${icon("droplet")} Theme gallery</button>
       </div>
     </div>
     <div class="grid" style="grid-template-columns: minmax(320px, 440px) 1fr; align-items:start">
@@ -88,11 +102,11 @@ export async function renderStudioView() {
         </div>
         <p class="hint" id="stDataFmt" style="margin:12px 0 0;display:none"></p>
         <div id="stSeriesList"></div>
-        <button class="btn subtle sm" id="stAddSeries" style="margin-top:10px">+ Add series</button>
+        <button class="btn subtle sm" id="stAddSeries" style="margin-top:10px">${icon("plus")} Add series</button>
 
         <div class="row" style="margin-top:14px">
-          <label class="field" style="flex:1 1 80px">Height<input type="number" id="stHeight" value="360" min="150" max="900"></label>
-          <label class="field" style="flex:1 1 80px">Width<input type="number" id="stWidth" value="640" min="200" max="1600"></label>
+          <label class="field" style="flex:1 1 80px">Height<input type="number" id="stHeight" value="${esc(settings.defaultHeight)}" min="150" max="900"></label>
+          <label class="field" style="flex:1 1 80px">Width<input type="number" id="stWidth" value="${esc(settings.defaultWidth)}" min="200" max="1600"></label>
           <label class="field" style="flex:1 1 130px;flex-direction:row;align-items:center;gap:8px;font-weight:600;align-self:flex-end">
             <input type="checkbox" id="stResponsive" style="width:auto"> Responsive
           </label>
@@ -100,10 +114,10 @@ export async function renderStudioView() {
         <div class="row" style="margin-top:12px">
           <label class="field" style="flex:0 0 96px">Background<input type="color" id="stBg" value="#ffffff" style="height:38px;padding:3px"></label>
           <label class="field" style="flex:1 1 130px;flex-direction:row;align-items:center;gap:8px;font-weight:600;align-self:flex-end">
-            <input type="checkbox" id="stExport" checked style="width:auto"> Export menu
+            <input type="checkbox" id="stExport"${settings.showExportMenu ? " checked" : ""} style="width:auto"> Export menu
           </label>
           <label class="field" style="flex:1 1 130px;flex-direction:row;align-items:center;gap:8px;font-weight:600;align-self:flex-end">
-            <input type="checkbox" id="stGrid" checked style="width:auto"> Show grid lines
+            <input type="checkbox" id="stGrid"${settings.showGridLines ? " checked" : ""} style="width:auto"> Show grid lines
           </label>
         </div>
 
@@ -111,7 +125,7 @@ export async function renderStudioView() {
           <summary>Advanced options</summary>
           <div class="row" style="margin-top:12px">
             <label class="field" style="flex:1 1 150px;flex-direction:row;align-items:center;gap:8px;font-weight:600">
-              <input type="checkbox" id="stDataLabels" style="width:auto"> Data labels
+              <input type="checkbox" id="stDataLabels"${settings.showDataLabels ? " checked" : ""} style="width:auto"> Data labels
             </label>
             <label class="field" style="flex:1 1 150px;flex-direction:row;align-items:center;gap:8px;font-weight:600">
               <input type="checkbox" id="stLogY" style="width:auto"> Log Y-axis
@@ -124,8 +138,8 @@ export async function renderStudioView() {
         </details>
 
         <div class="row" style="margin-top:16px">
-          <button class="btn" id="stRender">Render</button>
-          <button class="btn subtle" id="stViewJson">View JSON</button>
+          <button class="btn" id="stRender">${icon("play")} Render</button>
+          <button class="btn subtle" id="stViewJson">${icon("code")} View JSON</button>
         </div>
       </div>
 
@@ -135,11 +149,11 @@ export async function renderStudioView() {
           <span class="hint">Configure a chart and click Render.</span>
         </div>
         <div class="row" style="margin-top:14px;flex-wrap:wrap">
-          <button class="btn blue" id="stDlSvg">Download SVG</button>
-          <button class="btn blue" id="stDlPng">Download PNG</button>
-          <button class="btn subtle" id="stCopySvg">Copy SVG</button>
-          <button class="btn subtle" id="stCopyEmbed">Copy embed</button>
-          <button class="btn subtle" id="stShare">🔗 Share link</button>
+          <button class="btn blue" id="stDlSvg">${icon("download")} Download SVG</button>
+          <button class="btn blue" id="stDlPng">${icon("image")} Download PNG</button>
+          <button class="btn subtle" id="stCopySvg">${icon("copy")} Copy SVG</button>
+          <button class="btn subtle" id="stCopyEmbed">${icon("code")} Copy embed</button>
+          <button class="btn subtle" id="stShare">${icon("share")} Share link</button>
         </div>
       </div>
     </div>`;
@@ -155,7 +169,7 @@ export async function renderStudioView() {
     wrap.innerHTML = `
       <label class="field" style="flex:1 1 110px">Series<input type="text" class="sName" value="${esc(name)}"></label>
       <label class="field" style="flex:2 1 180px">Values<input type="text" class="sVals" value="${esc(vals)}"></label>
-      <button class="icon-btn sDel" title="Remove" style="align-self:flex-end">✕</button>`;
+      <button class="icon-btn sDel" title="Remove" style="align-self:flex-end">${icon("x")}</button>`;
     $("#stSeriesList").appendChild(wrap);
     wrap.querySelector(".sDel").onclick = () => wrap.remove();
   };
@@ -168,21 +182,30 @@ export async function renderStudioView() {
   };
 
   // ── Preset / type-driven UI ─────────────────────────────────────────────
-  const applyPreset = (type) => {
+  // Type-driven layout only: toggles field visibility for the chosen type without
+  // touching the user's current title/categories/series data.
+  const applyTypeLayout = (type) => {
     const p = STUDIO_TYPES[type] || STUDIO_DEFAULT;
-    $("#stTitle").value = p.title;
-    $("#stCats").value = p.cats || "";
     $("#stCatsField").style.display = p.showCats === false ? "none" : "";
     const hasAxes = !STUDIO_NO_AXIS.has(type);
     $("#stAxisTitles").style.display = hasAxes ? "" : "none";
-    $("#stXTitle").value = hasAxes ? (p.xTitle || "") : "";
-    $("#stYTitle").value = hasAxes ? (p.yTitle || "") : "";
     $("#stDataFmt").textContent = p.hint ? `Values format: ${p.hint}` : "";
     $("#stDataFmt").style.display = p.hint ? "" : "none";
     const hideSeries = p.kind === "sankey";
     $("#stSeriesList").style.display = hideSeries ? "none" : "";
     $("#stAddSeries").style.display = hideSeries ? "none" : "";
     $("#stStack").disabled = !STUDIO_STACKABLE.has(type);
+  };
+
+  // Full preset: layout + sample starter data. Used for the initial editor state only.
+  const applyPreset = (type) => {
+    const p = STUDIO_TYPES[type] || STUDIO_DEFAULT;
+    applyTypeLayout(type);
+    $("#stTitle").value = p.title;
+    $("#stCats").value = p.cats || "";
+    const hasAxes = !STUDIO_NO_AXIS.has(type);
+    $("#stXTitle").value = hasAxes ? (p.xTitle || "") : "";
+    $("#stYTitle").value = hasAxes ? (p.yTitle || "") : "";
     setSeriesRows(p.series.map(([name, vals]) => ({ name, vals })));
   };
   applyPreset($("#stType").value);
@@ -275,7 +298,7 @@ export async function renderStudioView() {
   };
 
   $("#stRender").onclick = render;
-  $("#stType").onchange = () => { applyPreset($("#stType").value); render(); };
+  $("#stType").onchange = () => { applyTypeLayout($("#stType").value); render(); };
   $("#stTheme").onchange = render;
   $("#stMode").onchange = render;
   $("#stGrid").onchange = render;
@@ -346,8 +369,8 @@ export async function renderStudioView() {
     const col = cols.find(c => c.name === dimName);
     const hasNumericMeasure = cols.some(isMeasureColumn);
     if (!hasNumericMeasure) return "Count";
-    // High-cardinality text reads better as a count; grouped categories/dates sum their measure.
-    return (col && col.type === "Text") ? "Count" : "Sum";
+    // High-cardinality text reads better as a count; grouped categories/dates use the preferred default.
+    return (col && col.type === "Text") ? "Count" : settings.defaultAggregation;
   };
   const applyDefaultAgg = () => {
     const sel = $("#stDsAgg");
@@ -385,15 +408,19 @@ export async function renderStudioView() {
       const results = await Promise.all(measures.map(m =>
         api.json("/api/analytics/aggregate", { method: "POST", body: analyzeRequest(), query: { measure: m, dimension: dim, aggregation: agg } })));
       const cats = (results[0].buckets || []).map(b => b.key);
-      $("#stType").value = "Column";
-      applyPreset("Column");
+      // Use the preferred chart type when it suits grouped measures; otherwise fall back to Column.
+      const CARTESIAN = new Set(["Column", "Bar", "Line", "Spline", "Area"]);
+      const aggType = CARTESIAN.has(settings.defaultChartType) ? settings.defaultChartType : "Column";
+      $("#stType").value = aggType;
+      applyPreset(aggType);
       $("#stTitle").value = `${agg} of ${measures.join(", ")} by ${dim}`;
       $("#stCats").value = cats.join(", ");
       $("#stXTitle").value = dim;
       $("#stYTitle").value = measures.length === 1 ? measures[0] : agg;
       setSeriesRows(results.map((r, i) => {
         const map = new Map((r.buckets || []).map(b => [b.key, b.value]));
-        return { name: measures[i], vals: cats.map(k => { const v = map.get(k); return v == null ? 0 : v; }).join(", ") };
+        // Round aggregated values to at most 2 decimals so the editor shows clean numbers.
+        return { name: measures[i], vals: cats.map(k => { const v = map.get(k); return v == null ? 0 : Math.round(v * 100) / 100; }).join(", ") };
       }));
       await render();
       if (!silent) toast("Loaded from dataset.");
@@ -412,7 +439,7 @@ export async function renderStudioView() {
   } else {
     // On first open, choose default dim/aggregation and render a summarized chart.
     await populateDatasetFields();
-    const ok = await loadFromDataset({ silent: true });
+    const ok = settings.autoPrefetchStudio ? await loadFromDataset({ silent: true }) : false;
     if (!ok) render();
   }
 }
@@ -445,7 +472,7 @@ async function openThemeGallery(themes, baseOptions, onPick) {
     modal.className = "chart-modal";
     modal.innerHTML = `
       <div class="chart-modal-inner" role="dialog" aria-modal="true" aria-label="Theme gallery" style="max-width:1180px;width:94%;max-height:88vh;overflow:auto">
-        <button class="chart-modal-close" type="button" aria-label="Close">✕</button>
+        <button class="chart-modal-close" type="button" aria-label="Close">${icon("x")}</button>
         <div class="row" style="margin:0 0 12px;padding-right:32px;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
           <h3 style="margin:0">Theme gallery <span class="hint">click a theme to apply</span></h3>
           <label class="row" style="gap:6px;align-items:center;cursor:pointer;font-size:13px">
@@ -473,6 +500,8 @@ async function openThemeGallery(themes, baseOptions, onPick) {
     const previews = await Promise.all(themes.map(async theme => {
       const opts = {
         ...baseOptions, themeName: theme, renderMode: "Animated", exportMenuEnabled: false, width: 520, height: 320,
+        // Let each theme use its own background — ignore the studio's chosen colour.
+        backgroundColor: undefined,
         xAxis: { ...(baseOptions.xAxis || {}), gridLineVisible: showGrid },
         yAxis: { ...(baseOptions.yAxis || {}), gridLineVisible: showGrid },
       };
