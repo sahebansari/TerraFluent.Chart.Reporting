@@ -162,6 +162,10 @@ public sealed record ColumnProfileDto
     public double? Mean { get; init; }
     public double? Sum { get; init; }
 
+    /// <summary>True when the measure can be meaningfully summed; false for per-row attributes
+    /// (age, tenure, ratios, rates) where only average/min/max/count make sense.</summary>
+    public bool Additive { get; init; }
+
     public static ColumnProfileDto From(ColumnStatistics c) => new()
     {
         Name = c.Profile.Name,
@@ -173,6 +177,7 @@ public sealed record ColumnProfileDto
         Min = c.Numeric?.Min,
         Max = c.Numeric?.Max,
         Mean = c.Numeric?.Mean,
-        Sum = c.Numeric?.Sum
+        Sum = c.Numeric?.Sum,
+        Additive = TerraFluent.AutoAnalytics.Schema.MeasureSemantics.IsAdditive(c.Profile, c.Numeric?.Min, c.Numeric?.Max)
     };
 }

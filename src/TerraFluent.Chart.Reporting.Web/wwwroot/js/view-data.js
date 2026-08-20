@@ -1,5 +1,5 @@
 /* Data Source view — paste/upload/sample dataset selection and preview. */
-import { $, $$, content, state, esc, toast, setDataset, countRows } from "./core.js";
+import { $, $$, content, state, esc, toast, setDataset, countRows, ensureValidation, navigate } from "./core.js";
 import { icon } from "./icons.js";
 import { SAMPLES } from "./samples.js";
 
@@ -113,7 +113,7 @@ export function renderDataView() {
     toast(`Loaded sample: ${s.name}`);
   });
 
-  $("#useData").onclick = () => {
+  $("#useData").onclick = async () => {
     const data = $("#dsData").value.trim();
     if (!data) return toast("Paste some data or load a sample first.", true);
     setDataset({
@@ -122,7 +122,18 @@ export function renderDataView() {
       format: $("#dsFormat").value,
     });
     renderPreview();
-    toast("Dataset is ready. Head to Dashboard or Analyze.");
+    // Validate immediately; if the data has quality issues (warnings or errors), send the user to
+    // Data Quality to review them.
+    const btn = $("#useData"); if (btn) btn.disabled = true;
+    try {
+      const v = await ensureValidation();
+      if (v && !v.isClean) {
+        toast("Data-quality issues found \u2014 opening Data Quality.", true);
+        navigate("quality");
+        return;
+      }
+      toast("Dataset is ready. Head to Dashboard or Analyze.");
+    } finally { if (btn) btn.disabled = false; }
   };
 
   if (ds) renderPreview();

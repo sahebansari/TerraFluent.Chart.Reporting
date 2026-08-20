@@ -56,6 +56,28 @@ public sealed class AnalyticsEndpointsTests : IClassFixture<WebApplicationFactor
     }
 
     [Fact]
+    public async Task Analyze_ColumnProfiles_FlagNonAdditiveMeasures()
+    {
+        var client = _factory.CreateClient();
+        // 'age' is a per-row attribute (non-additive); 'Revenue' is a summable metric.
+        const string csv =
+            "age,department,Revenue\n" +
+            "25,Sales,12000\n26,Sales,13500\n42,Finance,15000\n" +
+            "31,Finance,16500\n55,Sales,17200\n48,Finance,42000\n";
+
+        var response = await client.PostAsJsonAsync("/api/analytics/analyze", new { data = csv });
+        response.EnsureSuccessStatusCode();
+        var doc = await ReadJsonAsync(response);
+
+        var cols = doc.RootElement.GetProperty("columns").EnumerateArray().ToList();
+        var age = cols.First(c => c.GetProperty("name").GetString() == "age");
+        var rev = cols.First(c => c.GetProperty("name").GetString() == "Revenue");
+
+        Assert.False(age.GetProperty("additive").GetBoolean()); // age must never be summed
+        Assert.True(rev.GetProperty("additive").GetBoolean());
+    }
+
+    [Fact]
     public async Task Analyze_WithFormatAsEnumName_IsAccepted()
     {
         var client = _factory.CreateClient();
@@ -232,6 +254,9 @@ public sealed class AnalyticsEndpointsTests : IClassFixture<WebApplicationFactor
         string html = await response.Content.ReadAsStringAsync();
         Assert.Contains("<!DOCTYPE html>", html, StringComparison.Ordinal);
         Assert.Contains("<svg", html, StringComparison.Ordinal);
+        // Self-contained: theme font embedded as base64 @font-face (no network fetch).
+        Assert.Contains("@font-face", html, StringComparison.Ordinal);
+        Assert.Contains("data:font/woff2;base64,", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -250,6 +275,8 @@ public sealed class AnalyticsEndpointsTests : IClassFixture<WebApplicationFactor
         Assert.Contains("Analysis", html, StringComparison.Ordinal);
         Assert.Contains("Column profiles", html, StringComparison.Ordinal);
         Assert.Contains("<svg", html, StringComparison.Ordinal);
+        Assert.Contains("@font-face", html, StringComparison.Ordinal);
+        Assert.Contains("data:font/woff2;base64,", html, StringComparison.Ordinal);
     }
 
     // ── agent (ask) ────────────────────────────────────────────────────────────

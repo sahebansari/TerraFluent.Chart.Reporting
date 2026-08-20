@@ -24,6 +24,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.LavenderMist,
             AxisLineColor       = ChartColor.DuskyIndigo,
             Colors              = ChartColor.Palette.Dark,
+            FontFamily          = "Inter, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.MidnightNavy, 0.94),
             TooltipTextColor    = ChartColor.LavenderWhite,
             PositiveColor       = ChartColor.FlatEmerald,
@@ -40,6 +41,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.CoolGray,
             AxisLineColor       = ChartColor.PlatinumGray,
             Colors              = ChartColor.Palette.Pastel,
+            FontFamily          = "Plus Jakarta Sans, Segoe UI, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.DuskyIndigo, 0.90),
             TooltipTextColor    = ChartColor.Black,
             PositiveColor       = ChartColor.SoftMintGreen,
@@ -56,6 +58,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.Black,
             AxisLineColor       = ChartColor.AshGray,
             Colors              = ChartColor.Palette.Monochrome,
+            FontFamily          = "Inter, Helvetica Neue, Helvetica, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.CoolGray, 0.88),
             TooltipTextColor    = ChartColor.White,
             PositiveColor       = ChartColor.GraphiteGray,
@@ -72,6 +75,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.AzureHaze,
             AxisLineColor       = ChartColor.SteelBlue,
             Colors              = ChartColor.Palette.Ocean,
+            FontFamily          = "Inter, Segoe UI, Helvetica Neue, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.OceanDepth, 0.94),
             TooltipTextColor    = ChartColor.SoftAquaBlue,
             PositiveColor       = ChartColor.OceanGreen,
@@ -88,6 +92,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.SunsetGlow,
             AxisLineColor       = ChartColor.DuskyRose,
             Colors              = ChartColor.Palette.Sunset,
+            FontFamily          = "Source Serif 4, Georgia, Palatino Linotype, serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.SunsetDusk, 0.94),
             TooltipTextColor    = ChartColor.PeachGlow,
             PositiveColor       = ChartColor.WarmAmber,
@@ -104,6 +109,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.EarthBrown,
             AxisLineColor       = ChartColor.FernGreen,
             Colors              = ChartColor.Palette.Forest,
+            FontFamily          = "Source Serif 4, Georgia, Times New Roman, serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.EarthBrown, 0.90),
             TooltipTextColor    = ChartColor.FernMist,
             PositiveColor       = ChartColor.SignalGreen,
@@ -120,6 +126,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.LavenderMist,
             AxisLineColor       = ChartColor.DimCharcoal,
             Colors              = ChartColor.Palette.Neon,
+            FontFamily          = "Space Grotesk, Tahoma, Segoe UI, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.NeonDark, 0.96),
             TooltipTextColor    = ChartColor.SoftLavenderGlow,
             PositiveColor       = ChartColor.NeonGreen,
@@ -136,6 +143,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.GraphiteGray,
             AxisLineColor       = ChartColor.LightSilver,
             Colors              = ChartColor.Palette.Minimal,
+            FontFamily          = "Inter, Helvetica Neue, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.GraphiteGray, 0.88),
             TooltipTextColor    = ChartColor.White,
             PositiveColor       = ChartColor.SignalGreen,
@@ -155,6 +163,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.EspressoBlack,
             AxisLineColor       = ChartColor.CinnamonBrown,
             Colors              = ChartColor.Palette.Warm,
+            FontFamily          = "Source Serif 4, Georgia, Book Antiqua, serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.EspressoBlack, 0.90),
             TooltipTextColor    = ChartColor.WarmCream
         };
@@ -168,6 +177,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.PolarNight,
             AxisLineColor       = ChartColor.GlacierBlue,
             Colors              = ChartColor.Palette.Arctic,
+            FontFamily          = "Plus Jakarta Sans, Franklin Gothic Medium, Segoe UI, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.PolarNight, 0.90),
             TooltipTextColor    = ChartColor.ArcticGlow,
             PositiveColor       = ChartColor.DeepCyanBlue,
@@ -184,6 +194,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.GraphiteGray,
             AxisLineColor       = ChartColor.CeruleanBlue,
             Colors              = ChartColor.Palette.Business,
+            FontFamily          = "Inter, Segoe UI, Calibri, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.GraphiteGray, 0.90),
             TooltipTextColor    = ChartColor.White,
             PositiveColor       = ChartColor.EmeraldTeal,
@@ -200,6 +211,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.DimCharcoal,
             AxisLineColor       = ChartColor.MaterialBlue,
             Colors              = ChartColor.Palette.Material,
+            FontFamily          = "Inter, Roboto, Segoe UI, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.DimCharcoal, 0.92),
             TooltipTextColor    = ChartColor.White,
             PositiveColor       = ChartColor.MaterialGreen,
@@ -216,6 +228,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.GraphiteGray,
             AxisLineColor       = ChartColor.BlueGray,
             Colors              = ChartColor.Palette.TrafficLight,
+            FontFamily          = "Plus Jakarta Sans, Segoe UI, Verdana, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.GraphiteGray, 0.90),
             TooltipTextColor    = ChartColor.White,
             PositiveColor       = ChartColor.SignalGreen,
@@ -232,6 +245,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.GraphiteGray,
             AxisLineColor       = ChartColor.WongBlue,
             Colors              = ChartColor.Palette.Accessible,
+            FontFamily          = "Atkinson Hyperlegible, Verdana, Segoe UI, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.GraphiteGray, 0.88),
             TooltipTextColor    = ChartColor.White,
             PositiveColor       = ChartColor.WongGreen,
@@ -252,6 +266,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.WetAsphalt,
             AxisLineColor       = ChartColor.VividBlue,
             Colors              = ChartColor.Palette.Vivid,
+            FontFamily          = "Inter, Segoe UI, Helvetica Neue, Arial, sans-serif",
             TooltipBackground   = ChartColor.WithOpacity(ChartColor.WetAsphalt, 0.92),
             TooltipTextColor    = ChartColor.White,
             PositiveColor       = ChartColor.VividGreen,
@@ -271,6 +286,7 @@ namespace TerraFluent.Chart.Reporting.Models
             TextColor           = ChartColor.Black,
             AxisLineColor       = ChartColor.Black,
             Colors              = ChartColor.Palette.HighContrast,
+            FontFamily          = "Atkinson Hyperlegible, Arial, Segoe UI, sans-serif",
             TooltipBackground   = "rgba(0,0,0,0.92)",
             TooltipTextColor    = ChartColor.White,
             PositiveColor       = ChartColor.DarkGreen,
@@ -349,7 +365,7 @@ namespace TerraFluent.Chart.Reporting.Models
         public string TextColor { get; set; } = ChartColor.GraphiteGray;
 
         /// <summary>CSS font-family string applied to all chart text.</summary>
-        public string FontFamily { get; set; } = "sans-serif";
+        public string FontFamily { get; set; } = "Inter, Segoe UI, Arial, sans-serif";
 
         /// <summary>
         /// Global multiplier applied to every chart font size (titles, axis labels/titles, data

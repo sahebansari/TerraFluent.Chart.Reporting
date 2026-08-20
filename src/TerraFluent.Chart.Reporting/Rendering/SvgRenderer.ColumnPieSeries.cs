@@ -387,8 +387,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
             if (n == 0) return;
 
             // Determine total-bar flags.
-            // Full spec: use exactly as provided. Empty: auto first/last. Partial: fill remainder with
-            // false but always keep first and last as totals for a coherent running-total shape.
+            // Full spec: use exactly as provided. Empty: auto-mark the last point as the running total.
+            // The first point is an absolute starting bar (0→value), never an auto-total — a total at
+            // index 0 has nothing accumulated yet so it would collapse to zero height and vanish.
             bool[] totals = new bool[n];
             if (series.WaterfallTotals.Count >= n)
             {
@@ -396,14 +397,12 @@ namespace TerraFluent.Chart.Reporting.Rendering
             }
             else if (series.WaterfallTotals.Count == 0)
             {
-                totals[0] = true;
                 if (n > 1) totals[n - 1] = true;
             }
             else
             {
-                // Partial spec: copy provided flags; first and last always totals
+                // Partial spec: copy provided flags; keep the last as a total for a coherent shape.
                 for (int i = 0; i < series.WaterfallTotals.Count; i++) totals[i] = series.WaterfallTotals[i];
-                totals[0] = true;
                 totals[n - 1] = true;
             }
 

@@ -21,6 +21,7 @@ export function renderQualityView() {
     out.innerHTML = loading("Validating…");
     try {
       const v = await api.json("/api/analytics/validate", { method: "POST", body: analyzeRequest() });
+      state.validation = v; // refresh the router's cached report
       out.innerHTML = renderValidation(v);
     } catch (e) { out.innerHTML = errorBox(e); }
   };

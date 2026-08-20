@@ -27,12 +27,15 @@ namespace TerraFluent.Chart.Reporting.Rendering
             double legendPx = options.Legend.ItemFontSize * fs;
 
             sb.AppendLine("  <style>");
-            sb.AppendLine($"    {p}.chart-title   {{ font: bold {titlePx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.chart-subtitle{{ font: {subtitlePx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.axis-label    {{ font: {axisLblPx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.axis-title    {{ font: {axisTtlPx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.legend-label  {{ font: {legendPx.ToString("0.#", CultureInfo.InvariantCulture)}px {Escape(t.FontFamily)}; fill: {Escape(options.Legend.ItemFontColor ?? t.TextColor)}; }}");
-            sb.AppendLine($"    {p}.data-label    {{ font: bold {dataLblPx}px {Escape(t.FontFamily)}; fill: {Escape(t.TextColor)}; pointer-events: none; }}");
+            // Base rule so every <text> — including inline font-size labels without a class — inherits
+            // the theme font. The specific classes below (higher specificity) still override as needed.
+            sb.AppendLine($"    {p}text           {{ font-family: {CssFontFamily(t.FontFamily)}; }}");
+            sb.AppendLine($"    {p}.chart-title   {{ font: bold {titlePx}px {CssFontFamily(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.chart-subtitle{{ font: {subtitlePx}px {CssFontFamily(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.axis-label    {{ font: {axisLblPx}px {CssFontFamily(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.axis-title    {{ font: {axisTtlPx}px {CssFontFamily(t.FontFamily)}; fill: {Escape(t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.legend-label  {{ font: {legendPx.ToString("0.#", CultureInfo.InvariantCulture)}px {CssFontFamily(t.FontFamily)}; fill: {Escape(options.Legend.ItemFontColor ?? t.TextColor)}; }}");
+            sb.AppendLine($"    {p}.data-label    {{ font: bold {dataLblPx}px {CssFontFamily(t.FontFamily)}; fill: {Escape(t.TextColor)}; pointer-events: none; }}");
             sb.AppendLine($"    {p}.axis-line     {{ stroke: {Escape(t.AxisLineColor)}; stroke-width: 1; }}");
             sb.AppendLine($"    {p}.grid-line     {{ stroke-width: 1; fill: none; }}");
 
@@ -47,8 +50,8 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
                     string ttDur   = tt.TransitionDuration.ToString("F2", CultureInfo.InvariantCulture);
                     string ttFont  = tt.FontFamily != null
-                        ? $"{tt.FontSize}px {Escape(tt.FontFamily)}"
-                        : $"{tt.FontSize}px {Escape(t.FontFamily)}";
+                        ? $"{tt.FontSize}px {CssFontFamily(tt.FontFamily)}"
+                        : $"{tt.FontSize}px {CssFontFamily(t.FontFamily)}";
 
                     // Shadow via CSS drop-shadow filter on the tooltip box
                     string shadowRule = tt.Shadow
@@ -142,6 +145,54 @@ namespace TerraFluent.Chart.Reporting.Rendering
             sb.AppendLine($"    {p}.chart-title, {p}.chart-subtitle,");
             sb.AppendLine($"    {p}.axis-title,");
             sb.AppendLine($"    {p}.data-label {{ direction: rtl; }}");
+        }
+
+        // Generic CSS font keywords that must never be quoted.
+        private static readonly HashSet<string> GenericFontFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui",
+            "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "math", "emoji", "fangsong",
+            "inherit", "initial", "unset", "revert", "revert-layer"
+        };
+
+        // Formats a CSS font-family stack, wrapping any non-generic name that is not a bare CSS
+        // identifier (e.g. "Source Serif 4", "Segoe UI") in single quotes so the CSS is valid.
+        // Each name is XML-escaped for &, <, > but the wrapping quotes stay literal.
+        private static string CssFontFamily(string? stack)
+        {
+            if (string.IsNullOrWhiteSpace(stack)) return "sans-serif";
+
+            var sb = new StringBuilder();
+            foreach (var raw in stack!.Split(','))
+            {
+                string name = raw.Trim();
+                if (name.Length == 0) continue;
+                if (sb.Length > 0) sb.Append(", ");
+
+                bool alreadyQuoted = name.Length >= 2 &&
+                    ((name[0] == '\'' && name[name.Length - 1] == '\'') ||
+                     (name[0] == '"' && name[name.Length - 1] == '"'));
+
+                if (alreadyQuoted || GenericFontFamilies.Contains(name) || IsBareCssIdentifier(name))
+                    sb.Append(Escape(name));
+                else
+                    sb.Append('\'').Append(Escape(name)).Append('\'');
+            }
+            return sb.Length == 0 ? "sans-serif" : sb.ToString();
+        }
+
+        // True when the name is a single CSS identifier valid unquoted in font-family:
+        // no spaces, starts with a letter/underscore/hyphen, remaining chars alphanumeric/-/_.
+        private static bool IsBareCssIdentifier(string name)
+        {
+            char c0 = name[0];
+            if (!(char.IsLetter(c0) || c0 == '_' || c0 == '-')) return false;
+            for (int i = 1; i < name.Length; i++)
+            {
+                char c = name[i];
+                if (!(char.IsLetterOrDigit(c) || c == '-' || c == '_')) return false;
+            }
+            return true;
         }
 
         // Effective font-size multiplier for the current chart (theme FontScale, clamped to > 0).

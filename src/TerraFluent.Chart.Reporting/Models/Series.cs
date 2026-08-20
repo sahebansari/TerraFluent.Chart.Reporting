@@ -53,7 +53,8 @@ namespace TerraFluent.Chart.Reporting.Models
         /// <summary>
         /// For <see cref="Enums.ChartType.Waterfall"/> series: marks each data point as a
         /// cumulative "total" bar (drawn from the axis baseline) when <c>true</c>.
-        /// When empty the first and last data points are auto-treated as totals.
+        /// When empty the last data point is auto-treated as a total and the first is an
+        /// absolute starting bar.
         /// </summary>
         public List<bool> WaterfallTotals { get; set; } = new List<bool>();
 

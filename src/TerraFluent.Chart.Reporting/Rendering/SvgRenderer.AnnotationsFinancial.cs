@@ -120,7 +120,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                             sb.AppendLine($"  <rect x=\"{F(bx)}\" y=\"{F(by)}\" width=\"{F(tw)}\" height=\"{F(th)}\" rx=\"3\" fill=\"{Escape(a.BackgroundColor)}\" stroke=\"{stroke}\" stroke-width=\"{F(sw)}\"/>");
                         }
 
-                        sb.AppendLine($"  <text x=\"{F(lx)}\" y=\"{F(ly)}\" text-anchor=\"{anchor}\" style=\"font: {a.FontSize}px {Escape(options.Theme.FontFamily)};\" fill=\"{stroke}\">{text}</text>");
+                        sb.AppendLine($"  <text x=\"{F(lx)}\" y=\"{F(ly)}\" text-anchor=\"{anchor}\" style=\"font: {a.FontSize}px {CssFontFamily(options.Theme.FontFamily)};\" fill=\"{stroke}\">{text}</text>");
                         break;
                     }
                 }

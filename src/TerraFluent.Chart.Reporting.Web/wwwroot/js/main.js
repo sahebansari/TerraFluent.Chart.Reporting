@@ -2,7 +2,7 @@
    ADP Analytics & Reporting Studio — SPA entry point.
    Wires the sidebar router to each view module and boots the app.
    ========================================================================== */
-import { $, $$, content, toast, setDataset, checkApi, initChartZoom } from "./core.js";
+import { $, $$, content, toast, setDataset, checkApi, initChartZoom, state, ensureValidation, registerNavigate } from "./core.js";
 import { renderIcons } from "./icons.js";
 import { SAMPLES } from "./samples.js";
 import { renderDataView } from "./view-data.js";
@@ -28,9 +28,28 @@ const VIEWS = {
 };
 
 // ── Router ──────────────────────────────────────────────────────────────
+// Views that consume the active dataset. Opening one requires a dataset (else divert to Data
+// Source) and, on first entry after loading data, a clean bill of health (else divert to Data
+// Quality so issues are reviewed before running analytics).
+const GUARDED = new Set(["dashboard", "analyze", "agent", "aggregate", "studio"]);
 let current = "data";
-function setView(name) {
+async function setView(name) {
   if (!VIEWS[name]) name = "data";
+
+  if (GUARDED.has(name)) {
+    if (!state.dataset) {
+      toast("Load a dataset first.", true);
+      name = "data";
+    } else if (!state.qualityAcknowledged) {
+      const v = await ensureValidation();
+      if (v && !v.isClean) {
+        toast("Review the data-quality issues before continuing.", true);
+        name = "quality";
+      }
+    }
+  }
+  if (name === "quality") state.qualityAcknowledged = true;
+
   current = name;
   $$(".nav-item").forEach(b => b.classList.toggle("active", b.dataset.view === name));
   $("#viewTitle").textContent = VIEWS[name].title;
@@ -41,6 +60,7 @@ function setView(name) {
 // ── Boot ────────────────────────────────────────────────────────────────
 function init() {
   renderIcons();
+  registerNavigate(setView);
   $$(".nav-item").forEach(b => b.onclick = () => setView(b.dataset.view));
   $("#menuToggle").onclick = () => $("#sidebar").classList.toggle("collapsed");
   $("#settingsBtn").onclick = () => setView("settings");

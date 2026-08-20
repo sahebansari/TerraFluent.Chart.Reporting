@@ -1391,8 +1391,9 @@ namespace TerraFluent.Chart.Reporting.Builder
         /// <summary>
         /// Adds a waterfall (running-total) series. Positive values are increases (green),
         /// negatives are decreases (red), and total bars can be marked via
-        /// <paramref name="totals"/>. When <paramref name="totals"/> is null the first and
-        /// last data points are automatically treated as cumulative totals.
+        /// <paramref name="totals"/>. When <paramref name="totals"/> is null the first data
+        /// point is an absolute starting bar and the last data point is treated as a
+        /// cumulative total.
         /// </summary>
         public ChartSeriesBuilder AddWaterfall(string name, IEnumerable<double?> data,
             IEnumerable<bool>? totals = null, Action<SeriesBuilder>? configure = null)

@@ -11,6 +11,8 @@ export const state = {
   measureCount: 0,      // number of numeric measures in the active dataset
   catalogue: null,      // { chartTypes, themes, renderModes }
   session: null,        // { id, turns: [] }
+  validation: null,     // cached data-quality report for the active dataset
+  qualityAcknowledged: false, // true once the user has seen Data Quality for this dataset
 };
 
 // ── User settings / preferences (persisted in browser localStorage) ──────
@@ -321,6 +323,8 @@ export function setDataset(ds) {
   state.columns = [];
   state.measureCount = 0;
   state.session = null;
+  state.validation = null;
+  state.qualityAcknowledged = false;
   const badge = $("#dsBadge");
   badge.classList.add("ready");
   $("#dsName").textContent = ds.name;
@@ -344,6 +348,23 @@ export async function ensureColumns() {
     state.measureCount = r.summary?.measureCount ?? 0;
   } catch { state.columns = []; }
 }
+
+// Runs (and caches) the data-quality validation for the active dataset. Returns the report,
+// or null when there is no dataset / the request fails.
+export async function ensureValidation() {
+  if (!state.dataset) return null;
+  if (state.validation) return state.validation;
+  try {
+    state.validation = await api.json("/api/analytics/validate", { method: "POST", body: analyzeRequest() });
+  } catch { state.validation = null; }
+  return state.validation;
+}
+
+// Programmatic navigation: the router (main.js) registers its setView here so any view module
+// can route without importing main.js (which would create a circular dependency).
+let _navigate = null;
+export function registerNavigate(fn) { _navigate = fn; }
+export function navigate(name) { if (_navigate) _navigate(name); }
 
 export async function ensureCatalogue() {
   if (state.catalogue) return;
@@ -391,6 +412,17 @@ export function insightRow(i) {
       <p>${esc(i.description)}</p>
       ${i.kind ? `<span class="kind">${esc(i.kind)}</span>` : ""}
     </div></div>`;
+}
+
+// ── Aggregation helpers ─────────────────────────────────────────────────
+// Non-additive measures (age, tenure, ratios, rates…) must never be summed. The API flags each
+// column via `additive`; when it is false we drop "Sum" and default callers to "Average".
+export const ALL_AGGREGATIONS = ["Sum", "Average", "Count", "Min", "Max", "Median"];
+export const isSummable = (col) => !col || col.additive !== false;
+export function aggregationsForColumns(cols) {
+  const arr = Array.isArray(cols) ? cols : [cols];
+  const anyNonAdditive = arr.some(c => c && c.additive === false);
+  return anyNonAdditive ? ALL_AGGREGATIONS.filter(a => a !== "Sum") : ALL_AGGREGATIONS;
 }
 
 // ── Dataset-driven question suggestions ─────────────────────────────────

@@ -1,7 +1,7 @@
 /* Aggregate view — group a measure by one dimension, or pivot across two. */
 import {
   $, content, state, esc, fmt, loading, errorBox, toast,
-  api, analyzeRequest, requireDataset, ensureColumns, settings,
+  api, analyzeRequest, requireDataset, ensureColumns, settings, aggregationsForColumns,
 } from "./core.js";
 import { icon } from "./icons.js";
 
@@ -15,23 +15,35 @@ export async function renderAggregateView() {
   const dims = state.columns.filter(c => ["Category", "Boolean", "Text"].includes(c.type));
   const opt = (c) => `<option value="${esc(c.name)}">${esc(c.name)}</option>`;
   const dimPool = dims.length ? dims : state.columns.filter(c => c.type !== "Date");
+  const measurePool = measures.length ? measures : state.columns;
+  const measureCol = (name) => measurePool.find(c => c.name === name) || state.columns.find(c => c.name === name);
+  // Aggregation options adapt to the chosen measure: non-additive columns (age, tenure…) drop "Sum".
+  const aggOptionsHtml = (col) => {
+    const allowed = aggregationsForColumns([col]);
+    const def = allowed.includes(settings.defaultAggregation) ? settings.defaultAggregation : "Average";
+    return allowed.map(k => `<option${k === def ? " selected" : ""}>${k}</option>`).join("");
+  };
 
   content.innerHTML = `
     <div class="card">
       <div class="titles"><h2>Aggregation &amp; Pivot</h2><p>Group a measure by one dimension, or pivot across two.</p></div>
       <div class="row" style="margin-top:14px">
         <label class="field" style="flex:1 1 180px">Measure
-          <select id="aggMeasure">${(measures.length ? measures : (state.columns.length ? state.columns : [])).map(opt).join("")}</select></label>
+          <select id="aggMeasure">${measurePool.map(opt).join("")}</select></label>
         <label class="field" style="flex:1 1 180px">Dimension
           <select id="aggDim">${dimPool.map(opt).join("")}</select></label>
         <label class="field" style="flex:1 1 180px">Second dimension
           <select id="aggDim2"><option value="">— none (pivot off) —</option>${dimPool.map(opt).join("")}</select></label>
         <label class="field" style="flex:1 1 140px">Aggregation
-          <select id="aggKind">${["Sum","Average","Count","Min","Max","Median"].map(k => `<option${k === settings.defaultAggregation ? " selected" : ""}>${k}</option>`).join("")}</select></label>
+          <select id="aggKind">${aggOptionsHtml(measurePool[0])}</select></label>
         <button class="btn" id="aggRun" style="align-self:flex-end">${icon("sigma")} Compute</button>
       </div>
     </div>
     <div id="aggOut"></div>`;
+
+  // Rebuild the aggregation list whenever the measure changes so Sum can't be picked for a
+  // non-additive column.
+  $("#aggMeasure").onchange = () => { $("#aggKind").innerHTML = aggOptionsHtml(measureCol($("#aggMeasure").value)); };
 
   $("#aggRun").onclick = async () => {
     const out = $("#aggOut");

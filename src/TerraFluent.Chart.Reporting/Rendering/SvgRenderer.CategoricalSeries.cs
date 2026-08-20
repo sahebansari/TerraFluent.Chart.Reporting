@@ -111,6 +111,10 @@ namespace TerraFluent.Chart.Reporting.Rendering
             string dur  = anim ? F(options.Animation.Duration.TotalSeconds) + "s" : string.Empty;
             string ease = anim ? SmilEasing(options.Animation.Easing) : string.Empty;
 
+            double scale = FontScaleOf(options);
+            int lblPx = Sz(11, scale);
+            int valPx = Sz(10, scale);
+
             foreach (var cell in cells)
             {
                 if (cell.W < 1 || cell.H < 1) continue;
@@ -127,19 +131,19 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 }
 
                 // Label inside the cell when large enough
-                if (cell.W > 30 && cell.H > 18)
+                if (cell.W > 30 && cell.H > 18 * scale)
                 {
                     double lx = cell.X + cell.W / 2;
                     double ly = cell.Y + cell.H / 2;
-                    bool showValue = cell.H > 36;
+                    bool showValue = cell.H > 36 * scale;
                     if (showValue)
                     {
-                        sb.AppendLine($"  <text x=\"{F(lx)}\" y=\"{F(ly - 6)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-size=\"11\" font-weight=\"bold\" fill=\"{ChartColor.White}\" style=\"pointer-events:none\">{Escape(cell.Label)}</text>");
-                        sb.AppendLine($"  <text x=\"{F(lx)}\" y=\"{F(ly + 8)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-size=\"10\" fill=\"{ChartColor.WithOpacity(ChartColor.White, 0.75)}\" style=\"pointer-events:none\">{Escape(FormatTick(cell.Value))}</text>");
+                        sb.AppendLine($"  <text x=\"{F(lx)}\" y=\"{F(ly - 6 * scale)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-size=\"{lblPx}\" font-weight=\"bold\" fill=\"{ChartColor.White}\" style=\"pointer-events:none\">{Escape(cell.Label)}</text>");
+                        sb.AppendLine($"  <text x=\"{F(lx)}\" y=\"{F(ly + 8 * scale)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-size=\"{valPx}\" fill=\"{ChartColor.WithOpacity(ChartColor.White, 0.75)}\" style=\"pointer-events:none\">{Escape(FormatTick(cell.Value))}</text>");
                     }
                     else
                     {
-                        sb.AppendLine($"  <text x=\"{F(lx)}\" y=\"{F(ly)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-size=\"11\" font-weight=\"bold\" fill=\"{ChartColor.White}\" style=\"pointer-events:none\">{Escape(cell.Label)}</text>");
+                        sb.AppendLine($"  <text x=\"{F(lx)}\" y=\"{F(ly)}\" text-anchor=\"middle\" dominant-baseline=\"central\" font-size=\"{lblPx}\" font-weight=\"bold\" fill=\"{ChartColor.White}\" style=\"pointer-events:none\">{Escape(cell.Label)}</text>");
                     }
                 }
 

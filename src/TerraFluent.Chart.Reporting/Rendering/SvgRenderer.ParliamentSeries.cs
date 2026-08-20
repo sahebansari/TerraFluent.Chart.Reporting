@@ -326,7 +326,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     string tipShadow = tt.Shadow ? "drop-shadow(0 2px 6px rgba(0,0,0,0.28))" : "none";
                     string tipTrans  = $"opacity {F(tt.TransitionDuration)}s";
                     string tipFontFamilyLine = !string.IsNullOrEmpty(tt.FontFamily)
-                        ? $"tipLine1.setAttribute('font-family','{tt.FontFamily.Replace("\\", "\\\\").Replace("'", "\\'")}'); tipLine2.setAttribute('font-family','{tt.FontFamily.Replace("\\", "\\\\").Replace("'", "\\'")}');"
+                        ? $"tipLine1.style.fontFamily='{tt.FontFamily.Replace("\\", "\\\\").Replace("'", "\\'")}'; tipLine2.style.fontFamily='{tt.FontFamily.Replace("\\", "\\\\").Replace("'", "\\'")}';"
                         : string.Empty;
                     string tipBorderLine = tt.BorderWidth > 0 && !string.IsNullOrEmpty(tt.BorderColor)
                         ? $"tipBgEl.setAttribute('stroke','{Escape(tt.BorderColor)}'); tipBgEl.setAttribute('stroke-width','{tt.BorderWidth}');"

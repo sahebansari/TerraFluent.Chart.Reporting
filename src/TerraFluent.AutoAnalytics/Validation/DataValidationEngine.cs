@@ -134,7 +134,9 @@ public sealed class DataValidationEngine
             if (invalid > 0)
                 issues.Add(new ValidationIssue
                 {
-                    Severity = invalid > p.TotalCount * 0.1 ? ValidationSeverity.Warning : ValidationSeverity.Info,
+                    // A value that doesn't match the column's type is a genuine data error: at least a
+                    // Warning, escalating to Error when it affects a large share of the column.
+                    Severity = invalid > p.TotalCount * 0.1 ? ValidationSeverity.Error : ValidationSeverity.Warning,
                     Code = "INVALID_FORMAT",
                     Column = p.Name,
                     Message = $"Column '{p.Name}' has {invalid} value(s) that do not match its inferred type ({p.Type}).",

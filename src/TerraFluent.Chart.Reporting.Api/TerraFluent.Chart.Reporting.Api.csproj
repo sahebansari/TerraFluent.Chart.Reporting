@@ -18,6 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Self-hosted Inter woff2 embedded for self-contained HTML exports (see EmbeddedFontCss). -->
+    <EmbeddedResource Include="Rendering\Fonts\*.woff2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\TerraFluent.Chart.Reporting\TerraFluent.Chart.Reporting.csproj" />
     <ProjectReference Include="..\..\src\TerraFluent.AutoAnalytics\TerraFluent.AutoAnalytics.csproj" />
   </ItemGroup>

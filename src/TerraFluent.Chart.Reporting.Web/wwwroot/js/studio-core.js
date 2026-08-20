@@ -129,7 +129,14 @@ export function buildStudioSeries(type, rows) {
     case "sankey":
       return [JSON.parse(JSON.stringify(SANKEY_SAMPLE))];
     default:
-      return rows.map(r => ({ name: r.name, type, data: r.tokens.map(numOf) }));
+      return rows.map(r => {
+        const data = r.tokens.map(numOf);
+        const s = { name: r.name, type, data };
+        // Explicit total flags for Waterfall: last bar is the cumulative total, the rest are
+        // absolute/delta bars — so the renderer never has to guess (avoids hiding the first bar).
+        if (type === "Waterfall") s.waterfallTotals = data.map((_, i) => i === data.length - 1);
+        return s;
+      });
   }
 }
 

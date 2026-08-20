@@ -49,4 +49,13 @@ public class ValidationTests
         var report = Validate("Id,City\n1,NY\n2,LA\n3,SF\n");
         Assert.True(report.IsClean);
     }
+
+    [Fact]
+    public void FlagsInvalidFormat_AsAtLeastWarning()
+    {
+        // 10 numeric ages + 1 non-numeric ("pr") keeps the column Numeric (>=90%) but one bad value.
+        var report = Validate("Id,Age\n1,22\n2,23\n3,24\n4,25\n5,26\n6,pr\n7,28\n8,29\n9,30\n10,31\n11,32\n");
+        Assert.Contains(report.Issues, i => i.Code == "INVALID_FORMAT" && i.Column == "Age");
+        Assert.False(report.IsClean); // a type mismatch must not be treated as clean
+    }
 }

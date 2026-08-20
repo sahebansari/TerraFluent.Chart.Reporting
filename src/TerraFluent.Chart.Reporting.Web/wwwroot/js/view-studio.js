@@ -2,7 +2,7 @@
    options, theme gallery, multi-format export, copy-embed, load-JSON and shareable links. */
 import {
   $, $$, content, state, esc, toast, loading, errorBox,
-  api, ensureCatalogue, ensureColumns, analyzeRequest, activateScripts, showCodeModal, requireDataset, settings,
+  api, ensureCatalogue, ensureColumns, analyzeRequest, activateScripts, showCodeModal, requireDataset, settings, aggregationsForColumns,
 } from "./core.js";
 import { icon } from "./icons.js";
 import {
@@ -309,6 +309,13 @@ export async function renderStudioView() {
   // ── Export / share actions ───────────────────────────────────────────────
   const fileBase = () => ($("#stTitle").value || "chart").replace(/\s+/g, "-").toLowerCase();
 
+  // Absolute /api/charts/shared URL for the current chart (view-only: no export menu, +20% text).
+  const buildShareUrl = () => {
+    const shareOptions = { ...buildOptions(), exportMenuEnabled: false, fontScale: 1.2 };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareOptions))));
+    return `${location.origin}/api/charts/shared?options=${encodeURIComponent(encoded)}`;
+  };
+
   $("#stDlSvg").onclick = () => {
     if (!lastSvg) return toast("Render a chart first.", true);
     downloadBlob(new Blob([lastSvg], { type: "image/svg+xml" }), fileBase() + ".svg");
@@ -331,17 +338,12 @@ export async function renderStudioView() {
     toast("SVG copied to clipboard.");
   };
   $("#stCopyEmbed").onclick = async () => {
-    if (!lastSvg) return toast("Render a chart first.", true);
-    const dataUri = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(lastSvg)));
-    await copyText(`<img alt="${esc($("#stTitle").value || "chart")}" src="${dataUri}">`);
+    await copyText(`<img alt="${esc($("#stTitle").value || "chart")}" src="${buildShareUrl()}">`);
     toast("Embed <img> tag copied.");
   };
   $("#stShare").onclick = async () => {
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(buildOptions()))));
-    const url = `${location.origin}${location.pathname}#studio=${encoded}`;
-    await copyText(url);
-    location.hash = "studio=" + encoded;
-    toast("Shareable link copied to clipboard.");
+    await copyText(buildShareUrl());
+    toast("Shareable chart link copied to clipboard.");
   };
 
   // ── Theme gallery ────────────────────────────────────────────────────────
@@ -372,9 +374,28 @@ export async function renderStudioView() {
     // High-cardinality text reads better as a count; grouped categories/dates use the preferred default.
     return (col && col.type === "Text") ? "Count" : settings.defaultAggregation;
   };
+  // Selected measure columns (checked boxes) resolved to their profiles.
+  const checkedMeasureCols = () => {
+    const cols = state.columns || [];
+    return $$("#stDsMeasures input:checked").map(cb => cols.find(c => c.name === cb.value)).filter(Boolean);
+  };
+  // Rebuild the aggregation list from the selected measures: non-additive measures (age, tenure…)
+  // drop "Sum". Preserve the current choice when still valid, else fall back to a sensible default.
+  const rebuildAggOptions = () => {
+    const sel = $("#stDsAgg");
+    if (!sel) return;
+    const allowed = aggregationsForColumns(checkedMeasureCols());
+    const prev = sel.value;
+    sel.innerHTML = allowed.map(k => `<option>${k}</option>`).join("");
+    let want = allowed.includes(prev) ? prev : defaultAggForDim($("#stDsDim").value);
+    if (!allowed.includes(want)) want = allowed.includes("Average") ? "Average" : allowed[0];
+    sel.value = want;
+  };
   const applyDefaultAgg = () => {
     const sel = $("#stDsAgg");
-    const agg = defaultAggForDim($("#stDsDim").value);
+    const allowed = aggregationsForColumns(checkedMeasureCols());
+    let agg = defaultAggForDim($("#stDsDim").value);
+    if (!allowed.includes(agg)) agg = allowed.includes("Average") ? "Average" : allowed[0];
     if ([...sel.options].some(o => o.value === agg)) sel.value = agg;
   };
 
@@ -390,7 +411,9 @@ export async function renderStudioView() {
     const measurePool = measures.length ? measures : cols;
     $("#stDsMeasures").innerHTML = measurePool.map((c, i) =>
       `<label class="measure-check"><input type="checkbox" value="${esc(c.name)}"${i === 0 ? " checked" : ""}> ${esc(c.name)}</label>`).join("");
-    applyDefaultAgg();
+    // Ticking/unticking a measure re-evaluates whether Sum is offered.
+    $$("#stDsMeasures input").forEach(cb => cb.onchange = rebuildAggOptions);
+    rebuildAggOptions();
   };
   $("#stDsDim").onchange = applyDefaultAgg;
 

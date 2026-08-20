@@ -19,6 +19,7 @@ internal static class DashboardHtmlRenderer
         sb.AppendLine("<html lang=\"en\"><head><meta charset=\"utf-8\">");
         sb.AppendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
         sb.AppendLine($"<title>{Enc(dashboard.Title)}</title>");
+        sb.AppendLine(EmbeddedFontCss.StyleBlock);
         sb.AppendLine(Styles());
         sb.AppendLine("</head><body>");
 
@@ -108,7 +109,7 @@ internal static class DashboardHtmlRenderer
     private static string Styles() => """
         <style>
           * { box-sizing: border-box; }
-          body { margin:0; font-family:'Segoe UI',system-ui,sans-serif; background:#f1f5f9; color:#1e293b; }
+          body { margin:0; font-family:'Inter','Segoe UI',system-ui,sans-serif; background:#f1f5f9; color:#1e293b; }
           .hero { background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; padding:32px 40px; }
           .hero h1 { margin:0 0 6px; font-size:28px; }
           .hero .headline { margin:0 0 14px; font-size:16px; opacity:.92; }

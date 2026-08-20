@@ -45,6 +45,22 @@ public class ChartBuilderTests
     }
 
     [Fact]
+    public void RenderToSvg_MultiWordThemeFont_IsQuotedInCss()
+    {
+        // Sunset FontFamily = "Source Serif 4, Georgia, Palatino Linotype, serif".
+        var svg = ChartBuilder.Create()
+            .Title("Fonts")
+            .Theme(ChartTheme.Sunset)
+            .Series(s => s.AddColumn("S", new double?[] { 1, 2, 3 }))
+            .RenderToSvg();
+
+        Assert.Contains("'Source Serif 4'", svg);       // multi-word + digit name quoted
+        Assert.Contains("'Palatino Linotype'", svg);     // multi-word name quoted
+        Assert.DoesNotContain("px Source Serif 4,", svg); // never emitted unquoted
+        Assert.Contains(", serif;", svg);                // generic keyword stays unquoted
+    }
+
+    [Fact]
     public void RenderToSvg_StaticMode_ExcludesTooltipStyles()
     {
         var svg = ChartBuilder.Create()
@@ -478,9 +494,9 @@ public class ChartBuilderTests
     }
 
     [Fact]
-    public void WaterfallChart_AutoTotals_FirstAndLastAreTotal()
+    public void WaterfallChart_AutoTotals_LastIsTotal()
     {
-        // When totals is omitted, first and last are treated as totals (no exception)
+        // When totals is omitted, the first point is an absolute starting bar and the last is a total
         var svg = ChartBuilder.Create()
             .Series(s => s.AddWaterfall("Flow", new double?[] { 500, 200, -100, 600 }))
             .RenderToSvg();

@@ -41,8 +41,7 @@ public sealed class ChartsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public IActionResult RenderSvg([FromBody] JsonElement body)
     {
-        var svg = BuildFromJson(body).RenderToSvg();
-        return Content(svg, "image/svg+xml");
+        return Content(SvgWithFont(BuildFromJson(body)), "image/svg+xml");
     }
 
     /// <summary>
@@ -73,8 +72,52 @@ public sealed class ChartsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public IActionResult RenderDataUri([FromBody] JsonElement body)
     {
-        var uri = BuildFromJson(body).RenderToDataUri();
-        return Content(uri, "text/plain");
+        return Content(DataUriWithFont(BuildFromJson(body)), "text/plain");
+    }
+
+    // ── Shareable link render ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Renders a chart from Base64-encoded <c>ChartOptions</c> JSON supplied on the query string
+    /// and returns the SVG markup.
+    /// </summary>
+    /// <remarks>
+    /// Designed for shareable links: the whole chart definition travels inside the URL, so opening
+    /// the link in a browser shows the rendered chart with no request body. Both standard and
+    /// URL-safe Base64 encodings of the JSON are accepted.
+    /// <para>Example: <c>GET /api/charts/shared?options=eyJ0aXRsZSI6...</c></para>
+    /// </remarks>
+    /// <param name="options">Base64-encoded (standard or URL-safe) ChartOptions JSON.</param>
+    [HttpGet("shared")]
+    [Produces("image/svg+xml")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public IActionResult RenderShared([FromQuery] string? options)
+    {
+        if (string.IsNullOrWhiteSpace(options))
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Bad Request",
+                Detail = "The 'options' query parameter is required (Base64-encoded ChartOptions JSON)."
+            });
+
+        string json;
+        try { json = DecodeBase64Json(options!); }
+        catch (FormatException)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Bad Request",
+                Detail = "The 'options' query parameter is not valid Base64."
+            });
+        }
+
+        using var doc = JsonDocument.Parse(json);
+        // Embed the theme font so the shared SVG renders correctly when loaded via <img> (isolated
+        // from the host page's @font-face).
+        var svg = Rendering.EmbeddedFontCss.InjectInto(BuildFromJson(doc.RootElement).RenderToSvg());
+        return Content(svg, "image/svg+xml");
     }
 
     // ── Raster-intent render endpoints ───────────────────────────────────────
@@ -143,7 +186,7 @@ public sealed class ChartsController : ControllerBase
         if (accept.Contains("text/plain", StringComparison.OrdinalIgnoreCase)
             || accept.Contains("datauri",  StringComparison.OrdinalIgnoreCase)
             || string.Equals(format, "datauri", StringComparison.OrdinalIgnoreCase))
-            return Content(BuildFromJson(body).RenderToDataUri(), "text/plain");
+            return Content(DataUriWithFont(BuildFromJson(body)), "text/plain");
 
         if (accept.Contains("image/png", StringComparison.OrdinalIgnoreCase)
             || string.Equals(format, "png", StringComparison.OrdinalIgnoreCase))
@@ -155,7 +198,7 @@ public sealed class ChartsController : ControllerBase
             || string.Equals(format, "jpg",  StringComparison.OrdinalIgnoreCase))
             return RenderJpeg(body);
 
-        return Content(BuildFromJson(body).RenderToSvg(), "image/svg+xml");
+        return Content(SvgWithFont(BuildFromJson(body)), "image/svg+xml");
     }
 
     // ── Batch render ──────────────────────────────────────────────────────────
@@ -190,10 +233,10 @@ public sealed class ChartsController : ControllerBase
                 string output = fmt switch
                 {
                     "html"    => b.RenderToHtml(),
-                    "datauri" => b.RenderToDataUri(),
+                    "datauri" => DataUriWithFont(b),
                     "png"     => BuildRasterHtml(b.RenderToSvg(), "image/png",  BuildRasterFilename(b.GetOptions().Title?.Text, "png")),
                     "jpg" or "jpeg" => BuildRasterHtml(b.RenderToSvg(), "image/jpeg", BuildRasterFilename(b.GetOptions().Title?.Text, "jpg")),
-                    _         => b.RenderToSvg()
+                    _         => SvgWithFont(b)
                 };
                 results[i] = new BatchRenderResult { Index = i, Success = true, Output = output };
             }
@@ -269,8 +312,21 @@ public sealed class ChartsController : ControllerBase
         return builder;
     }
 
+    // Decodes a Base64 string (standard or URL-safe, padding optional) to its UTF-8 text.
+    private static string DecodeBase64Json(string encoded)
+    {
+        string s = encoded.Trim().Replace('-', '+').Replace('_', '/');
+        switch (s.Length % 4)
+        {
+            case 2: s += "=="; break;
+            case 3: s += "="; break;
+        }
+        return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(s));
+    }
+
     // Applies a built-in theme when the body carries a top-level "themeName" string.
     // Vivid is used as the fallback so charts render with the vivid palette by default.
+    // An optional top-level "fontScale" number multiplies all chart text.
     private static void ApplyThemeName(ChartBuilder builder, JsonElement body)
     {
         string? name = null;
@@ -279,7 +335,20 @@ public sealed class ChartsController : ControllerBase
             && tn.ValueKind == JsonValueKind.String)
             name = tn.GetString();
 
-        builder.Theme(ResolveTheme(name) ?? ChartTheme.Vivid);
+        var theme = ResolveTheme(name) ?? ChartTheme.Vivid;
+
+        // Clone before scaling so the shared static preset instance is never mutated.
+        if (body.ValueKind == JsonValueKind.Object
+            && body.TryGetProperty("fontScale", out var fs)
+            && fs.ValueKind == JsonValueKind.Number
+            && fs.TryGetDouble(out var scale)
+            && scale > 0)
+        {
+            theme = theme.Clone();
+            theme.FontScale = scale;
+        }
+
+        builder.Theme(theme);
     }
 
     private static ChartTheme? ResolveTheme(string? name) => name?.Trim().ToLowerInvariant() switch
@@ -312,11 +381,26 @@ public sealed class ChartsController : ControllerBase
         return builder;
     }
 
+    // Renders SVG with the chart's theme font embedded as base64 @font-face so the standalone file
+    // is self-contained (page @font-face does not apply to a downloaded/isolated SVG).
+    private static string SvgWithFont(ChartBuilder builder) =>
+        Rendering.EmbeddedFontCss.InjectInto(builder.RenderToSvg());
+
+    // Data URI over the font-embedded SVG (for <img src> / CSS background use where the SVG is isolated).
+    private static string DataUriWithFont(ChartBuilder builder)
+    {
+        string svg = SvgWithFont(builder);
+        return "data:image/svg+xml;base64," +
+            System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(svg));
+    }
+
     // Returns a self-contained HTML page that rasterizes svgContent via browser Canvas and
     // auto-triggers a download — the same Canvas pipeline as the library's exportRaster() JS.
     private static string BuildRasterHtml(string svgContent, string mime, string filename)
     {
         bool isJpeg = mime == "image/jpeg";
+        // Inline the theme font so the rasterized SVG (loaded as an isolated <img>) embeds it.
+        svgContent = Rendering.EmbeddedFontCss.InjectInto(svgContent);
         // Escape for safe embedding inside a JS single-quoted string literal.
         string jsFilename = filename.Replace("\\", "\\\\").Replace("'", "\\'");
         string bgStep     = isJpeg
