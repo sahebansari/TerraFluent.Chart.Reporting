@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using ChartType = TerraFluent.Chart.Reporting.Enums.ChartType;
+using Stacking = TerraFluent.Chart.Reporting.Enums.Stacking;
 
 namespace TerraFluent.AutoAnalytics.Recommendation;
 
@@ -23,6 +24,9 @@ public sealed class ChartSpec
     public string Title { get; init; } = string.Empty;
     public IReadOnlyList<string> Categories { get; init; } = new List<string>();
     public IReadOnlyList<SeriesSpec> Series { get; init; } = new List<SeriesSpec>();
+
+    /// <summary>Stacking mode for multi-series Column, Bar and Area charts.</summary>
+    public Stacking StackingMode { get; init; } = Stacking.None;
 
     /// <summary>Optional category/independent (x) axis title.</summary>
     public string XAxisTitle { get; init; } = string.Empty;

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using TerraFluent.Chart.Reporting.Builder;
 using ChartType = TerraFluent.Chart.Reporting.Enums.ChartType;
+using Stacking = TerraFluent.Chart.Reporting.Enums.Stacking;
 
 namespace TerraFluent.AutoAnalytics.Recommendation;
 
@@ -79,6 +80,9 @@ public static class ChartConfigBuilder
             chart.XAxis(x => x.Title = spec.XAxisTitle);
         if (!string.IsNullOrWhiteSpace(spec.YAxisTitle))
             chart.YAxis(y => y.Title = spec.YAxisTitle);
+
+        if (spec.StackingMode == Stacking.Normal) chart.StackNormal();
+        else if (spec.StackingMode == Stacking.Percent) chart.StackPercent();
 
         return chart;
     }

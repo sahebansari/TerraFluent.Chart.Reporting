@@ -70,7 +70,7 @@ internal static class PeriodAggregator
 
     // Groups a date into a calendar-period key. Unknown/Daily granularity keys by full day so each
     // distinct date is its own period (identity when the source already has one row per day).
-    private static string PeriodKey(DateTime d, DateGranularity g) => g switch
+    internal static string PeriodKey(DateTime d, DateGranularity g) => g switch
     {
         DateGranularity.Yearly    => d.ToString("yyyy", CultureInfo.InvariantCulture),
         DateGranularity.Quarterly => $"{d.Year} Q{(d.Month - 1) / 3 + 1}",

@@ -7,6 +7,7 @@ using TerraFluent.AutoAnalytics.Enums;
 using TerraFluent.AutoAnalytics.Profiling;
 using TerraFluent.AutoAnalytics.Schema;
 using ChartType = TerraFluent.Chart.Reporting.Enums.ChartType;
+using Stacking = TerraFluent.Chart.Reporting.Enums.Stacking;
 
 namespace TerraFluent.AutoAnalytics.Recommendation;
 
@@ -36,6 +37,9 @@ public sealed class ChartRecommendationEngine
         recs.AddRange(CorrelationCharts(profile, findings));
         recs.AddRange(Distribution(profile));
         recs.AddRange(SingleMetric(profile));
+        recs.AddRange(SmoothTrendCharts(findings));
+        recs.AddRange(CumulativeCharts(findings));
+        recs.AddRange(CompositionCharts(findings));
 
         return recs
             .OrderByDescending(r => r.SuitabilityScore)
@@ -413,6 +417,123 @@ public sealed class ChartRecommendationEngine
             >= 1             => value.ToString("0.##", CultureInfo.InvariantCulture),
             _                => value.ToString("0.###", CultureInfo.InvariantCulture)
         };
+    }
+
+    // ── Smooth trend: moving average series => Spline chart ──────────────────
+    private IEnumerable<RecommendedChart> SmoothTrendCharts(AnalyticsFindings findings)
+    {
+        foreach (var ma in findings.MovingAverages)
+        {
+            var trend = findings.Trends.FirstOrDefault(t => t.Measure == ma.Measure);
+            // Drop the warm-up periods (no smoothed value yet) so the spline starts as a clean line.
+            var pts = ma.Points.Where(p => p.Smoothed.HasValue).ToList();
+            if (pts.Count < 3) continue;
+            var labels   = pts.Select(p => FormatDate(p.Period, ma.Granularity)).ToList();
+            var smoothed = pts.Select(p => p.Smoothed).ToList();
+            string measureDisp = DisplayText.Humanize(ma.Measure);
+            string dateDisp    = DisplayText.Humanize(ma.DateColumn);
+            int score = 75 + (trend is { HasTemporalSignal: true } ? 8 : 0);
+
+            yield return new RecommendedChart
+            {
+                ChartType = ChartType.Spline,
+                SuitabilityScore = score,
+                Reason = $"{ma.WindowSize}-period moving average of {measureDisp} smooths short-term noise " +
+                         $"to reveal the underlying trend across {pts.Count} {dateDisp} periods.",
+                Spec = new ChartSpec
+                {
+                    Type       = ChartType.Spline,
+                    Title      = $"{measureDisp} Trend ({ma.WindowSize}-Period Moving Avg)",
+                    XAxisTitle = dateDisp,
+                    YAxisTitle = measureDisp,
+                    Categories = labels,
+                    Series     = new[] { new SeriesSpec { Name = $"{ma.WindowSize}-Period Avg", Values = smoothed } }
+                }
+            };
+        }
+    }
+
+    // ── Cumulative series: running total => Area chart ────────────────────────
+    private IEnumerable<RecommendedChart> CumulativeCharts(AnalyticsFindings findings)
+    {
+        foreach (var cs in findings.CumulativeSeries)
+        {
+            var labels = cs.Points.Select(p => FormatDate(p.Period, cs.Granularity)).ToList();
+            var values = cs.Points.Select(p => (double?)p.Cumulative).ToList();
+            string measureDisp = DisplayText.Humanize(cs.Measure);
+            string dateDisp    = DisplayText.Humanize(cs.DateColumn);
+            string total       = DisplayText.FormatNumber(cs.FinalTotal);
+
+            yield return new RecommendedChart
+            {
+                ChartType = ChartType.Area,
+                SuitabilityScore = 72,
+                Reason = $"Running total of {measureDisp} reaches {total} across {cs.Points.Count} periods. " +
+                         $"An area chart communicates the accrued magnitude over time.",
+                Spec = new ChartSpec
+                {
+                    Type       = ChartType.Area,
+                    Title      = $"Cumulative {measureDisp} over {dateDisp}",
+                    XAxisTitle = dateDisp,
+                    YAxisTitle = $"Cumulative {measureDisp}",
+                    Categories = labels,
+                    Series     = new[] { new SeriesSpec { Name = $"Cumulative {measureDisp}", Values = values } }
+                }
+            };
+        }
+    }
+
+    // ── Composition: measure broken down by two dims => Stacked Area/Column/Bar
+    private IEnumerable<RecommendedChart> CompositionCharts(AnalyticsFindings findings)
+    {
+        foreach (var c in findings.Compositions)
+        {
+            string measureDisp = DisplayText.Humanize(c.Measure);
+            string catDisp     = DisplayText.Humanize(c.CategoryDimension);
+            string serDisp     = DisplayText.Humanize(c.SeriesDimension);
+            string metricLabel = c.IsAdditive ? measureDisp : $"Average {measureDisp}";
+
+            // Use pretty date labels for time-series categories; raw string labels otherwise.
+            var categories = c.IsDateCategory
+                ? c.CategoryDates.Select(d => FormatDate(d, c.Granularity)).ToList()
+                : c.Categories.ToList();
+
+            bool longLabels = categories.Any(l => l.Length > 12);
+            ChartType type = c.IsDateCategory
+                ? ChartType.Area
+                : (longLabels || categories.Count > 8 ? ChartType.Bar : ChartType.Column);
+
+            int score = c.IsDateCategory ? 82 : 74;
+            string chartName = type == ChartType.Area ? "stacked area"
+                             : type == ChartType.Bar  ? "stacked bar"
+                             : "stacked column";
+
+            var series = c.SeriesNames
+                .Zip(c.Values, (name, vals) => new SeriesSpec
+                {
+                    Name   = DisplayText.Humanize(name),
+                    Values = vals.ToList()
+                })
+                .ToArray();
+
+            yield return new RecommendedChart
+            {
+                ChartType = type,
+                SuitabilityScore = score,
+                Reason = $"{metricLabel} broken down by {serDisp} across {c.Categories.Count} {catDisp} " +
+                         $"values — a {chartName} shows how each {serDisp} contributes to the total.",
+                Spec = new ChartSpec
+                {
+                    Type         = type,
+                    StackingMode = Stacking.Normal,
+                    Title        = $"{metricLabel} by {catDisp} and {serDisp}",
+                    XAxisTitle   = catDisp,
+                    YAxisTitle   = metricLabel,
+                    Categories   = categories,
+                    Series       = series
+                }
+            };
+        }
     }
 
     private static string FormatDate(DateTime d, DateGranularity g) => g switch

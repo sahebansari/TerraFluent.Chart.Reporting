@@ -102,12 +102,20 @@ public sealed class AnalyticsEngine
         foreach (var detector in options.AnomalyDetectors)
             anomalies.AddRange(detector.Detect(profile));
 
+        var trendResults  = trends.DetectTrends(profile);
+        var movingAvgs    = new MovingAverageEngine().Compute(profile);
+        var cumulSeries   = new CumulativeSeriesEngine().Compute(profile);
+        var compositions  = new CompositionEngine().Compute(profile);
+
         var findings = new AnalyticsFindings
         {
-            Correlations = relationships.Correlations(profile),
-            Groups = relationships.GroupAnalyses(profile),
-            Trends = trends.DetectTrends(profile),
-            Anomalies = anomalies
+            Correlations    = relationships.Correlations(profile),
+            Groups          = relationships.GroupAnalyses(profile),
+            Trends          = trendResults,
+            Anomalies       = anomalies,
+            MovingAverages  = movingAvgs,
+            CumulativeSeries = cumulSeries,
+            Compositions    = compositions
         };
 
         // Phase 6 — insights (built-in + plugins).
