@@ -13,6 +13,7 @@ import { renderAggregateView } from "./view-aggregate.js";
 import { renderQualityView } from "./view-quality.js";
 import { renderStudioView } from "./view-studio.js";
 import { renderCatalogueView } from "./view-catalogue.js";
+import { renderGuideView } from "./view-guide.js";
 import { renderSettingsView } from "./view-settings.js";
 
 const VIEWS = {
@@ -24,6 +25,7 @@ const VIEWS = {
   quality:   { title: "Data Quality",  render: renderQualityView },
   studio:    { title: "Chart Studio",  render: renderStudioView },
   catalogue: { title: "Catalogue",     render: renderCatalogueView },
+  guide:     { title: "User Guide",    render: renderGuideView },
   settings:  { title: "Settings",      render: renderSettingsView },
 };
 

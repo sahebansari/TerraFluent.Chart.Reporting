@@ -81,8 +81,11 @@ internal static class PeriodAggregator
 
     private static string WeekKey(DateTime d)
     {
-        var cal = CultureInfo.InvariantCulture.Calendar;
-        int week = cal.GetWeekOfYear(d, System.Globalization.CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-        return $"{d.Year}-W{week:00}";
+        // Use the ISO-8601 week-numbering year, not the calendar year, so a date in the first days
+        // of January that belongs to the last ISO week of the prior year (or vice-versa) is keyed to
+        // the correct year — otherwise e.g. 2021-01-01 (ISO 2020-W53) would mis-bucket as 2021-W53.
+        int week = ISOWeek.GetWeekOfYear(d);
+        int year = ISOWeek.GetYear(d);
+        return $"{year}-W{week:00}";
     }
 }

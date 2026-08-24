@@ -39,7 +39,7 @@ public sealed class AnomalyEngine
                 {
                     Measure = measure.Name,
                     Anomalies = anomalies,
-                    MaxMagnitude = anomalies.Max(a => Math.Abs(a.ZScore))
+                    MaxMagnitude = anomalies.Max(a => a.Magnitude)
                 });
         }
         return results.OrderByDescending(r => r.MaxMagnitude).ToList();
@@ -55,23 +55,29 @@ public sealed class AnomalyEngine
         double lowerFence = stats.Q1 - _iqrMultiplier * stats.Iqr;
         double upperFence = stats.Q3 + _iqrMultiplier * stats.Iqr;
 
+        // Robust spread on a σ-comparable scale: MAD/0.6745 ≈ σ for normal data, falling back to
+        // IQR/1.349 then the (non-robust) StdDev. Used to score/rank so a robustly-detected outlier
+        // is measured by a spread it did NOT inflate, instead of the classic Z the outlier deflates.
+        double robustScale = mad > 0 ? mad / 0.6745 : stats.Iqr > 0 ? stats.Iqr / 1.349 : sd;
+
         var flagged = new Dictionary<int, AnomalyPoint>();
 
         for (int i = 0; i < values.Count; i++)
         {
             double v = values[i];
             double z = sd == 0 ? 0 : (v - mean) / sd;
+            double robustZ = robustScale > 0 ? (v - median) / robustScale : 0;
             // Robust modified Z-score: MAD isn't inflated by the outlier itself, so it flags points
             // the classic Z-score would mask. Falls back to the classic rule when MAD collapses to 0
             // (e.g. >50% identical values).
             double modZ = mad > 0 ? 0.6745 * (v - median) / mad : 0;
 
             if (mad > 0 && Math.Abs(modZ) > ModifiedZThreshold)
-                flagged[i] = new AnomalyPoint { Index = i, Value = v, ZScore = z, Method = "modified-zscore" };
+                flagged[i] = new AnomalyPoint { Index = i, Value = v, ZScore = z, Magnitude = Math.Abs(robustZ), Method = "modified-zscore" };
             else if (mad == 0 && sd > 0 && Math.Abs(z) > _zThreshold)
-                flagged[i] = new AnomalyPoint { Index = i, Value = v, ZScore = z, Method = "zscore" };
+                flagged[i] = new AnomalyPoint { Index = i, Value = v, ZScore = z, Magnitude = Math.Abs(robustZ), Method = "zscore" };
             else if (stats.Iqr > 0 && (v < lowerFence || v > upperFence))
-                flagged.TryAdd(i, new AnomalyPoint { Index = i, Value = v, ZScore = z, Method = "iqr" });
+                flagged.TryAdd(i, new AnomalyPoint { Index = i, Value = v, ZScore = z, Magnitude = Math.Abs(robustZ), Method = "iqr" });
         }
 
         // Sudden change: point-to-point jump exceeding 3x the median absolute step.
@@ -88,13 +94,14 @@ public sealed class AnomalyEngine
                     if (jump > 3 * medianStep)
                     {
                         double z = sd == 0 ? 0 : (values[i] - mean) / sd;
-                        flagged.TryAdd(i, new AnomalyPoint { Index = i, Value = values[i], ZScore = z, Method = "spike" });
+                        double robustZ = robustScale > 0 ? (values[i] - median) / robustScale : 0;
+                        flagged.TryAdd(i, new AnomalyPoint { Index = i, Value = values[i], ZScore = z, Magnitude = Math.Abs(robustZ), Method = "spike" });
                     }
                 }
             }
         }
 
-        return flagged.Values.OrderByDescending(a => Math.Abs(a.ZScore)).ToList();
+        return flagged.Values.OrderByDescending(a => a.Magnitude).ToList();
     }
 
     // Median of |xᵢ − median| — a robust scale estimate that (unlike the standard deviation) is

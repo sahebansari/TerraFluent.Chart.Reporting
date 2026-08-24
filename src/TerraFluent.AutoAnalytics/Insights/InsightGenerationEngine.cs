@@ -116,7 +116,7 @@ public sealed class InsightGenerationEngine
             Dictionary<string, string> evidence;
             if (g.IsAdditive)
             {
-                string share = Percent(top.Share, alreadyFraction: true);
+                string share = Percent(top.Share);
                 title = $"{top.Key} leads {measureDisp} by {dimDisp}";
 
                 // A concentrated share is both a strength and a dependency; an even field reads differently.
@@ -126,7 +126,7 @@ public sealed class InsightGenerationEngine
                         ? $"{top.Key} is the biggest contributor to {measureDisp} at {share}, across {g.Buckets.Count} {dimDisp} groups. It leads clearly, but the field is spread widely enough that no single group carries the whole number."
                         : $"{top.Key} edges ahead on {measureDisp} at {share} of the total, though contribution is fairly even across the {g.Buckets.Count} {dimDisp} groups \u2014 there is no dominant player here.";
                 if (runnerUp is not null)
-                    reading += $" The next-largest, {runnerUp.Key}, follows at {Percent(runnerUp.Share, alreadyFraction: true)}.";
+                    reading += $" The next-largest, {runnerUp.Key}, follows at {Percent(runnerUp.Share)}.";
                 description = reading;
                 evidence = new Dictionary<string, string>
                 {
@@ -245,7 +245,7 @@ public sealed class InsightGenerationEngine
                 Title = $"{measureDisp} has {a.Anomalies.Count} anomaly(ies)",
                 Description =
                     $"{measureDisp} contains {howMany} from the rest of the data. The most extreme, " +
-                    $"{DisplayText.FormatNumber(peak.Value)}{where}, sits {Math.Abs(peak.ZScore).ToString("F1", CultureInfo.InvariantCulture)}\u03c3 " +
+                    $"{DisplayText.FormatNumber(peak.Value)}{where}, sits {peak.Magnitude.ToString("F1", CultureInfo.InvariantCulture)}\u03c3 " +
                     $"from the norm ({peak.Method}) \u2014 {severity} deviation. Before it distorts averages or forecasts, it is worth confirming whether this is a genuine event or a data-quality artefact.",
                 ImportanceScore = score,
                 RelatedColumns = new[] { a.Measure },
@@ -293,11 +293,8 @@ public sealed class InsightGenerationEngine
         }
     }
 
-    private static string Percent(double value, bool alreadyFraction = false)
-    {
-        double pct = alreadyFraction ? value : value;
-        return Math.Abs(pct).ToString("P0", CultureInfo.InvariantCulture);
-    }
+    private static string Percent(double fraction) =>
+        Math.Abs(fraction).ToString("P0", CultureInfo.InvariantCulture);
 
     // ── Analyst-voice helpers ────────────────────────────────────────────────────
 
