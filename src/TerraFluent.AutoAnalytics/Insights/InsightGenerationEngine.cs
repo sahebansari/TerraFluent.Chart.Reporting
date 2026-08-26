@@ -33,12 +33,161 @@ public sealed class InsightGenerationEngine
         insights.AddRange(TrendInsights(findings.Trends, profile));
         insights.AddRange(DominanceInsights(findings.Groups));
         insights.AddRange(CorrelationInsights(findings.Correlations, trendByMeasure));
-        insights.AddRange(AnomalyInsights(findings.Anomalies, profile));
+        insights.AddRange(AnomalyInsights(findings.Anomalies, profile, findings.AnomalyExplanations));
         insights.AddRange(DistributionInsights(profile));
+        insights.AddRange(ForecastInsights(findings.Forecasts, profile));
+        insights.AddRange(PeriodComparisonInsights(findings.PeriodComparisons));
+        insights.AddRange(SegmentationInsights(findings.Segmentation));
 
         return insights
             .OrderByDescending(i => i.ImportanceScore)
             .ToList();
+    }
+
+    private IEnumerable<Insight> ForecastInsights(IReadOnlyList<MeasureForecast> forecasts, DatasetProfile profile)
+    {
+        foreach (var f in forecasts)
+        {
+            if (f.IsEmpty) continue;
+            var result = f.Forecast;
+            int score = _scorer.ScoreForecast(Math.Abs(result.ProjectedChange), f.HistoryValues.Count);
+            if (score < 15) continue;
+
+            var last = result.Points[^1];
+            string measureDisp = DisplayText.Humanize(f.Measure);
+            string direction = result.ProjectedChange >= 0 ? "rise" : "fall";
+            string pct = Percent(result.ProjectedChange);
+            var role = RoleOf(profile, f.Measure);
+
+            // Band width relative to the projection tells the reader how much to trust it.
+            double spread = Math.Abs(last.Upper - last.Lower);
+            double reference = Math.Max(Math.Abs(last.Value), 1e-9);
+            string confidence = (spread / reference) switch
+            {
+                <= 0.2 => "The band around that path is tight, so the direction is well supported by the history.",
+                <= 0.6 => "The band is moderately wide — treat the direction as sound and the exact figure as indicative.",
+                _      => "The band is wide, so read this as a direction of travel rather than a number to plan against."
+            };
+
+            string method = result.Method == "holt-winters"
+                ? $" A seasonal pattern of {result.SeasonLength} period(s) was detected and carried into the projection."
+                : string.Empty;
+
+            yield return new Insight
+            {
+                Kind = InsightKind.Forecast,
+                Title = $"{measureDisp} is projected to {direction} {pct}",
+                Description =
+                    $"Extending {measureDisp} {result.Points.Count} period(s) beyond the last observed " +
+                    $"{DisplayText.FormatNumber(result.LastActual)} points to about " +
+                    $"{DisplayText.FormatNumber(last.Value)} " +
+                    $"({(result.ProjectedChange >= 0 ? "+" : "-")}{pct}), within a range of " +
+                    $"{DisplayText.FormatNumber(last.Lower)}–{DisplayText.FormatNumber(last.Upper)}. " +
+                    confidence + method + " " + ForecastImplication(role, up: result.ProjectedChange >= 0),
+                ImportanceScore = score,
+                RelatedColumns = new[] { f.Measure },
+                Evidence = new Dictionary<string, string>
+                {
+                    ["projectedChange"] = result.ProjectedChange.ToString("F3", CultureInfo.InvariantCulture),
+                    ["finalValue"] = last.Value.ToString("F2", CultureInfo.InvariantCulture),
+                    ["lower"] = last.Lower.ToString("F2", CultureInfo.InvariantCulture),
+                    ["upper"] = last.Upper.ToString("F2", CultureInfo.InvariantCulture),
+                    ["method"] = result.Method,
+                    ["seasonLength"] = result.SeasonLength.ToString(CultureInfo.InvariantCulture),
+                    ["historyPoints"] = f.HistoryValues.Count.ToString(CultureInfo.InvariantCulture)
+                }
+            };
+        }
+    }
+
+    private IEnumerable<Insight> PeriodComparisonInsights(IReadOnlyList<PeriodComparisonResult> comparisons)
+    {
+        foreach (var c in comparisons)
+        {
+            if (c.IsEmpty) continue;
+            int score = _scorer.ScorePeriodChange(Math.Abs(c.LatestChangePct), c.Periods.Count);
+            if (score < 15) continue;
+
+            string measureDisp = DisplayText.Humanize(c.Measure);
+            string cadence = c.Granularity.ToString().ToLowerInvariant();
+            string latest = c.Periods[^1].Label;
+            string previous = c.Periods[^2].Label;
+            string direction = c.LatestChangePct >= 0 ? "up" : "down";
+            string pct = Percent(c.LatestChangePct);
+
+            // Year-over-year is the like-for-like read; call out when it disagrees with the last step.
+            string yoy = string.Empty;
+            if (c.YearOverYearPct is double y)
+            {
+                string yoyDir = y >= 0 ? "up" : "down";
+                bool diverges = Math.Sign(y) != Math.Sign(c.LatestChangePct);
+                yoy = $" Year-over-year, {latest} is {yoyDir} {Percent(y)}." +
+                      (diverges
+                          ? " That runs counter to the latest period-on-period move, so one of the two is a timing effect rather than a change in the underlying run-rate."
+                          : " The two readings agree, which strengthens the signal.");
+            }
+
+            yield return new Insight
+            {
+                Kind = InsightKind.PeriodChange,
+                Title = $"{measureDisp} is {direction} {pct} in {latest}",
+                Description =
+                    $"On a {cadence} basis, {measureDisp} moved from " +
+                    $"{DisplayText.FormatNumber(c.Periods[^2].Value)} in {previous} to " +
+                    $"{DisplayText.FormatNumber(c.Periods[^1].Value)} in {latest} — " +
+                    $"{direction} {pct} ({(c.LatestChangeAbs >= 0 ? "+" : "-")}{DisplayText.FormatNumber(Math.Abs(c.LatestChangeAbs))}) " +
+                    $"across {c.Periods.Count} observed periods." + yoy,
+                ImportanceScore = score,
+                RelatedColumns = new[] { c.Measure },
+                Evidence = new Dictionary<string, string>
+                {
+                    ["latestPeriod"] = latest,
+                    ["latestChangePct"] = c.LatestChangePct.ToString("F3", CultureInfo.InvariantCulture),
+                    ["latestChangeAbs"] = c.LatestChangeAbs.ToString("F2", CultureInfo.InvariantCulture),
+                    ["yearOverYearPct"] = c.YearOverYearPct?.ToString("F3", CultureInfo.InvariantCulture) ?? "n/a",
+                    ["periods"] = c.Periods.Count.ToString(CultureInfo.InvariantCulture),
+                    ["granularity"] = c.Granularity.ToString()
+                }
+            };
+        }
+    }
+
+    private IEnumerable<Insight> SegmentationInsights(SegmentationResult? segmentation)
+    {
+        if (segmentation is null || segmentation.IsEmpty) yield break;
+
+        var largest = segmentation.Segments.OrderByDescending(s => s.Size).First();
+        int score = _scorer.ScoreSegmentation(largest.Share, segmentation.Segments.Count, segmentation.RowsClustered);
+        if (score < 15) yield break;
+
+        string measures = string.Join(", ", segmentation.Measures.Select(DisplayText.Humanize));
+        string breakdown = string.Join("; ", segmentation.Segments
+            .OrderByDescending(s => s.Size)
+            .Select(s => $"{s.Label} ({Percent(s.Share)})"));
+
+        // An even split means the measures genuinely separate rows; one giant cluster means they don't.
+        string reading = largest.Share >= 0.8
+            ? "One group swallows nearly every row, so these measures do not separate the population much — a different combination of measures would likely segment it better."
+            : $"The groups are distinct enough to act on: {breakdown}.";
+
+        yield return new Insight
+        {
+            Kind = InsightKind.Segmentation,
+            Title = $"Rows fall into {segmentation.Segments.Count} natural segments",
+            Description =
+                $"Clustering {segmentation.RowsClustered} rows across {measures} separates them into " +
+                $"{segmentation.Segments.Count} groups. {reading} " +
+                "Segments are derived from the measures alone, so they describe how rows differ numerically rather than by any label already in the data.",
+            ImportanceScore = score,
+            RelatedColumns = segmentation.Measures.ToArray(),
+            Evidence = new Dictionary<string, string>
+            {
+                ["segments"] = segmentation.Segments.Count.ToString(CultureInfo.InvariantCulture),
+                ["rowsClustered"] = segmentation.RowsClustered.ToString(CultureInfo.InvariantCulture),
+                ["largestShare"] = largest.Share.ToString("F3", CultureInfo.InvariantCulture),
+                ["largestLabel"] = largest.Label
+            }
+        };
     }
 
     private IEnumerable<Insight> TrendInsights(IReadOnlyList<TrendResult> trends, DatasetProfile profile)
@@ -226,7 +375,9 @@ public sealed class InsightGenerationEngine
         }
     }
 
-    private IEnumerable<Insight> AnomalyInsights(IReadOnlyList<AnomalyResult> anomalies, DatasetProfile profile)
+    private IEnumerable<Insight> AnomalyInsights(
+        IReadOnlyList<AnomalyResult> anomalies, DatasetProfile profile,
+        IReadOnlyList<AnomalyExplanation> explanations)
     {
         foreach (var a in anomalies)
         {
@@ -239,25 +390,76 @@ public sealed class InsightGenerationEngine
             string severity = a.MaxMagnitude >= 5 ? "an extreme" : a.MaxMagnitude >= 3.5 ? "a pronounced" : a.MaxMagnitude >= 2.5 ? "a clear" : "a modest";
             string where = string.IsNullOrWhiteSpace(peak.Label) ? string.Empty : $" (at {peak.Label})";
             string howMany = a.Anomalies.Count == 1 ? "one value that stands well apart" : $"{a.Anomalies.Count} values that stand well apart";
+
+            var evidence = new Dictionary<string, string>
+            {
+                ["count"] = a.Anomalies.Count.ToString(CultureInfo.InvariantCulture),
+                ["maxZ"] = a.MaxMagnitude.ToString("F2", CultureInfo.InvariantCulture),
+                ["method"] = peak.Method
+            };
+
+            // Fold the attribution into this insight rather than emitting a second one about the same
+            // event: the reader wants one account of the outlier, not a detection and an explanation.
+            var explanation = explanations.FirstOrDefault(e =>
+                string.Equals(e.Measure, a.Measure, StringComparison.OrdinalIgnoreCase)
+                && e.RowIndex == peak.RowIndex);
+
+            string title = $"{measureDisp} has {a.Anomalies.Count} anomaly(ies)";
+            string closing =
+                "Before it distorts averages or forecasts, it is worth confirming whether this is a genuine event or a data-quality artefact.";
+
+            if (explanation?.BestExplanation is { } best)
+            {
+                string dimDisp = DisplayText.Humanize(best.Dimension);
+                string explainedPct = best.ExplainedFraction.ToString("P0", CultureInfo.InvariantCulture);
+
+                evidence["explainedBy"] = $"{best.Dimension}={best.Category}";
+                evidence["explainedFraction"] = best.ExplainedFraction.ToString("F3", CultureInfo.InvariantCulture);
+                evidence["categoryMedian"] = best.CategoryMedian.ToString("F2", CultureInfo.InvariantCulture);
+                evidence["categoryRows"] = best.CategoryCount.ToString(CultureInfo.InvariantCulture);
+
+                if (explanation.IsExplained)
+                {
+                    title = $"{measureDisp} spike at {best.Category} is normal for that {dimDisp}";
+                    closing =
+                        $"That said, it is ordinary for its segment: rows where {dimDisp} is {best.Category} " +
+                        $"typically run {DisplayText.FormatNumber(best.CategoryMedian)} across {best.CategoryCount} rows, " +
+                        $"which accounts for {explainedPct} of the gap. This is segment mix rather than a genuine outlier \u2014 " +
+                        $"compare within {dimDisp} rather than across the whole dataset.";
+                }
+                else
+                {
+                    title = $"{measureDisp} has an unexplained anomaly";
+                    closing =
+                        $"No dimension accounts for it: even against its own {dimDisp} ({best.Category}, which typically runs " +
+                        $"{DisplayText.FormatNumber(best.CategoryMedian)}), the value is still " +
+                        $"{FormatRatio(best.ResidualRatio)} the norm \u2014 the closest dimension explains only {explainedPct} of the gap. " +
+                        "That makes it a genuine one-off event or a data-quality artefact, and worth confirming before it distorts averages or forecasts.";
+                }
+            }
+
             yield return new Insight
             {
                 Kind = InsightKind.Anomaly,
-                Title = $"{measureDisp} has {a.Anomalies.Count} anomaly(ies)",
+                Title = title,
                 Description =
                     $"{measureDisp} contains {howMany} from the rest of the data. The most extreme, " +
                     $"{DisplayText.FormatNumber(peak.Value)}{where}, sits {peak.Magnitude.ToString("F1", CultureInfo.InvariantCulture)}\u03c3 " +
-                    $"from the norm ({peak.Method}) \u2014 {severity} deviation. Before it distorts averages or forecasts, it is worth confirming whether this is a genuine event or a data-quality artefact.",
+                    $"from the norm ({peak.Method}) \u2014 {severity} deviation. " + closing,
                 ImportanceScore = score,
-                RelatedColumns = new[] { a.Measure },
-                Evidence = new Dictionary<string, string>
-                {
-                    ["count"] = a.Anomalies.Count.ToString(CultureInfo.InvariantCulture),
-                    ["maxZ"] = a.MaxMagnitude.ToString("F2", CultureInfo.InvariantCulture),
-                    ["method"] = peak.Method
-                }
+                RelatedColumns = explanation?.BestExplanation is { } b
+                    ? new[] { a.Measure, b.Dimension }
+                    : new[] { a.Measure },
+                Evidence = evidence
             };
         }
     }
+
+    // "3.4x" reads better than a percentage once a value is a multiple of its norm.
+    private static string FormatRatio(double ratio) =>
+        double.IsNaN(ratio) || double.IsInfinity(ratio)
+            ? "far above"
+            : Math.Abs(ratio).ToString("0.#", CultureInfo.InvariantCulture) + "\u00d7";
 
     private IEnumerable<Insight> DistributionInsights(DatasetProfile profile)
     {
@@ -318,6 +520,20 @@ public sealed class InsightGenerationEngine
         if (t.RSquared >= 0.5)  return "with a fairly steady progression";
         return "though the path is choppy, so trust the direction more than the exact figure";
     }
+
+    // The forward-looking counterpart of TrendImplication: what a projection means for this role.
+    private static string ForecastImplication(SemanticRole role, bool up) => role switch
+    {
+        SemanticRole.RevenueMetric or SemanticRole.ProfitMetric or SemanticRole.QuantityMetric =>
+            up ? "If it holds, plan for the capacity and working capital that growth will demand."
+               : "Worth acting on now rather than waiting for the shortfall to land in the actuals.",
+        SemanticRole.CostMetric =>
+            up ? "Budget for the increase, or find the lever that bends the curve before it lands."
+               : "That relief should show up in margin, provided volumes hold.",
+        _ =>
+            up ? "Confirm it against the next period's actuals before committing to it."
+               : "Confirm it against the next period's actuals before treating it as settled."
+    };
 
     // The \"so what\": tailor the implication to the measure's business role.
     private static string TrendImplication(SemanticRole role, bool up) => role switch

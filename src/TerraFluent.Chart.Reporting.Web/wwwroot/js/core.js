@@ -234,6 +234,16 @@ export const api = {
     const ct = res.headers.get("content-type") || "";
     return ct.includes("json") ? res.json() : res.text();
   },
+  // Posts raw bytes (e.g. an uploaded .xlsx) and reads a JSON response.
+  async binary(path, bytes, { method = "POST", contentType = "application/octet-stream", query } = {}) {
+    const res = await fetch(path + qs(query), {
+      method,
+      headers: { "Content-Type": contentType },
+      body: bytes,
+    });
+    if (!res.ok) throw await problem(res);
+    return res.json();
+  },
   async text(path, { method = "POST", body, contentType, accept, query } = {}) {
     const opts = { method, headers: {} };
     if (accept) opts.headers["Accept"] = accept;
@@ -273,15 +283,22 @@ export async function problem(res) {
   return err;
 }
 
+// The dataset half of an AnalyzeRequest. A live connection sends only its *name* — the URL and any
+// credentials stay on the server — while a pasted/uploaded dataset sends its rows inline.
+export function datasetPayload(ds = state.dataset) {
+  if (!ds) return {};
+  return ds.connectionName
+    ? { connectionName: ds.connectionName, datasetName: ds.name || ds.connectionName }
+    : { data: ds.data, format: ds.format || "Auto", datasetName: ds.name || "Dataset" };
+}
+
 // Build the AnalyzeRequest shared by all analytics endpoints.
 export function analyzeRequest(extra = {}) {
-  return {
-    data: state.dataset.data,
-    format: state.dataset.format || "Auto",
-    datasetName: state.dataset.name || "Dataset",
-    ...extra,
-  };
+  return { ...datasetPayload(), ...extra };
 }
+
+/** True when the active dataset is pulled from a server-side connection rather than held locally. */
+export const isLiveDataset = (ds = state.dataset) => Boolean(ds?.connectionName);
 
 // Style overrides (from user settings) for the server-rendered recommendation charts shown on the
 // Analyze, Dashboard and Ask-the-Agent pages. Spread into an endpoint's query object.
@@ -332,6 +349,9 @@ export function setDataset(ds) {
 }
 
 export function countRows(ds) {
+  // A live connection has no local copy to count — the row count is only known once the server
+  // pulls it, so the caller shows the source rather than a number.
+  if (!ds || typeof ds.data !== "string") return "—";
   if ((ds.format === "Json") || (ds.format === "Auto" && ds.data.trim().startsWith("["))) {
     try { return JSON.parse(ds.data).length; } catch { return "?"; }
   }

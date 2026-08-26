@@ -26,8 +26,16 @@ public static class DashboardBuilder
         var recs = result.Recommendations;
 
         var trend = recs.Where(r => r.ChartType is ChartType.Line or ChartType.Spline or ChartType.Area).ToList();
-        var comparison = recs.Where(r => r.ChartType is ChartType.Bar or ChartType.Column or ChartType.Pie).ToList();
-        var distribution = recs.Where(r => r.ChartType == ChartType.Column && r.Spec.Title.StartsWith("Distribution", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        // A waterfall bridges consecutive periods, so it reads as a comparison rather than a trend.
+        var comparison = recs.Where(r => r.ChartType is ChartType.Bar or ChartType.Column or ChartType.Pie or ChartType.Waterfall).ToList();
+
+        // Box plots and heatmaps describe how values are spread, alongside the binned histograms.
+        var distribution = recs
+            .Where(r => r.ChartType is ChartType.BoxPlot or ChartType.Heatmap
+                     || (r.ChartType == ChartType.Column && r.Spec.Title.StartsWith("Distribution", StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
         // Keep distribution charts out of the comparison bucket.
         comparison = comparison.Except(distribution).ToList();
 

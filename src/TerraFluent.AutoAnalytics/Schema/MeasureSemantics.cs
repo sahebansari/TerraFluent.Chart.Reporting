@@ -50,7 +50,10 @@ public static class MeasureSemantics
     {
         "age", "rate", "year", "mean", "median", "avg", "average", "level", "grade", "rank",
         "bmi", "iq", "gpa", "ph", "lat", "lng", "lon", "min", "max", "std", "iqr",
-        "tenure", "seniority", "dob", "temp", "angle", "coordinate", "percentile", "quantile"
+        "tenure", "seniority", "dob", "temp", "angle", "coordinate", "percentile", "quantile",
+        // Survey metrics: an unrecognised numeric column defaults to QuantityMetric, so without
+        // these a bare "Satisfaction" or "CSAT" column would be summed rather than averaged.
+        "csat", "nps", "esat"
     };
 
     // Attribute/measurement stems (matched as a token prefix, e.g. "experien" → "experience").
@@ -59,7 +62,7 @@ public static class MeasureSemantics
         "experien", "rating", "score", "ratio", "percent", "temperat", "humidit", "height",
         "weight", "latitude", "longitude", "senior", "index", "price", "altitud", "elevat",
         "depth", "pressur", "densit", "voltag", "frequenc", "velocit", "probabilit", "likelihood",
-        "coordinat", "speed", "pace", "accelerat"
+        "coordinat", "speed", "pace", "accelerat", "satisfact"
     };
 
     private static bool HasNonAdditiveToken(string name)

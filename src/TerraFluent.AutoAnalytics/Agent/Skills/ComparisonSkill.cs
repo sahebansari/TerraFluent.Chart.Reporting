@@ -29,9 +29,7 @@ public sealed class ComparisonSkill : AnalyticSkillBase
 
     public override SkillResult Execute(AgentContext ctx)
     {
-        var measures = ctx.Profile.Measures.Select(m => m.Name);
-        if (ctx.Goal.TargetColumns.Count > 0)
-            measures = measures.Where(m => ctx.Goal.TargetColumns.Any(t => string.Equals(t, m, StringComparison.OrdinalIgnoreCase)));
+        var measures = NarrowToTargets(ctx.Profile.Measures.Select(m => m.Name), ctx.Goal);
 
         var insights = new List<Insight>();
         var charts = new List<RecommendedChart>();

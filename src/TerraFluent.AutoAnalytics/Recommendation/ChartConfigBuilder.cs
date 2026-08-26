@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using TerraFluent.Chart.Reporting.Builder;
@@ -34,20 +35,22 @@ public static class ChartConfigBuilder
             var categories = spec.Categories.Select(FormatCategoryLabel).ToArray();
             chart.Labels(categories);
 
-            // Category axis: render every tick label (no thinning/skipping) and never abbreviate.
+            // Category axis: never abbreviate, and let the renderer thin ticks only when they would
+            // otherwise overlap. Forcing a stride of 1 disables AutoSkip, which turns any wide axis
+            // (e.g. a year of daily periods) into an unreadable smear of overlapping labels.
             // Range-style ticks (e.g. "12k–22k") are wide, so always angle them regardless of count:
             // diagonal (-45), or vertical (-90) once there are many (>12).
             int rangeTicks = categories.Count(IsRangeLabel);
             bool mostlyRanges = rangeTicks > categories.Length / 2;
             chart.LabelLayout(l =>
             {
-                l.Skip(1);
+                l.AutoSkip(true);
                 if (mostlyRanges) l.Rotation(categories.Length > 12 ? -90 : -45);
             });
         }
         else
         {
-            chart.LabelLayout(l => l.Skip(1));
+            chart.LabelLayout(l => l.AutoSkip(true));
         }
 
         chart.Series(s =>
@@ -57,7 +60,9 @@ public static class ChartConfigBuilder
                 // Plot the actual series values (no rounding).
                 var values = series.Values.ToList();
                 double scalar = series.ScalarValue ?? 0;
-                switch (spec.Type)
+                // A series may opt out of the spec's own type so one chart can combine forms
+                // (e.g. a forecast band beneath its projection line).
+                switch (series.TypeOverride ?? spec.Type)
                 {
                     case ChartType.Line:    s.AddLine(series.Name, values); break;
                     case ChartType.Spline:  s.AddSpline(series.Name, values); break;
@@ -70,6 +75,30 @@ public static class ChartConfigBuilder
                     case ChartType.Radar:   s.AddRadar(series.Name, values); break;
                     case ChartType.Gauge:   s.AddGauge(series.Name, scalar); break;
                     case ChartType.DataRing: s.AddDataRing(series.Name, scalar); break;
+                    case ChartType.Waterfall: s.AddWaterfall(series.Name, values); break;
+                    case ChartType.Funnel:  s.AddFunnel(series.Name, values); break;
+                    case ChartType.Treemap: s.AddTreemap(series.Name, values); break;
+                    case ChartType.AreaRange:
+                        s.AddAreaRange(series.Name, ToRangePoints(series));
+                        break;
+                    case ChartType.ColumnRange:
+                        s.AddColumnRange(series.Name, ToRangePoints(series));
+                        break;
+                    case ChartType.ErrorBar:
+                        s.AddErrorBar(series.Name, ToRangePoints(series));
+                        break;
+                    case ChartType.Dumbbell:
+                        s.AddDumbbell(series.Name, ToRangePoints(series));
+                        break;
+                    case ChartType.BoxPlot:
+                        s.AddBoxPlot(series.Name, series.BoxValues
+                            .Select(b => new TerraFluent.Chart.Reporting.Models.BoxPlotPoint(b.Low, b.Q1, b.Median, b.Q3, b.High)));
+                        break;
+                    case ChartType.Heatmap:
+                        s.AddHeatmap(series.Name, series.HeatCells
+                            .Select(c => new TerraFluent.Chart.Reporting.Models.HeatmapPoint(c.Column, c.Row, c.Value)),
+                            cfg => cfg.HeatmapRowLabels.AddRange(series.RowLabels));
+                        break;
                     default:                s.AddColumn(series.Name, values); break;
                 }
             }
@@ -90,11 +119,17 @@ public static class ChartConfigBuilder
     /// <summary>Convenience: builds and renders the spec directly to an SVG string.</summary>
     public static string ToSvg(ChartSpec spec) => ToChartBuilder(spec).RenderToSvg();
 
+    private static IEnumerable<TerraFluent.Chart.Reporting.Models.RangePoint> ToRangePoints(SeriesSpec series) =>
+        series.RangeValues.Select(r => new TerraFluent.Chart.Reporting.Models.RangePoint(r.Low, r.High));
+
     // Numeric category labels are rounded to whole numbers so tick labels never show fractions.
-    // Non-numeric labels (dates, dimension names, etc.) pass through unchanged.
+    // Non-numeric labels (dates, dimension names, etc.) pass through unchanged, as do labels
+    // carrying an explicit leading sign — those are authored markers (the forecast axis labels its
+    // horizon "+1", "+2", …) and rounding would silently strip the sign that gives them meaning.
     private static string FormatCategoryLabel(string category)
     {
         if (string.IsNullOrWhiteSpace(category)) return category;
+        if (category[0] is '+' or '-') return category;
         return double.TryParse(category, NumberStyles.Any, CultureInfo.InvariantCulture, out double num)
             ? Math.Round(num, MidpointRounding.AwayFromZero).ToString("0", CultureInfo.InvariantCulture)
             : category;
