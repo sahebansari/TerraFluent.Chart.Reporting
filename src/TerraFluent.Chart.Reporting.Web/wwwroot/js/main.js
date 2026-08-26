@@ -10,6 +10,7 @@ import { renderDashboardView } from "./view-dashboard.js";
 import { renderAnalyzeView } from "./view-analyze.js";
 import { renderAgentView } from "./view-agent.js";
 import { renderAggregateView } from "./view-aggregate.js";
+import { renderCompareView } from "./view-compare.js";
 import { renderQualityView } from "./view-quality.js";
 import { renderStudioView } from "./view-studio.js";
 import { renderCatalogueView } from "./view-catalogue.js";
@@ -22,6 +23,7 @@ const VIEWS = {
   analyze:   { title: "Analyze",       render: renderAnalyzeView },
   agent:     { title: "Ask the Agent", render: renderAgentView },
   aggregate: { title: "Aggregate",     render: renderAggregateView },
+  compare:   { title: "Compare",       render: renderCompareView },
   quality:   { title: "Data Quality",  render: renderQualityView },
   studio:    { title: "Chart Studio",  render: renderStudioView },
   catalogue: { title: "Catalogue",     render: renderCatalogueView },
@@ -33,7 +35,7 @@ const VIEWS = {
 // Views that consume the active dataset. Opening one requires a dataset (else divert to Data
 // Source) and, on first entry after loading data, a clean bill of health (else divert to Data
 // Quality so issues are reviewed before running analytics).
-const GUARDED = new Set(["dashboard", "analyze", "agent", "aggregate", "studio"]);
+const GUARDED = new Set(["dashboard", "analyze", "agent", "aggregate", "compare", "studio"]);
 let current = "data";
 async function setView(name) {
   if (!VIEWS[name]) name = "data";

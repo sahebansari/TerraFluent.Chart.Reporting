@@ -207,12 +207,14 @@ The analytics engine and web app are built around a **process-in-memory, never-p
 
 - **No database, no disk storage.** Raw data you analyze is never written to a database or file on the server. The pipeline is a stateless transform: data in → analysis/charts out.
 - **Browser holds nothing.** In the web app, your dataset lives only in in-memory JavaScript — it is **not** saved to `localStorage`, `sessionStorage`, cookies, or IndexedDB, and is cleared on refresh or tab close.
-- **Stateless API endpoints** (`analyze`, `dashboard`, `insights`, `validate`, `aggregate`) parse, compute, and return — the data is garbage-collected after the response.
+- **Stateless API endpoints** (`analyze`, `dashboard`, `insights`, `validate`, `aggregate`, `compare`, `convert/xlsx`) parse, compute, and return — the data is garbage-collected after the response. An uploaded `.xlsx` is normalised to CSV in memory and handed straight back; no copy is kept. `compare` takes both datasets in one request and retains neither.
 - **Sessions are the one exception, and they self-expire.** The multi-turn "Ask the Agent" feature keeps a computed result **in memory only** so follow-up questions are fast. It uses a bounded store with a sliding **30-minute idle TTL** (configurable) and a capacity cap — nothing survives an app restart.
 - **Exports are yours.** "Export dashboard/analysis" produces a self-contained HTML file downloaded to *your* device; the server keeps no copy.
 - **Deterministic, so nothing needs caching.** Identical input always yields identical output, so there is no value in retaining your data server-side.
 
-> If you need scheduled/refreshing reports later, prefer a **live source connector** (pull on demand) over copying data in, and persist the **derived result** rather than the raw rows.
+- **Live connections pull, they don't copy.** `TerraFluent.AutoAnalytics.Connectors` adds optional server-side data sources. An operator configures them by name; a client selects one with `"connectionName": "Sales"` and never sees — or supplies — the URL or credentials. Rows are fetched fresh per request and discarded, so nothing is cached or stored. The connections listing has no field for a target or secret, and failure messages redact both (including in server logs).
+
+> Connectors ship as a **separate package**, so consumers who only analyse files keep the analytics engine dependency-free.
 
 ---
 

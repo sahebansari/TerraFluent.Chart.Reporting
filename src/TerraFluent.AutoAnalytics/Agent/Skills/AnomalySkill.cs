@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TerraFluent.AutoAnalytics.Enums;
@@ -28,10 +29,18 @@ public sealed class AnomalySkill : AnalyticSkillBase
         var measures = MeasuresOf(insights);
         var charts = SelectCharts(ctx, measures, ChartType.Line, ChartType.Column);
 
+        // Measures whose outlier the pipeline already attributed to a segment. Chasing them with a
+        // further root-cause drill-down would re-report the same event under a second heading.
+        var explained = ctx.Findings.AnomalyExplanations
+            .Where(e => e.IsExplained)
+            .Select(e => e.Measure)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var followUps = new List<AnalyticGoal>();
         bool hasDate = ctx.Profile.DateColumns.Any();
         foreach (var measure in measures)
         {
+            if (explained.Contains(measure)) continue;
             if (ctx.Findings.Groups.Any(g => g.Measure == measure))
             {
                 followUps.Add(AnalyticGoal.Dominance(measure)
@@ -43,8 +52,12 @@ public sealed class AnomalySkill : AnalyticSkillBase
             }
         }
 
-        string rationale = $"Flagged anomalies in {measures.Count} measure(s); " +
-                           "raised root-cause drill-downs.";
+        int skipped = measures.Count(explained.Contains);
+        string rationale = skipped > 0
+            ? $"Flagged anomalies in {measures.Count} measure(s); {skipped} already attributed to a segment, " +
+              "so only the unexplained ones were drilled into."
+            : $"Flagged anomalies in {measures.Count} measure(s); raised root-cause drill-downs.";
+
         return new SkillResult(rationale, insights, charts, followUps);
     }
 }

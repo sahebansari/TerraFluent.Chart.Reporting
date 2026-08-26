@@ -131,7 +131,7 @@ public class EngineEndToEndTests
         var result = AnalyticsEngine.AnalyzeCsv(retailCsv);
         var dashboard = DashboardBuilder.Generate(result, maxKpis: 8);
 
-        string Caption(string label) =>
+        string? Caption(string label) =>
             dashboard.Kpis.Single(k => k.Label == label).Caption;
 
         Assert.StartsWith("total", Caption("Revenue"));      // money → sum

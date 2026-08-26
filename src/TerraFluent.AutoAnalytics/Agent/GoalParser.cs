@@ -7,11 +7,21 @@ using TerraFluent.AutoAnalytics.Profiling;
 namespace TerraFluent.AutoAnalytics.Agent;
 
 /// <summary>
-/// A deterministic, keyword-driven parser that maps a free-text question to an <see cref="AnalyticGoal"/>.
-/// No AI: intent is inferred from keyword matches and any dataset column names mentioned in the text.
+/// A deterministic, keyword-driven parser that maps a free-text question to one or more
+/// <see cref="AnalyticGoal"/>s. No AI: every intent is scored by the keywords it matches and any
+/// dataset column names mentioned in the text.
 /// </summary>
+/// <remarks>
+/// A real question often carries several intents at once — "why is the top region declining?" asks
+/// for a root cause, a ranking and a trend. <see cref="ParseAll"/> scores every intent and returns
+/// them ranked so the agent can plan the whole question; <see cref="Parse"/> returns just the
+/// strongest for callers that want a single goal.
+/// </remarks>
 public static class GoalParser
 {
+    /// <summary>Default cap on how many intents one question may raise.</summary>
+    public const int DefaultMaxIntents = 3;
+
     private static readonly (GoalKind Kind, string[] Keywords)[] IntentMap =
     {
         (GoalKind.Forecast,    new[] { "forecast", "project", "predict", "future", "next month", "next quarter", "next year", "will be", "expected", "outlook" }),
@@ -24,29 +34,84 @@ public static class GoalParser
         (GoalKind.Dominance,   new[] { "top", "leading", "leader", "dominant", "concentrat", "share", "breakdown", "biggest", "largest", "highest", "most", "greatest", "rank", "which " })
     };
 
-    /// <summary>Parses a question into a goal, resolving any column names mentioned against the profile.</summary>
+    /// <summary>
+    /// Parses a question into its single strongest goal, resolving any column names mentioned
+    /// against the profile.
+    /// </summary>
     public static AnalyticGoal Parse(string? question, DatasetProfile profile)
+        => ParseAll(question, profile, maxIntents: 1)[0];
+
+    /// <summary>
+    /// Parses a question into every intent it expresses, ranked strongest first. Returns a single
+    /// <see cref="GoalKind.Explore"/> goal when the question is empty or matches no keyword.
+    /// </summary>
+    /// <param name="question">The free-text question; <see langword="null"/> means open exploration.</param>
+    /// <param name="profile">Profile used to resolve column names mentioned in the question.</param>
+    /// <param name="maxIntents">Cap on the number of goals returned (at least one).</param>
+    public static IReadOnlyList<AnalyticGoal> ParseAll(
+        string? question, DatasetProfile profile, int maxIntents = DefaultMaxIntents)
     {
         if (string.IsNullOrWhiteSpace(question))
-            return AnalyticGoal.Explore();
+            return new[] { AnalyticGoal.Explore() };
 
         string text = question.ToLowerInvariant();
         var columns = ResolveColumns(text, profile);
 
-        foreach (var (kind, keywords) in IntentMap)
+        // Score every intent rather than taking the first that matches, so a compound question
+        // ("why is the top region declining?") raises root-cause, dominance *and* trend.
+        var scored = new List<(GoalKind Kind, double Score, int Priority)>();
+        for (int priority = 0; priority < IntentMap.Length; priority++)
         {
-            if (keywords.Any(k => text.Contains(k, StringComparison.Ordinal)))
-            {
-                return new AnalyticGoal
-                {
-                    Kind = kind,
-                    TargetColumns = columns,
-                    RawText = question
-                };
-            }
+            var (kind, keywords) = IntentMap[priority];
+            double score = 0;
+            foreach (var keyword in keywords)
+                if (ContainsAtWordStart(text, keyword))
+                    score += KeywordWeight(keyword);
+
+            if (score > 0) scored.Add((kind, score, priority));
         }
 
-        return AnalyticGoal.Explore(question);
+        if (scored.Count == 0)
+            return new[] { AnalyticGoal.Explore(question) };
+
+        return scored
+            .OrderByDescending(s => s.Score)
+            .ThenBy(s => s.Priority)          // stable tie-break: earlier in IntentMap wins
+            .Take(maxIntents < 1 ? 1 : maxIntents)
+            .Select(s => new AnalyticGoal
+            {
+                Kind = s.Kind,
+                TargetColumns = columns,
+                RawText = question
+            })
+            .ToList();
+    }
+
+    // A multi-word keyword ("year over year") is far more specific than a single word ("top"),
+    // so it carries more weight when intents compete.
+    private static double KeywordWeight(string keyword)
+    {
+        int words = keyword.Trim().Split(' ').Length;
+        return 1.0 + 0.5 * (words - 1);
+    }
+
+    // Matches a keyword only where it starts a word, so the "most" stem cannot fire on "almost"
+    // while stems like "correlat" still match "correlation"/"correlated".
+    private static bool ContainsAtWordStart(string text, string keyword)
+    {
+        if (keyword.Length == 0) return false;
+        // Keywords that carry their own leading separator (e.g. " vs ") are matched literally.
+        if (char.IsWhiteSpace(keyword[0]))
+            return text.Contains(keyword, StringComparison.Ordinal);
+
+        for (int from = 0; from <= text.Length - keyword.Length;)
+        {
+            int i = text.IndexOf(keyword, from, StringComparison.Ordinal);
+            if (i < 0) return false;
+            if (i == 0 || !char.IsLetterOrDigit(text[i - 1])) return true;
+            from = i + 1;
+        }
+        return false;
     }
 
     private static IReadOnlyList<string> ResolveColumns(string text, DatasetProfile profile)

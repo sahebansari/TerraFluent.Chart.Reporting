@@ -38,15 +38,26 @@ jobs:
       - name: Build (Release)
         run: dotnet build TerraFluent.Chart.Reporting.sln --configuration Release --no-restore
 
-      - name: Test
+      # Runs every test project in the solution — the chart library, the analytics engine, the
+      # connectors and the API integration tests — rather than the chart library alone.
+      - name: Test (.NET)
         run: >
-          dotnet test
-          tests/TerraFluent.Chart.Reporting.Tests/TerraFluent.Chart.Reporting.Tests.csproj
+          dotnet test TerraFluent.Chart.Reporting.sln
           --configuration Release
           --no-build
           --logger "console;verbosity=minimal"
           --collect:"XPlat Code Coverage"
           --results-directory coverage
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The Studio SPA is dependency-free, so its tests run on Node's built-in runner with no install.
+      - name: Test (Studio SPA)
+        working-directory: tests/TerraFluent.Studio.Web.Tests
+        run: node --test
 
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest'

@@ -5,8 +5,16 @@ namespace TerraFluent.AutoAnalytics.Analytics;
 /// <summary>A single anomalous observation within a measure column.</summary>
 public sealed class AnomalyPoint
 {
-    /// <summary>Zero-based row index of the outlier within the non-missing value sequence.</summary>
+    /// <summary>Zero-based position of the outlier within the non-missing value sequence.</summary>
     public int Index { get; init; }
+
+    /// <summary>
+    /// Zero-based index of the outlier's row in the original dataset. Unlike <see cref="Index"/>
+    /// (which counts only non-missing cells) this addresses the real row, so it can be used to look
+    /// up the point's date and dimension labels via the row-aligned column projections.
+    /// </summary>
+    public int RowIndex { get; init; }
+
     public double Value { get; init; }
     /// <summary>Classic Z-score relative to the column mean/StdDev (kept for reference/back-compat).</summary>
     public double ZScore { get; init; }

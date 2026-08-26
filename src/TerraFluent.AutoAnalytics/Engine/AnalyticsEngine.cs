@@ -72,6 +72,19 @@ public sealed class AnalyticsEngine
     public Task<AnalyticsResult> RunAsync(Dataset dataset, AnalyticsOptions? options = null, CancellationToken ct = default)
         => Task.Run(() => Run(dataset, options), ct);
 
+    /// <summary>
+    /// Fetches a live source and analyses it. The rows are held only for the duration of the call —
+    /// nothing is cached between requests.
+    /// </summary>
+    public static async Task<AnalyticsResult> AnalyzeAsync(
+        IAsyncDataSource source, AnalyticsOptions? options = null, CancellationToken ct = default)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        var dataset = await source.LoadAsync(ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        return new AnalyticsEngine().Run(dataset, options);
+    }
+
     // ── Core pipeline ─────────────────────────────────────────────────────────
 
     /// <summary>Runs the full pipeline against a dataset.</summary>
@@ -107,6 +120,26 @@ public sealed class AnalyticsEngine
         var cumulSeries   = new CumulativeSeriesEngine().Compute(profile);
         var compositions  = new CompositionEngine().Compute(profile);
 
+        // Forward-looking and cross-period analytics. These were previously reachable only through
+        // the agent's skills, so a plain /analyze or dashboard could never show a projection.
+        var forecasts = options.EnableForecasting
+            ? new ForecastEngine(options.ForecastHorizon).Compute(profile)
+            : new List<MeasureForecast>();
+
+        var periodComparisons = options.EnablePeriodComparison
+            ? ComparePeriods(profile)
+            : new List<PeriodComparisonResult>();
+
+        var segmentation = options.EnableSegmentation
+            ? new SegmentationEngine().Segment(profile)
+            : null;
+
+        // Ask of each outlier whether any dimension accounts for it, so the narrative can say
+        // "unusual, but normal for EU" instead of leaving the reader to chase it down.
+        var anomalyExplanations = options.EnableAnomalyExplanation
+            ? new AnomalyExplanationEngine().Explain(profile, anomalies)
+            : new List<AnomalyExplanation>();
+
         var findings = new AnalyticsFindings
         {
             Correlations    = relationships.Correlations(profile),
@@ -115,7 +148,11 @@ public sealed class AnalyticsEngine
             Anomalies       = anomalies,
             MovingAverages  = movingAvgs,
             CumulativeSeries = cumulSeries,
-            Compositions    = compositions
+            Compositions    = compositions,
+            Forecasts       = forecasts,
+            PeriodComparisons = periodComparisons,
+            Segmentation    = segmentation is { IsEmpty: false } ? segmentation : null,
+            AnomalyExplanations = anomalyExplanations
         };
 
         // Phase 6 — insights (built-in + plugins).
@@ -151,6 +188,19 @@ public sealed class AnalyticsEngine
             Recommendations = recommendations,
             Summary = summary
         };
+    }
+
+    // Period-over-period comparison for each measure; measures without enough history drop out.
+    private static List<PeriodComparisonResult> ComparePeriods(DatasetProfile profile)
+    {
+        var engine = new PeriodComparisonEngine();
+        var results = new List<PeriodComparisonResult>();
+        foreach (var measure in profile.Measures)
+        {
+            var comparison = engine.Compare(profile, measure.Name);
+            if (comparison is { IsEmpty: false }) results.Add(comparison);
+        }
+        return results;
     }
 
     private static AnalyticsSummary BuildSummary(

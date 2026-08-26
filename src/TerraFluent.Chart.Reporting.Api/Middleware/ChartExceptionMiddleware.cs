@@ -29,6 +29,17 @@ internal sealed class ChartExceptionMiddleware(RequestDelegate next, ILogger<Cha
         {
             await WriteProblem(ctx, 404, "not_found", ex.Message, null);
         }
+        catch (TerraFluent.AutoAnalytics.Data.Connections.ConnectionException ex)
+        {
+            // The full detail — including the target URL carried by the inner exception — is logged
+            // for the operator. Only ex.Message goes to the client, and it is written to be free of
+            // the target and any credential.
+            logger.LogWarning(ex, "Connection {ConnectionName} failed", ex.ConnectionName);
+
+            await (ex.IsNotConfigured
+                ? WriteProblem(ctx, 404, "connection_not_found", ex.Message, null)
+                : WriteProblem(ctx, 502, "connection_error", ex.Message, null));
+        }
         catch (ArgumentException ex)
         {
             await WriteProblem(ctx, 400, "invalid_argument", ex.Message, null);

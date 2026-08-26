@@ -49,16 +49,18 @@ public sealed class AnalyticSession
     /// <summary>Asks a follow-up question, building on everything asked earlier in the session.</summary>
     public InvestigationTrace Ask(string? question)
     {
-        var goal = GoalParser.Parse(question, Result.Profile);
-        goal = ResolveReferences(goal, question);
+        var goals = GoalParser.ParseAll(question, Result.Profile)
+            .Select(g => ResolveReferences(g, question))
+            .ToList();
+        var primary = goals[0];
 
-        var trace = _agent.Investigate(Result, goal, _executed, _insightTitles);
+        var trace = _agent.Investigate(Result, goals, _executed, _insightTitles);
 
-        _lastColumns = FocusColumns(goal, trace);
+        _lastColumns = FocusColumns(primary, trace);
         _turns.Add(new SessionTurn
         {
-            Question = question ?? goal.Describe(),
-            Goal = goal.Describe(),
+            Question = question ?? primary.Describe(),
+            Goal = string.Join(" + ", goals.Select(g => g.Describe()).Distinct(StringComparer.OrdinalIgnoreCase)),
             Headline = trace.Headline,
             NewInsightCount = trace.Insights.Count
         });

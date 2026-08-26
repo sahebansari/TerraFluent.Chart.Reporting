@@ -19,10 +19,12 @@ to analyse your data.
 4. [The interface](#4-the-interface)
 5. [Screen‑by‑screen tour](#5-screen-by-screen-tour)
    - [5.1 Data Source](#51-data-source)
+   - [5.1b Configuring live connections](#51b-configuring-live-connections)
    - [5.2 Dashboard](#52-dashboard)
    - [5.3 Analyze](#53-analyze)
    - [5.4 Ask the Agent](#54-ask-the-agent)
    - [5.5 Aggregate](#55-aggregate)
+   - [5.5b Compare](#55b-compare)
    - [5.6 Data Quality](#56-data-quality)
    - [5.7 Chart Studio](#57-chart-studio)
    - [5.8 Catalogue](#58-catalogue)
@@ -74,8 +76,11 @@ flowchart LR
 - **Web app (BFF)** — [`src/TerraFluent.Chart.Reporting.Web`](../../src/TerraFluent.Chart.Reporting.Web);
   serves the static shell and proxies `/api/**` to the API. No CORS, no mixed content.
 - **Analytics API** — [`src/TerraFluent.Chart.Reporting.Api`](../../src/TerraFluent.Chart.Reporting.Api);
-  REST endpoints for analyze / dashboard / ask / aggregate / validate / chart rendering.
+  REST endpoints for analyze / dashboard / ask / aggregate / compare / validate / convert /
+  chart rendering.
 - **Engine** — [`src/TerraFluent.AutoAnalytics`](../../src/TerraFluent.AutoAnalytics); the maths.
+- **Connectors** — [`src/TerraFluent.AutoAnalytics.Connectors`](../../src/TerraFluent.AutoAnalytics.Connectors);
+  optional live sources. Ships separately so the engine stays dependency-free.
 - **Renderer** — [`src/TerraFluent.Chart.Reporting`](../../src/TerraFluent.Chart.Reporting); server‑side SVG.
 
 ---
@@ -120,7 +125,7 @@ dotnet run --project src\TerraFluent.Chart.Reporting.Web\TerraFluent.Chart.Repor
 
 Every screen shares the same chrome:
 
-- **Left sidebar** — the ten navigation items (including an in‑app **Guide**), plus a live
+- **Left sidebar** — the eleven navigation items (including an in‑app **Guide**), plus a live
   **dataset badge** and a privacy chip (“In‑memory only · never stored”).
 - **Top bar** — the current view title, an **Agent status** indicator, and a Settings shortcut.
 - **Content area** — the active view.
@@ -132,13 +137,14 @@ flowchart TD
     Q --> AN[Analyze]
     Q --> AG[Ask the Agent]
     Q --> AGG[Aggregate]
+    Q --> CMP[Compare]
     Q --> ST[Chart Studio]
     CAT[Catalogue]
     GUIDE[Guide]
     SET[Settings]
 ```
 
-**Guarded navigation.** Dashboard, Analyze, Ask the Agent, Aggregate and Chart Studio all consume
+**Guarded navigation.** Dashboard, Analyze, Ask the Agent, Aggregate, Compare and Chart Studio all consume
 the active dataset. Opening one without a dataset diverts you to **Data Source**; opening one when
 the dataset has **quality issues** diverts you (once) to **Data Quality** so problems are reviewed
 before you run analytics. Catalogue, Guide and Settings are always available.
@@ -150,11 +156,23 @@ before you run analytics. Catalogue, Guide and Settings are always available.
 ### 5.1 Data Source
 
 The entry point for every workflow. Provide data by **pasting**, **uploading a file**
-(CSV/JSON/TXT, drag‑and‑drop), or picking a **Sample**. Choose a name and a format
+(CSV/JSON/TXT/XLSX, drag‑and‑drop), or picking a **Sample**. Choose a name and a format
 (**Auto‑detect**, CSV or JSON array), then click **Use this dataset**.
 
-**Key controls:** *Paste* · *Upload* (drag‑and‑drop CSV/JSON/TXT) · *Samples* · *Name* · *Format*
+**Key controls:** *Paste* · *Upload* (drag‑and‑drop CSV/JSON/TXT/XLSX) · *Samples* · *Name* · *Format*
 (Auto‑detect / CSV / JSON array) · **Use this dataset**.
+
+> **Live connections.** The **Connections** tab lists data sources an administrator has configured
+> on the server. Selecting one makes it the active dataset: the browser holds only its *name*, and
+> the rows are pulled fresh by the server on every analysis. Because the client never supplies a URL
+> or a credential — only a name that must already exist in configuration — there is nothing for a
+> caller to point at an arbitrary host, and nothing to leak. See §5.1b for how they are configured.
+
+> **Excel workbooks.** Dropping an `.xlsx` file posts its bytes to `POST /api/analytics/convert/xlsx`,
+> which reads the **first worksheet** (first row = header) and returns CSV that lands in the paste
+> box — so every downstream screen works on plain text as usual. Nothing is stored server‑side.
+> Excel keeps dates as styled serial numbers, so a date column may arrive as plain numbers; format
+> it as text in the workbook if reliable date typing matters.
 
 Six built‑in samples cover a range of shapes (small trend data through ~5,000‑row datasets):
 
@@ -169,6 +187,56 @@ Six built‑in samples cover a range of shapes (small trend data through ~5,000�
 
 Once loaded, a **preview** of the first rows appears and the dataset badge updates. The app
 validates immediately; if it is clean you are invited to head to Dashboard or Analyze.
+
+### 5.1b Configuring live connections
+
+Connections are defined **server-side**, in the API's configuration, and selected by clients using
+only their name. Add them under a `Connections` section — in `appsettings.json`, environment
+variables, user secrets or any configuration provider the host has registered:
+
+```json
+"Connections": {
+  "Sales": {
+    "Kind": "http",
+    "Target": "https://internal.example.com/api/sales",
+    "Description": "Nightly sales extract",
+    "MaxRows": 50000,
+    "TimeoutSeconds": 20,
+    "Settings": {
+      "jsonPath": "data.rows",
+      "header.Authorization": "Bearer …"
+    }
+  }
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| *(key)* | The name a client passes as `connectionName`. |
+| `Kind` | Which connector serves it. Currently `http` (the default). |
+| `Target` | The URL to fetch. **Secret** — never returned to a client. |
+| `Description` | Shown in the Connections tab. |
+| `MaxRows` | Row cap; defaults to 100,000. |
+| `TimeoutSeconds` | Fetch timeout; defaults to 30. |
+| `Settings.jsonPath` | Dot path to the array inside an envelope, e.g. `data.rows`. Omit if the response *is* the array. |
+| `Settings.header.*` | Request headers, typically auth. **Secret.** |
+
+An entry with no `Target` is skipped rather than half-registered, so a mistake shows up in the
+connections listing instead of partway through someone's request.
+
+**What is guaranteed:**
+
+- `GET /api/analytics/connections` returns **name, kind, description and row cap only**. The
+  response type has no field for a target or credential, so there is nowhere for one to land.
+- Failure messages name the connection and the reason — *“Connection 'Sales' could not be read: the
+  endpoint returned HTTP 403”* — and never the URL. Underlying HTTP exceptions quote the request URL
+  (which often carries a token in its query string), so they are **redacted before** being attached
+  as an inner exception; that protects server logs too, not just responses.
+- An unknown name returns **404**, an unreachable source **502**.
+- Data is pulled fresh per request and discarded — nothing is cached or persisted, so the
+  never‑persist guarantee is unchanged.
+- Responses are bounded by the row cap and a hard 64 MB body ceiling, streamed rather than buffered
+  whole, so a large or misbehaving endpoint cannot exhaust memory.
 
 ### 5.2 Dashboard
 
@@ -208,6 +276,35 @@ dimension** (to pivot), and an **aggregation** (Sum, Average, Count, Min, Max, M
 
 > Non‑additive measures (age, rates, scores…) are protected: the Studio removes **Sum** from the
 > aggregation list for them, defaulting to **Average**, because a grand total would be meaningless.
+
+### 5.5b Compare
+
+Diffs the **active dataset** against a second one you supply on the page (paste, upload — including
+`.xlsx` — or pick a sample). Click **Compare** for the report, or **Export comparison** for a
+self‑contained HTML page.
+
+Three sections, in the order they matter:
+
+| Section | What it answers |
+|---------|-----------------|
+| **Measures** | How each shared measure moved, and whether its trend direction reversed. |
+| **Category mix** | How each category's *share* of a measure shifted, plus categories that appeared or vanished. |
+| **Structural differences** | Columns added, removed, retyped or re‑roled. |
+
+Three rules keep the comparison honest:
+
+- **Columns are matched by name** (case‑insensitively). Anything unmatched is reported as added or
+  removed rather than quietly dropped — a silently ignored column is how a comparison starts lying.
+- **Each measure is compared on the statistic that means something for it** — totals for additive
+  measures, averages for per‑row attributes. Summing a satisfaction score would be meaningless.
+- **A retyped column is called out loudly**, because figures computed either side of a type change
+  are not measuring the same thing. It outranks every ordinary movement.
+
+If the two datasets share **no measure column**, the page says so plainly and shows only the
+structural diff, rather than inventing numeric comparisons.
+
+> **Stateless, like everything else.** Both datasets are posted together on each request; neither is
+> stored on the server or in browser storage. The comparison dataset lives only as long as the page.
 
 ### 5.6 Data Quality
 
@@ -292,6 +389,20 @@ and *How analysis works*.
 4. Click **Compute** → read the table/pivot and chart.
 5. *(Optional)* **Export result**.
 
+### Path D2 — Compare two datasets
+
+1. Load the **“after”** dataset on **Data Source** and click **Use this dataset**.
+2. Click **Compare** in the sidebar.
+3. In the **Baseline** panel, paste the “before” dataset, upload a file (CSV/JSON/TXT/XLSX), or pick
+   a sample. Give it a name.
+4. Click **Compare**.
+5. Read the **headline** and the compatibility note, then work down: **What changed** (ranked
+   insights), **Measures**, **Category mix**, **Structural differences**, and the charts.
+6. *(Optional)* Click **Export comparison** to download the HTML report.
+
+> If the report says **Not comparable**, the two datasets share no measure column — check they
+> describe the same thing and use the same column names.
+
 ### Path E — Fix data‑quality issues
 
 1. On **Data Source**, load data that has problems (e.g. a duplicate key or missing values).
@@ -318,7 +429,7 @@ always yields the same profile, insights and charts.
 flowchart LR
     P1["1 · Schema<br/>discovery"] --> P2["2 · Validation"]
     P2 --> P3["3 · Profiling"]
-    P3 --> P4["4 · Analytics"]
+    P3 --> P4["4 · Analytics<br/>(incl. forecast,<br/>periods, segments)"]
     P4 --> P5["5 · Insights"]
     P5 --> P6["6 · Chart<br/>recommendation"]
     P6 --> P7["7 · Summary"]
@@ -441,6 +552,28 @@ Anomalies are **ranked and scored by a robust, σ‑comparable magnitude**
 $\bigl|\,(x_i-\tilde x)/\text{scale}\,\bigr|$ with $\text{scale}=\mathrm{MAD}/0.6745$ (falling back to
 $\mathrm{IQR}/1.349$, then $s$) — so a strong outlier is measured on a spread it did **not** inflate.
 
+#### Anomaly attribution — is the outlier actually unusual?
+
+Detecting an outlier is only half the question; the other half is whether it stays unusual once you
+know which segment it came from. A revenue figure three times the dataset median may be entirely
+ordinary for the largest region, in which case there is nothing to investigate.
+
+For each flagged anomaly the engine takes the **row** it came from (not its position among the
+non‑missing values — those differ as soon as a cell is blank) and, for every dimension the row
+belongs to, compares the value against that category's own median, computed **excluding the
+anomalous row** so a thin category cannot explain its own outlier:
+
+$$\text{ExplainedFraction} = \operatorname{clamp}_{[0,1]}\!\left(1 - \frac{|x - \tilde{x}_{\text{category}}|}{|x - \tilde{x}_{\text{dataset}}|}\right)$$
+
+The dimension with the highest explained fraction wins. At ≥ 0.5 the anomaly is reported as
+**segment mix** (“normal for that Segment”); below it, as a **genuine one‑off** worth confirming.
+The account is folded into the existing anomaly insight rather than added as a second one, and the
+agent skips its root‑cause drill‑down for anomalies already attributed — so one event yields one
+narrative. Disable with `EnableAnomalyExplanation`.
+
+Note this asks a different question from driver analysis below: attribution explains **one
+observation**, a driver explains **a change over time**.
+
 #### Driver (root‑cause) analysis
 
 Explains *why* a measure moved. Rows are ordered by date and split into an **earlier** and **later**
@@ -466,6 +599,14 @@ labelled High/Mid/Low on the primary measure.
 
 #### Forecasting
 
+Forecasts, period comparisons and segmentation all run as part of the standard pipeline, so the
+Dashboard and Analyze screens show them without going through the agent. Each can be switched off
+via `AnalyticsOptions` (`EnableForecasting`, `EnablePeriodComparison`, `EnableSegmentation`), and the
+projection horizon defaults to three periods (`ForecastHorizon`).
+
+Measures are collapsed to one value per calendar period first (the same aggregation the trend engine
+uses), then:
+
 - **Holt’s linear method** (double exponential smoothing):
   $$\ell_t=\alpha x_t+(1-\alpha)(\ell_{t-1}+b_{t-1}),\qquad
     b_t=\beta(\ell_t-\ell_{t-1})+(1-\beta)b_{t-1},$$
@@ -476,6 +617,9 @@ labelled High/Mid/Low on the primary measure.
   minimises in‑sample one‑step SSE (so results are reproducible, not hand‑tuned).
 - **Confidence band** widens with the horizon like a random walk: $\pm\,1.96\,\sigma\sqrt{h}$,
   where $\sigma$ is the residual standard deviation.
+- **Season length is detected from the data**, never assumed from the calendar. Forcing the cadence
+  (12 monthly, 4 quarterly) would push every dated series through Holt–Winters whether it is seasonal
+  or not, and a seasonal model fitted to a plain ramp projects worse than the linear one.
 
 #### Supporting series
 
@@ -509,6 +653,22 @@ Rule‑based, each rule emitting a chart with a **suitability score** and a self
   spacing can’t misrepresent the relationship.
 - **Single measure → histogram** (binned column), **Moving average → Spline**,
   **Cumulative → Area**, **Composition → stacked Area/Column/Bar**, **lone metric → Gauge**.
+- **Forecast → Line over an AreaRange band** — history, projection and the 95 % confidence interval
+  on one axis. The band is zero-width across the history (which carries no uncertainty) and opens
+  out over the horizon. The fit uses the whole history, but only the latest 24 periods are plotted:
+  a year of daily periods would otherwise squeeze the horizon into under 1 % of the plot width. A
+  projection whose interval is as wide as the spread of its own history is demoted and labelled
+  indicative, so a long, noisy, trendless series no longer outranks a genuinely forecastable one.
+- **Period-over-period → Waterfall** — each period's change bridges the opening value to the
+  closing one. Longer histories show the most recent twelve steps rather than being dropped.
+- **Two dimensions × a measure → Heatmap** — hot and cold cells at a glance, which a stacked chart
+  hides. Requires at least a 3 × 3 grid.
+- **Measure within each category → BoxPlot** — medians, quartiles and full range side by side,
+  detail that a bar of averages discards. Requires ≥ 5 values per group.
+- **Segments → Column** — how the population divides between the discovered clusters.
+- **Anomaly in context → grouped Column** — the outlier against the typical value of each segment it
+  belongs to. A bar that reaches the outlier's height is the segment that explains it; if none do,
+  the anomaly is genuine. Scored higher when unexplained, since that is the more urgent finding.
 
 ### Phase 7 — Summary
 
@@ -542,11 +702,23 @@ validation verdict populate the dashboard/analysis header.
 `EMPTY_DATASET`, `LOW_ROW_COUNT`, `MISSING_VALUES`, `DUPLICATE_ROWS`, `DUPLICATE_KEYS`,
 `INVALID_FORMAT`, `PERCENT_OUT_OF_RANGE`, `NEGATIVE_REVENUE`, `AGE_OUT_OF_RANGE`.
 
+### Insight kinds
+
+`Observation`, `Trend`, `Dominance`, `Correlation`, `Anomaly`, `Distribution`, `DataQuality`,
+`Forecast`, `PeriodChange`, `Segmentation`, `Comparison`.
+
 ### Agent intents
 
 `Explore`, `Trend`, `Correlation`, `Anomaly`, `Dominance`, `Forecast`, `RootCause`, `Compare`,
 `Segment` — parsed from the question’s keywords and column‑name matches, then executed as a chain of
 deterministic skills.
+
+**Compound questions raise several intents.** Every intent is *scored* by the keywords it matches
+(multi‑word phrases such as “year over year” outweigh single words such as “top”), and the top three
+are all pursued, strongest first. So *“why is the top region declining?”* runs root‑cause **and**
+dominance **and** trend, rather than stopping at the first keyword that matched. Keywords match only
+at a word boundary, so “almost” no longer trips the “most” rule while stems like “correlat” still
+match “correlated”.
 
 ### Chart types (renderer)
 
