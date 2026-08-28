@@ -28,13 +28,16 @@ public sealed class ChartRecommendationEngine
         => _maxCategories = maxCategories;
 
     /// <summary>Produces ranked chart recommendations.</summary>
-    public IReadOnlyList<RecommendedChart> Recommend(DatasetProfile profile, AnalyticsFindings findings)
+    public IReadOnlyList<RecommendedChart> Recommend(DatasetProfile profile, AnalyticsFindings findings, bool preAggregated = false)
     {
         var recs = new List<RecommendedChart>();
         recs.AddRange(TimeSeries(profile, findings));
-        recs.AddRange(CategoryComparison(findings));
+        recs.AddRange(CategoryComparison(findings, preAggregated));
         recs.AddRange(ShareAnalysis(findings));
-        recs.AddRange(CorrelationCharts(profile, findings));
+        // A correlation's binned-mean line is a weak, easily-misread view of already-summarized
+        // per-entity data, so skip it there in favour of the direct per-entity comparisons.
+        if (!preAggregated)
+            recs.AddRange(CorrelationCharts(profile, findings));
         recs.AddRange(Distribution(profile));
         recs.AddRange(SingleMetric(profile));
         recs.AddRange(SmoothTrendCharts(findings));
@@ -461,7 +464,7 @@ public sealed class ChartRecommendationEngine
     }
 
     // ── Category comparison: dimension + measure => Column / Bar ───────────────
-    private IEnumerable<RecommendedChart> CategoryComparison(AnalyticsFindings findings)
+    private IEnumerable<RecommendedChart> CategoryComparison(AnalyticsFindings findings, bool preAggregated = false)
     {
         foreach (var g in findings.Groups)
         {
@@ -474,7 +477,9 @@ public sealed class ChartRecommendationEngine
 
             bool useBar = labels.Any(l => l.Length > 12) || count > 8;
             var type = useBar ? ChartType.Bar : ChartType.Column;
-            int score = 72 + (count is >= 3 and <= 10 ? 12 : 0);
+            // Pre-aggregated data is a per-entity summary, so a ranked comparison of each measure by
+            // entity is the headline chart — score it above the incidental cross-measure views.
+            int score = (preAggregated ? 84 : 72) + (count is >= 3 and <= 10 ? 12 : 0);
 
             string measureDisp = DisplayText.Humanize(g.Measure);
             string dimDisp     = DisplayText.Humanize(g.Dimension);
@@ -629,6 +634,19 @@ public sealed class ChartRecommendationEngine
 
         var labels = new List<string>(bins);
         var means = new List<double?>(bins);
+        int nonEmpty = 0, maxCount = 0;
+        for (int b = 0; b < bins; b++)
+        {
+            if (count[b] == 0) continue;
+            nonEmpty++;
+            if (count[b] > maxCount) maxCount = count[b];
+        }
+
+        // A relationship reads as a trend only when the points spread across several bands. One dense
+        // clump plus a lone outlier band (typical of heavily skewed counts) describes skew, not a
+        // relationship, and renders as a misleading 2-point line — so drop it.
+        if (nonEmpty < 3 || maxCount > 0.8 * n) return (new List<string>(), new List<double?>());
+
         for (int b = 0; b < bins; b++)
         {
             if (count[b] == 0) continue; // drop empty bands so the trend stays continuous
@@ -648,6 +666,11 @@ public sealed class ChartRecommendationEngine
 
             var (labels, counts) = Histogram(m.NumericValues, m.Numeric.Min, m.Numeric.Max);
             if (labels.Count == 0) continue;
+
+            // A histogram where one bin swallows almost everything (heavily skewed counts) renders as
+            // a single spike that conveys nothing — skip it rather than clutter the dashboard.
+            int total = counts.Sum();
+            if (total > 0 && counts.Max() > 0.85 * total) continue;
 
             int score = 60 + (Math.Abs(m.Numeric.Skewness) > 0.8 ? 12 : 0);
             string measureDisp = DisplayText.Humanize(m.Name);

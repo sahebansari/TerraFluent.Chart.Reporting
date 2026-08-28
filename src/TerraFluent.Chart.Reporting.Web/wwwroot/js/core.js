@@ -287,9 +287,12 @@ export async function problem(res) {
 // credentials stay on the server — while a pasted/uploaded dataset sends its rows inline.
 export function datasetPayload(ds = state.dataset) {
   if (!ds) return {};
-  return ds.connectionName
+  const base = ds.connectionName
     ? { connectionName: ds.connectionName, datasetName: ds.name || ds.connectionName }
     : { data: ds.data, format: ds.format || "Auto", datasetName: ds.name || "Dataset" };
+  // Pre-aggregated is a property of the dataset, so it travels with every analysis stage.
+  if (ds.preAggregated) base.preAggregated = true;
+  return base;
 }
 
 // Build the AnalyzeRequest shared by all analytics endpoints.

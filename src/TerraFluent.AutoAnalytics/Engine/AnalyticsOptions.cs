@@ -39,6 +39,14 @@ public sealed class AnalyticsOptions
     /// <summary>Attribute each detected anomaly to a dimension where possible. Default <see langword="true"/>.</summary>
     public bool EnableAnomalyExplanation { get; set; } = true;
 
+    /// <summary>
+    /// Treats the dataset as already summarized — one row per group, no raw granularity. Skips the
+    /// time-series engines (forecast, period comparison, moving average, cumulative), whose per-period
+    /// maths has nothing to collapse, and widens the group-by budget so every measure is broken down
+    /// by each dimension. Default <see langword="false"/>.
+    /// </summary>
+    public bool PreAggregated { get; set; }
+
     /// <summary>Custom analytics rules run after the built-in analytics phase.</summary>
     public IList<IAnalyticsRule> Rules { get; } = new List<IAnalyticsRule>();
 

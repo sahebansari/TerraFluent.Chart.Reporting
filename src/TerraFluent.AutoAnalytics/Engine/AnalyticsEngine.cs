@@ -94,7 +94,7 @@ public sealed class AnalyticsEngine
         options ??= new AnalyticsOptions();
 
         // Phase 1 — schema.
-        var schema = _schema.Discover(dataset);
+        var schema = _schema.Discover(dataset, options.PreAggregated);
 
         // Phase 2 — validation.
         var validation = _validation.Validate(dataset, schema);
@@ -107,7 +107,15 @@ public sealed class AnalyticsEngine
         var profile = _profiling.Profile(dataset, schema);
 
         // Phase 4/5 — analytics.
-        var relationships = new RelationshipEngine(options.MaxGroupCombinations);
+        // Already-summarized data has one row per group and no raw granularity: widen the group-by
+        // budget so every measure is broken down by each dimension, and skip the time-series engines
+        // whose per-period maths has nothing to collapse.
+        bool timeSeries = !options.PreAggregated;
+        int groupBudget = options.PreAggregated
+            ? Math.Min(200, Math.Max(options.MaxGroupCombinations, EligibleGroupPairs(profile)))
+            : options.MaxGroupCombinations;
+
+        var relationships = new RelationshipEngine(groupBudget);
         var trends = new TrendEngine();
         var anomalyEngine = new AnomalyEngine(options.ZScoreThreshold);
 
@@ -116,17 +124,17 @@ public sealed class AnalyticsEngine
             anomalies.AddRange(detector.Detect(profile));
 
         var trendResults  = trends.DetectTrends(profile);
-        var movingAvgs    = new MovingAverageEngine().Compute(profile);
-        var cumulSeries   = new CumulativeSeriesEngine().Compute(profile);
+        var movingAvgs    = timeSeries ? new MovingAverageEngine().Compute(profile) : new List<MovingAverageResult>();
+        var cumulSeries   = timeSeries ? new CumulativeSeriesEngine().Compute(profile) : new List<CumulativeSeriesResult>();
         var compositions  = new CompositionEngine().Compute(profile);
 
         // Forward-looking and cross-period analytics. These were previously reachable only through
         // the agent's skills, so a plain /analyze or dashboard could never show a projection.
-        var forecasts = options.EnableForecasting
+        var forecasts = options.EnableForecasting && timeSeries
             ? new ForecastEngine(options.ForecastHorizon).Compute(profile)
             : new List<MeasureForecast>();
 
-        var periodComparisons = options.EnablePeriodComparison
+        var periodComparisons = options.EnablePeriodComparison && timeSeries
             ? ComparePeriods(profile)
             : new List<PeriodComparisonResult>();
 
@@ -168,7 +176,7 @@ public sealed class AnalyticsEngine
             .ToList();
 
         // Phase 7 — chart recommendations (built-in + plugins).
-        var recommendations = new List<RecommendedChart>(_recommender.Recommend(profile, findings));
+        var recommendations = new List<RecommendedChart>(_recommender.Recommend(profile, findings, options.PreAggregated));
         foreach (var rec in options.ChartRecommenders)
             recommendations.AddRange(rec.Recommend(profile, findings));
 
@@ -188,6 +196,15 @@ public sealed class AnalyticsEngine
             Recommendations = recommendations,
             Summary = summary
         };
+    }
+
+    // Count of (low-cardinality dimension × measure) pairs the group-by engine can form — used to
+    // size the group-by budget so a wide, already-summarized dataset gets a breakdown for every field.
+    private static int EligibleGroupPairs(DatasetProfile profile)
+    {
+        int dims = profile.Categories.Count(c => c.Categorical is { DistinctCount: >= 2 and <= 50 });
+        int measures = profile.Measures.Count(m => m.NumericValues.Count > 0);
+        return dims * measures;
     }
 
     // Period-over-period comparison for each measure; measures without enough history drop out.

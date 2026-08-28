@@ -1,7 +1,7 @@
 /* Settings view — global chart preferences and app options, persisted to the
    browser's localStorage. These defaults seed the Chart Studio editor. */
 import {
-  $, $$, content, state, esc, toast, loading, errorBox,
+  $, content, state, esc, toast, loading, errorBox,
   ensureCatalogue, settings, saveSettings, resetSettings, DEFAULT_SETTINGS,
 } from "./core.js";
 import { icon } from "./icons.js";

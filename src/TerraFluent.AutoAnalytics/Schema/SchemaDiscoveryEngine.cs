@@ -18,16 +18,16 @@ public sealed class SchemaDiscoveryEngine
         => _semantics = semantics ?? new SemanticInferenceEngine();
 
     /// <summary>Produces one <see cref="ColumnProfile"/> per column.</summary>
-    public IReadOnlyList<ColumnProfile> Discover(Dataset dataset)
+    public IReadOnlyList<ColumnProfile> Discover(Dataset dataset, bool preAggregated = false)
     {
         if (dataset is null) throw new ArgumentNullException(nameof(dataset));
         var profiles = new List<ColumnProfile>(dataset.ColumnCount);
         foreach (var column in dataset.Columns)
-            profiles.Add(Classify(column, dataset.RowCount));
+            profiles.Add(Classify(column, dataset.RowCount, preAggregated));
         return profiles;
     }
 
-    private ColumnProfile Classify(DataColumn column, int rowCount)
+    private ColumnProfile Classify(DataColumn column, int rowCount, bool preAggregated)
     {
         int missing = 0, considered = 0;
         int numeric = 0, date = 0, boolean = 0, currency = 0, percentage = 0, integer = 0;
@@ -54,7 +54,7 @@ public sealed class SchemaDiscoveryEngine
         int distinctCount = distinct.Count;
         double uniqueness  = considered == 0 ? 0 : (double)distinctCount / considered;
         var (type, confidence) = DecideType(column.Name, considered, numeric, integer, date, boolean,
-                                             currency, percentage, distinctCount, uniqueness);
+                                             currency, percentage, distinctCount, uniqueness, preAggregated);
 
         var role = _semantics.Infer(column.Name, type, uniqueness);
 
@@ -73,7 +73,7 @@ public sealed class SchemaDiscoveryEngine
 
     private static (ColumnType type, double confidence) DecideType(
         string name, int considered, int numeric, int integer, int date, int boolean,
-        int currency, int percentage, int distinctCount, double uniqueness)
+        int currency, int percentage, int distinctCount, double uniqueness, bool preAggregated)
     {
         if (considered == 0) return (ColumnType.Text, 0);
 
@@ -107,6 +107,12 @@ public sealed class SchemaDiscoveryEngine
         if (uniqueness >= 0.98 && IsIdName(name))
             return (ColumnType.Identifier, 1);
         if (distinctCount <= Math.Max(20, considered * 0.2))
+            return (ColumnType.Category, 1 - numericRatio);
+
+        // Pre-aggregated data has one row per entity, so its label column is ~100% unique yet is the
+        // natural grouping dimension. Treat a non-id text column of chartable cardinality as a
+        // category so per-entity breakdowns (bars, shares) are generated.
+        if (preAggregated && !IsIdName(name) && distinctCount <= 50)
             return (ColumnType.Category, 1 - numericRatio);
 
         return (ColumnType.Text, 1 - numericRatio);

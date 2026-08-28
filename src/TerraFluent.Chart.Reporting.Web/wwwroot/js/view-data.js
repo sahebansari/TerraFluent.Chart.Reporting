@@ -29,6 +29,12 @@ export function renderDataView() {
           </select>
         </label>
       </div>
+      <div class="row" style="margin-bottom:16px;align-items:center;gap:12px">
+        <button class="switch" id="dsPreAgg" type="button" role="switch" aria-checked="${ds?.preAggregated ? "true" : "false"}">
+          <span class="switch-track"><span class="switch-knob"></span></span><span>Already summarized</span>
+        </button>
+        <span class="hint">Turn on when each row is a pre-aggregated summary (one row per entity, no raw detail). Analysis then ranks every measure by that entity and skips time-series projections.</span>
+      </div>
       <div class="tabs" id="dataTabs">
         <button class="tab active" data-tab="paste">${icon("clipboard")} Paste data</button>
         <button class="tab" data-tab="upload">${icon("upload")} Upload file</button>
@@ -87,6 +93,15 @@ export function renderDataView() {
     $$("[data-pane]").forEach(p => (p.hidden = p.dataset.pane !== t.dataset.tab));
   });
   if (ds?.format) $("#dsFormat").value = ds.format;
+
+  // "Already summarized" is a dataset-level flag; toggling updates the active dataset immediately.
+  const preAggBtn = $("#dsPreAgg");
+  preAggBtn.onclick = () => {
+    const on = preAggBtn.getAttribute("aria-checked") !== "true";
+    preAggBtn.setAttribute("aria-checked", on ? "true" : "false");
+    if (state.dataset) state.dataset.preAggregated = on;
+  };
+  const preAggChecked = () => $("#dsPreAgg").getAttribute("aria-checked") === "true";
 
   // Load a dropped or browsed file into the paste pane for review. Workbooks are binary, so they are
   // normalised to CSV by the API first — everything downstream then works on plain text as usual.
@@ -155,6 +170,7 @@ export function renderDataView() {
       name: $("#dsNameInput").value.trim() || "Dataset",
       data,
       format: $("#dsFormat").value,
+      preAggregated: preAggChecked(),
     });
     renderPreview();
     // Validate immediately; if the data has quality issues (warnings or errors), send the user to
@@ -211,7 +227,7 @@ async function loadConnections() {
 
 async function useConnection(name) {
   // Only the name is held locally; the rows are fetched server-side on each request.
-  setDataset({ name, connectionName: name });
+  setDataset({ name, connectionName: name, preAggregated: $("#dsPreAgg")?.getAttribute("aria-checked") === "true" });
   renderPreview();
 
   try {

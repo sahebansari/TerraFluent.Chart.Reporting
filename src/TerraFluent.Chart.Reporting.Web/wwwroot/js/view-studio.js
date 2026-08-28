@@ -105,7 +105,7 @@ export async function renderStudioView() {
         <button class="btn subtle sm" id="stAddSeries" style="margin-top:10px">${icon("plus")} Add series</button>
 
         <div class="row" style="margin-top:14px">
-          <label class="field" style="flex:1 1 80px">Height<input type="number" id="stHeight" value="${esc(settings.defaultHeight)}" min="150" max="900"></label>
+          <label class="field" style="flex:1 1 80px">Height<input type="number" id="stHeight" value="560" min="150" max="900"></label>
           <label class="field" style="flex:1 1 80px">Width<input type="number" id="stWidth" value="${esc(settings.defaultWidth)}" min="200" max="1600"></label>
           <label class="field" style="flex:1 1 130px;flex-direction:row;align-items:center;gap:8px;font-weight:600;align-self:flex-end">
             <input type="checkbox" id="stResponsive" style="width:auto"> Responsive

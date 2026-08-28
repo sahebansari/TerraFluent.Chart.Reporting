@@ -23,8 +23,9 @@ export async function renderDashboardView() {
         <div class="titles"><h2>Smart Dashboard</h2><p>KPIs, trend, comparison and distribution charts generated automatically from <strong>${esc(state.dataset.name)}</strong>.</p></div>
         <div class="row">
           <label class="field">KPIs<select id="maxKpis" style="width:80px">${kpiOptions}</select></label>
-          <button class="btn" id="genDash" style="align-self:flex-end">${icon("grid")} Generate dashboard</button>
-          <button class="btn blue" id="exportDash" style="align-self:flex-end">${icon("download")} Export dashboard</button>
+          <div class="spacer"></div>
+          <button class="btn" id="genDash">${icon("grid")} Generate dashboard</button>
+          <button class="btn blue" id="exportDash">${icon("download")} Export dashboard</button>
         </div>
       </div>
     </div>

@@ -73,6 +73,13 @@ public sealed class AnalyzeRequest
     [Range(0.1, 10.0)]
     public double? ZScoreThreshold { get; set; }
 
+    /// <summary>
+    /// Treats the data as already summarized (one row per group, no raw granularity): skips the
+    /// time-series analytics and widens the group-by budget so every measure is broken down by each
+    /// dimension. Default <see langword="false"/>.
+    /// </summary>
+    public bool? PreAggregated { get; set; }
+
     /// <summary>When <see langword="true"/>, a data-quality error aborts the analysis (HTTP 422).</summary>
     public bool ThrowOnValidationError { get; set; }
 }

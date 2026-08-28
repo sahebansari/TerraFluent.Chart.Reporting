@@ -91,6 +91,15 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
             int plotWidth = svgWidth - PaddingLeft - rightPad;
 
+            // ── Title wrapping ──────────────────────────────────────────────────────────────
+            // A long title is wrapped to multiple centred lines so it is never cropped; the extra
+            // lines push the subtitle and the whole plot area down so nothing overlaps.
+            int titlePx     = Sz(16, FontScaleOf(options));
+            int titleLineH  = titlePx + 5;
+            var titleLines  = WrapTitleLines(options.Title?.Text, titlePx, svgWidth - 2 * CanvasPadding);
+            int titleExtraH = titleLines.Count > 1 ? (titleLines.Count - 1) * titleLineH : 0;
+            svgHeight += titleExtraH;
+
             // ── Legend layout pre-pass ──────────────────────────────────────────────────────
             // Pre-compute exact legend dimensions so we can reserve the right amount of space
             // and guarantee the legend never overlaps the plot area.
@@ -138,7 +147,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 }
             }
 
-            int plotHeight = svgHeight - topLegendOffset - PaddingTop - effectiveBottomPad;
+            // Total downward shift of the plot content: top-legend room plus any wrapped-title lines.
+            int contentShift = topLegendOffset + titleExtraH;
+            int plotHeight = svgHeight - contentShift - PaddingTop - effectiveBottomPad;
 
             // Data table: extend the SVG canvas downward to fit the table rows.
             int tableRowCount = 0;
@@ -178,7 +189,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 {
                     int xTickH_ = labelVertH > 0 ? labelVertH + 14 : 20;
                     // baseline sits 20 px below the tick-label area (8 gap + 12 for ascent).
-                    xAxisTitleY = PaddingTop + topLegendOffset + plotHeight + xTickH_ + 20;
+                    xAxisTitleY = PaddingTop + contentShift + plotHeight + xTickH_ + 20;
                 }
             }
 
@@ -223,15 +234,28 @@ namespace TerraFluent.Chart.Reporting.Rendering
 sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgHeight}\" rx=\"12\" ry=\"12\" fill=\"{Escape(options.ResolvedBackgroundColor)}\"/>");
 
             // --- Chart header: title & subtitle (never shifted by topLegendOffset) ---
-            if (!string.IsNullOrEmpty(options.Title?.Text))
+            if (titleLines.Count > 0)
             {
-                string ts = !string.IsNullOrEmpty(options.Title.Style) ? $" style=\"{Escape(options.Title.Style)}\"" : "";
-                sb.AppendLine($"  <text x=\"{svgWidth / 2}\" y=\"42\" text-anchor=\"middle\" class=\"chart-title\" fill=\"{Escape(options.Theme.TextColor)}\"{ts}>{Escape(options.Title.Text)}</text>");
+                string ts = !string.IsNullOrEmpty(options.Title?.Style) ? $" style=\"{Escape(options.Title!.Style)}\"" : "";
+                if (titleLines.Count == 1)
+                {
+                    sb.AppendLine($"  <text x=\"{svgWidth / 2}\" y=\"42\" text-anchor=\"middle\" class=\"chart-title\" fill=\"{Escape(options.Theme.TextColor)}\"{ts}>{Escape(titleLines[0])}</text>");
+                }
+                else
+                {
+                    sb.AppendLine($"  <text x=\"{svgWidth / 2}\" y=\"42\" text-anchor=\"middle\" class=\"chart-title\" fill=\"{Escape(options.Theme.TextColor)}\"{ts}>");
+                    for (int li = 0; li < titleLines.Count; li++)
+                    {
+                        int dy = li == 0 ? 0 : titleLineH;
+                        sb.AppendLine($"    <tspan x=\"{svgWidth / 2}\" dy=\"{dy}\">{Escape(titleLines[li])}</tspan>");
+                    }
+                    sb.AppendLine("  </text>");
+                }
             }
             if (!string.IsNullOrEmpty(options.Subtitle?.Text))
             {
                 string ss = !string.IsNullOrEmpty(options.Subtitle.Style) ? $" style=\"{Escape(options.Subtitle.Style)}\"" : "";
-                sb.AppendLine($"  <text x=\"{svgWidth / 2}\" y=\"60\" text-anchor=\"middle\" class=\"chart-subtitle\" fill=\"{Escape(options.Theme.TextColor)}\"{ss}>{Escape(options.Subtitle.Text)}</text>");
+                sb.AppendLine($"  <text x=\"{svgWidth / 2}\" y=\"{60 + titleExtraH}\" text-anchor=\"middle\" class=\"chart-subtitle\" fill=\"{Escape(options.Theme.TextColor)}\"{ss}>{Escape(options.Subtitle.Text)}</text>");
             }
 
             // Parliament charts use their own spatial encoding (hemicycle) — skip standard axes.
@@ -244,12 +268,12 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
             bool isTopLegend = options.Legend?.Enabled == true
                 && string.Equals(options.Legend.VerticalAlign ?? "bottom", "top", StringComparison.OrdinalIgnoreCase);
             if (isTopLegend)
-                AppendLegend(sb, options, svgWidth, svgHeight, plotHeight, clipId, effectiveBottomPad, labelVertH, topLegendOffset);
+                AppendLegend(sb, options, svgWidth, svgHeight, plotHeight, clipId, effectiveBottomPad, labelVertH, contentShift, titleExtraH);
 
             // --- Translate group: shifts plot, axes, series, and tooltip layer
-            //     down by topLegendOffset so the top legend has unobstructed space above. ---
-            if (topLegendOffset > 0)
-                sb.AppendLine($"  <g transform=\"translate(0,{topLegendOffset})\">" );
+            //     down by contentShift so the top legend / wrapped title have unobstructed space above. ---
+            if (contentShift > 0)
+                sb.AppendLine($"  <g transform=\"translate(0,{contentShift})\">" );
 
             // --- Plot background (optional, from theme) ---
             if (!string.IsNullOrEmpty(options.Theme.PlotBackgroundColor)
@@ -262,7 +286,7 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
             // --- Grid & axes ---
             // When inside a translate group, pass (svgHeight - topLegendOffset) so the
             // x-axis title (at y = svgHeight_arg - 8) ends up at the correct absolute position.
-            int svgHC = topLegendOffset > 0 ? svgHeight - topLegendOffset : svgHeight;
+            int svgHC = contentShift > 0 ? svgHeight - contentShift : svgHeight;
             // Parliament charts carry their own spatial encoding; skip standard axes.
             if (!isParliamentOnly)
                 AppendAxes(sb, options, svgWidth, svgHC, plotWidth, plotHeight, xAxisTitleY, options.DisplayCulture, svgId);
@@ -284,12 +308,12 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
             }
 
             // --- Close translate group ---
-            if (topLegendOffset > 0)
+            if (contentShift > 0)
                 sb.AppendLine("  </g>");
 
             // --- Bottom / middle / right / left legend ---
             if (options.Legend?.Enabled == true && !isTopLegend)
-                AppendLegend(sb, options, svgWidth, svgHeight, plotHeight, clipId, effectiveBottomPad, labelVertH, topLegendOffset);
+                AppendLegend(sb, options, svgWidth, svgHeight, plotHeight, clipId, effectiveBottomPad, labelVertH, contentShift, titleExtraH);
 
             // --- Export button / menu (Interactive mode only) ---
             if (options.RenderMode == SvgMode.Interactive && options.ExportButtonEnabled)

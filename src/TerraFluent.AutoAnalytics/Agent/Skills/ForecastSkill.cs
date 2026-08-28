@@ -21,6 +21,11 @@ public sealed class ForecastSkill : AnalyticSkillBase
     private const int Horizon = 3;
     private const int MaxMeasures = 3;
 
+    // Plotting a full history (e.g. two years of daily periods) squeezes the projection into well
+    // under 1% of the plot width, so the forecast highlight becomes invisible. The projection is
+    // still fitted on the whole history; only the plotted tail is windowed to keep it legible.
+    private const int MaxHistory = 24;
+
     public override string Name => "Forecast";
     public override string Description => "Projects a measure forward with confidence bands (Holt's linear method).";
 
@@ -90,13 +95,19 @@ public sealed class ForecastSkill : AnalyticSkillBase
         string measure, IReadOnlyList<string> labels, IReadOnlyList<double> values, ForecastResult f)
     {
         int h = f.Points.Count;
-        int history = values.Count;
 
-        var categories = new List<string>(labels);
+        // Window the plotted history to the most recent MaxHistory periods so the projection stays
+        // legible; the forecast itself was already fitted on the full series.
+        int skip = Math.Max(0, values.Count - MaxHistory);
+        var historyValues = values.Skip(skip).ToList();
+        var historyLabels = labels.Skip(skip).ToList();
+        int history = historyValues.Count;
+
+        var categories = new List<string>(historyLabels);
         for (int i = 1; i <= h; i++) categories.Add("+" + i.ToString(CultureInfo.InvariantCulture));
 
         // Actual: history values then gaps; Forecast: gaps then an anchor at the last actual + projections.
-        var actual = values.Select(v => (double?)v).Concat(Enumerable.Repeat((double?)null, h)).ToList();
+        var actual = historyValues.Select(v => (double?)v).Concat(Enumerable.Repeat((double?)null, h)).ToList();
         var projected = new List<double?>(new double?[history - 1]);
         projected.Add(f.LastActual);
         projected.AddRange(f.Points.Select(p => (double?)p.Value));

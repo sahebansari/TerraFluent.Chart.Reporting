@@ -122,6 +122,7 @@ public sealed class AnalyticsController : ControllerBase
         [FromQuery] int? maxRecommendations = null,
         [FromQuery] int? maxGroupCombinations = null,
         [FromQuery] double? zScoreThreshold = null,
+        [FromQuery] bool preAggregated = false,
         [FromQuery] bool throwOnValidationError = false,
         CancellationToken ct = default)
     {
@@ -131,6 +132,7 @@ public sealed class AnalyticsController : ControllerBase
             Data = data, Format = AnalyzeFormat.Csv, DatasetName = datasetName, Filter = filter,
             MaxInsights = maxInsights, MaxRecommendations = maxRecommendations,
             MaxGroupCombinations = maxGroupCombinations, ZScoreThreshold = zScoreThreshold,
+            PreAggregated = preAggregated,
             ThrowOnValidationError = throwOnValidationError
         }, ct);
         return Ok(AnalyticsResponse.From(result, includeSvg));
@@ -153,6 +155,7 @@ public sealed class AnalyticsController : ControllerBase
         [FromQuery] int? maxRecommendations = null,
         [FromQuery] int? maxGroupCombinations = null,
         [FromQuery] double? zScoreThreshold = null,
+        [FromQuery] bool preAggregated = false,
         [FromQuery] bool throwOnValidationError = false,
         CancellationToken ct = default)
     {
@@ -162,6 +165,7 @@ public sealed class AnalyticsController : ControllerBase
             Data = data, Format = AnalyzeFormat.Json, DatasetName = datasetName, Filter = filter,
             MaxInsights = maxInsights, MaxRecommendations = maxRecommendations,
             MaxGroupCombinations = maxGroupCombinations, ZScoreThreshold = zScoreThreshold,
+            PreAggregated = preAggregated,
             ThrowOnValidationError = throwOnValidationError
         }, ct);
         return Ok(AnalyticsResponse.From(result, includeSvg));
@@ -476,6 +480,7 @@ public sealed class AnalyticsController : ControllerBase
             Ensure(z is >= 0.1 and <= 10.0, "zScoreThreshold must be between 0.1 and 10.");
             options.ZScoreThreshold = z;
         }
+        options.PreAggregated = request.PreAggregated ?? false;
         options.ThrowOnValidationError = request.ThrowOnValidationError;
 
         // A named connection pulls the rows from a server-configured source; otherwise they came

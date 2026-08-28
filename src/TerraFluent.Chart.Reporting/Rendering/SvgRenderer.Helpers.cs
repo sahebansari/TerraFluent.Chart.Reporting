@@ -10,6 +10,52 @@ namespace TerraFluent.Chart.Reporting.Rendering
 {
     public partial class SvgRenderer
     {
+        // Wraps a chart title into centred lines that each fit within maxWidth, so a long title is
+        // never cropped. A single word wider than a line is hard-broken; beyond maxLines the last
+        // line is ellipsised. Returns an empty list for null/empty text and a single-element list
+        // when no wrapping is needed (callers keep their existing single-line rendering then).
+        private static List<string> WrapTitleLines(string? text, int fontPx, double maxWidth, int maxLines = 4)
+        {
+            var lines = new List<string>();
+            if (string.IsNullOrEmpty(text)) return lines;
+
+            // Bold sans glyphs average ≈ 0.6 × font size wide; enough to size the wrap conservatively.
+            double charW    = Math.Max(1.0, fontPx * 0.6);
+            int    maxChars = Math.Max(1, (int)(maxWidth / charW));
+
+            if (text!.Length <= maxChars) { lines.Add(text); return lines; }
+
+            var current = new StringBuilder();
+            void Flush() { lines.Add(current.ToString()); current.Clear(); }
+
+            foreach (var word in text.Split(' '))
+            {
+                string w = word;
+                // Hard-break a single word that is wider than a whole line.
+                while (w.Length > maxChars)
+                {
+                    if (current.Length > 0) Flush();
+                    lines.Add(w.Substring(0, maxChars));
+                    w = w.Substring(maxChars);
+                }
+                int projected = current.Length + (current.Length > 0 ? 1 : 0) + w.Length;
+                if (projected > maxChars && current.Length > 0) Flush();
+                if (current.Length > 0) current.Append(' ');
+                current.Append(w);
+            }
+            if (current.Length > 0) Flush();
+
+            // Cap the line count; the final kept line is ellipsised to signal the text was cut.
+            if (lines.Count > maxLines)
+            {
+                string last = lines[maxLines - 1];
+                if (last.Length > maxChars - 1) last = last.Substring(0, Math.Max(0, maxChars - 1));
+                lines[maxLines - 1] = last.TrimEnd() + "\u2026";
+                lines.RemoveRange(maxLines, lines.Count - maxLines);
+            }
+            return lines;
+        }
+
         private static void AppendAutoInsightOverlays(
             StringBuilder sb, Series series, string seriesColor,
             ChartOptions options, int plotWidth, int plotHeight,
