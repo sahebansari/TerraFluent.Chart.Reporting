@@ -1,7 +1,7 @@
 /* Aggregate view — group a measure by one dimension, or pivot across two. */
 import {
   $, content, state, esc, fmt, loading, errorBox, toast,
-  api, analyzeRequest, requireDataset, ensureColumns, settings, aggregationsForColumns,
+  api, analyzeRequest, requireDataset, ensureColumns, aggregationsForColumns,
 } from "./core.js";
 import { icon } from "./icons.js";
 
@@ -20,7 +20,7 @@ export async function renderAggregateView() {
   // Aggregation options adapt to the chosen measure: non-additive columns (age, tenure…) drop "Sum".
   const aggOptionsHtml = (col) => {
     const allowed = aggregationsForColumns([col]);
-    const def = allowed.includes(settings.defaultAggregation) ? settings.defaultAggregation : "Average";
+    const def = allowed.includes("Sum") ? "Sum" : (allowed.includes("Average") ? "Average" : allowed[0]);
     return allowed.map(k => `<option${k === def ? " selected" : ""}>${k}</option>`).join("");
   };
 

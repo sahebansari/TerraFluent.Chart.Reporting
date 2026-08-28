@@ -208,8 +208,8 @@ function mixTable(r) {
       <td>${esc(s.dimension)}</td>
       <td><strong>${esc(s.category)}</strong></td>
       <td>${esc(s.measure)}</td>
-      <td class="num">${(s.baselineShare * 100).toFixed(1)}%</td>
-      <td class="num">${(s.currentShare * 100).toFixed(1)}%</td>
+      <td class="num ${dir(s.shareDelta)}">${(s.baselineShare * 100).toFixed(1)}%</td>
+      <td class="num ${dir(s.shareDelta)}">${(s.currentShare * 100).toFixed(1)}%</td>
       <td class="num ${dir(s.shareDelta)}">${signed(s.shareDelta * 100, 1)} pts</td>
       <td>${status}</td></tr>`;
   }).join("");

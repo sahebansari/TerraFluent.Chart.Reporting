@@ -80,11 +80,11 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Analyze([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
         var result = await RunAnalysisAsync(request, ct);
-        return Ok(AnalyticsResponse.From(result, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+        return Ok(AnalyticsResponse.From(result, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     /// <summary>
@@ -98,11 +98,11 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> AnalyzeHtml([FromBody] AnalyzeRequest request,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
         var result = await RunAnalysisAsync(request, ct);
-        return Content(AnalyzeHtmlRenderer.Render(result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)), "text/html");
+        return Content(AnalyzeHtmlRenderer.Render(result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)), "text/html");
     }
 
     /// <summary>
@@ -264,12 +264,12 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Ask([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
         var result = await RunAnalysisAsync(request, ct);
         var trace = _agent.Investigate(result, request.Question);
-        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     // ── Sessions (multi-turn agent) ───────────────────────────────────────────
@@ -299,13 +299,13 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult AskSession(string id, [FromBody] SessionAskRequest request, [FromQuery] bool includeSvg = false,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null)
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null)
     {
         var session = _sessions.Get(id)
             ?? throw new KeyNotFoundException($"No active session with id '{id}'.");
 
         var trace = session.Ask(request?.Question);
-        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     // ── Aggregation ───────────────────────────────────────────────────────────
@@ -367,12 +367,12 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Compare([FromBody] CompareRequest request, [FromQuery] bool includeSvg = false,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
         var (comparison, insights, charts) = await RunComparisonAsync(request, ct);
         return Ok(CompareResponse.From(comparison, insights, charts, includeSvg,
-            ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+            ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     /// <summary>
@@ -386,13 +386,13 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> CompareHtml([FromBody] CompareRequest request,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
         var (comparison, insights, charts) = await RunComparisonAsync(request, ct);
         return Content(
             CompareHtmlRenderer.Render(comparison, insights, charts,
-                ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)),
+                ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)),
             "text/html");
     }
 
@@ -407,12 +407,12 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Dashboard([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
         var result = await RunAnalysisAsync(request, ct);
         var dashboard = DashboardBuilder.Generate(result, maxKpis);
-        return Ok(DashboardResponse.From(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+        return Ok(DashboardResponse.From(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     /// <summary>
@@ -426,12 +426,12 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> DashboardHtml([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
         var result = await RunAnalysisAsync(request, ct);
         var dashboard = DashboardBuilder.Generate(result, maxKpis);
-        return Content(DashboardHtmlRenderer.Render(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)), "text/html");
+        return Content(DashboardHtmlRenderer.Render(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)), "text/html");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -442,6 +442,12 @@ public sealed class AnalyticsController : ControllerBase
     {
         if (request is null)
             throw new ArgumentException("Request body must include a 'baseline' and a 'current' dataset.");
+
+        // Both sides must be analysed under the same mode, or their column classifications diverge
+        // and the diff reports artefacts of the mode rather than real differences. The "already
+        // summarized" flag is only exposed on the active (current) dataset, so carry it to the baseline.
+        if (request.Current?.PreAggregated == true && request.Baseline is not null)
+            request.Baseline.PreAggregated = true;
 
         var baseline = await RunAnalysisAsync(request.Baseline, ct);
         var current = await RunAnalysisAsync(request.Current, ct);

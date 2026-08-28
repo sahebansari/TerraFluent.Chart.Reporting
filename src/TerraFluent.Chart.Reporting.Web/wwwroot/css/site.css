@@ -405,6 +405,8 @@ table.data th, table.data td { padding: 10px 14px; text-align: left; border-bott
 table.data thead th { background: var(--surface-2); color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; position: sticky; top: 0; }
 table.data tbody tr:hover { background: var(--surface-2); }
 table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.data td.up { color: var(--ok); font-weight: 600; }
+table.data td.down { color: var(--err); font-weight: 600; }
 
 .bar-cell { position: relative; }
 .bar-cell .bar { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(208, 39, 29, .12); border-right: 2px solid var(--adp-red); border-radius: 0 3px 3px 0; }

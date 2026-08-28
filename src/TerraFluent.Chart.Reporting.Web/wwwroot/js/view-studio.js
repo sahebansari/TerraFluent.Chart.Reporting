@@ -56,7 +56,7 @@ export async function renderStudioView() {
   const feasible = feasibleChartTypes(shape);
   const typePool = cat.chartTypes.map(t => t.name).filter(n => feasible.has(n));
   const availableTypes = typePool.length ? typePool : cat.chartTypes.map(t => t.name);
-  const defType = availableTypes.includes(settings.defaultChartType) ? settings.defaultChartType : availableTypes[0];
+  const defType = availableTypes[0];
 
   const typeOpts = availableTypes.map(n => `<option${n === defType ? " selected" : ""}>${esc(n)}</option>`).join("");
   const modeOpts = cat.renderModes.map(m => `<option${m.name === settings.defaultRenderMode ? " selected" : ""}>${esc(m.name)}</option>`).join("");
@@ -105,14 +105,14 @@ export async function renderStudioView() {
         <button class="btn subtle sm" id="stAddSeries" style="margin-top:10px">${icon("plus")} Add series</button>
 
         <div class="row" style="margin-top:14px">
-          <label class="field" style="flex:1 1 80px">Height<input type="number" id="stHeight" value="560" min="150" max="900"></label>
-          <label class="field" style="flex:1 1 80px">Width<input type="number" id="stWidth" value="${esc(settings.defaultWidth)}" min="200" max="1600"></label>
+          <label class="field" style="flex:1 1 80px">Height<input type="number" id="stHeight" value="400" min="150" max="900"></label>
+          <label class="field" style="flex:1 1 80px">Width<input type="number" id="stWidth" value="640" min="200" max="1600"></label>
           <label class="field" style="flex:1 1 130px;flex-direction:row;align-items:center;gap:8px;font-weight:600;align-self:flex-end">
             <input type="checkbox" id="stResponsive" style="width:auto"> Responsive
           </label>
         </div>
         <div class="row" style="margin-top:12px">
-          <label class="field" style="flex:0 0 96px">Background<input type="color" id="stBg" value="#ffffff" style="height:38px;padding:3px"></label>
+          <label class="field" style="flex:0 0 96px">Background<input type="color" id="stBg" value="${esc(settings.backgroundColor)}" style="height:38px;padding:3px"></label>
           <label class="field" style="flex:1 1 130px;flex-direction:row;align-items:center;gap:8px;font-weight:600;align-self:flex-end">
             <input type="checkbox" id="stExport"${settings.showExportMenu ? " checked" : ""} style="width:auto"> Export menu
           </label>
@@ -239,6 +239,7 @@ export async function renderStudioView() {
       exportMenuEnabled: $("#stExport").checked,
       stacking: $("#stStack").disabled ? "None" : $("#stStack").value,
       legend: LEGEND_PRESETS[$("#stLegend").value] || LEGEND_PRESETS.Bottom,
+      fontScale: settings.fontScale,
     };
     // Responsive omits width (SVG emits width="100%"); otherwise use the fixed width.
     if (!$("#stResponsive").checked) options.width = +$("#stWidth").value;
@@ -309,9 +310,9 @@ export async function renderStudioView() {
   // ── Export / share actions ───────────────────────────────────────────────
   const fileBase = () => ($("#stTitle").value || "chart").replace(/\s+/g, "-").toLowerCase();
 
-  // Absolute /api/charts/shared URL for the current chart (view-only: no export menu, +20% text).
+  // Absolute /api/charts/shared URL for the current chart (view-only: no export menu).
   const buildShareUrl = () => {
-    const shareOptions = { ...buildOptions(), exportMenuEnabled: false, fontScale: 1.2 };
+    const shareOptions = { ...buildOptions(), exportMenuEnabled: false };
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareOptions))));
     return `${location.origin}/api/charts/shared?options=${encodeURIComponent(encoded)}`;
   };
@@ -371,8 +372,8 @@ export async function renderStudioView() {
     const col = cols.find(c => c.name === dimName);
     const hasNumericMeasure = cols.some(isMeasureColumn);
     if (!hasNumericMeasure) return "Count";
-    // High-cardinality text reads better as a count; grouped categories/dates use the preferred default.
-    return (col && col.type === "Text") ? "Count" : settings.defaultAggregation;
+    // High-cardinality text reads better as a count; grouped categories/dates default to a sum.
+    return (col && col.type === "Text") ? "Count" : "Sum";
   };
   // Selected measure columns (checked boxes) resolved to their profiles.
   const checkedMeasureCols = () => {
@@ -431,9 +432,7 @@ export async function renderStudioView() {
       const results = await Promise.all(measures.map(m =>
         api.json("/api/analytics/aggregate", { method: "POST", body: analyzeRequest(), query: { measure: m, dimension: dim, aggregation: agg } })));
       const cats = (results[0].buckets || []).map(b => b.key);
-      // Use the preferred chart type when it suits grouped measures; otherwise fall back to Column.
-      const CARTESIAN = new Set(["Column", "Bar", "Line", "Spline", "Area"]);
-      const aggType = CARTESIAN.has(settings.defaultChartType) ? settings.defaultChartType : "Column";
+      const aggType = "Column";
       $("#stType").value = aggType;
       applyPreset(aggType);
       $("#stTitle").value = `${agg} of ${measures.join(", ")} by ${dim}`;
@@ -462,7 +461,7 @@ export async function renderStudioView() {
   } else {
     // On first open, choose default dim/aggregation and render a summarized chart.
     await populateDatasetFields();
-    const ok = settings.autoPrefetchStudio ? await loadFromDataset({ silent: true }) : false;
+    const ok = await loadFromDataset({ silent: true });
     if (!ok) render();
   }
 }

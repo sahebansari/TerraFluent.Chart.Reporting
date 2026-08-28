@@ -21,15 +21,12 @@ const SETTINGS_KEY = "tf.studio.settings.v1";
 export const DEFAULT_SETTINGS = {
   defaultTheme:       "Vivid",
   defaultRenderMode:  "Interactive",
-  defaultChartType:   "Column",
   legendPosition:     "Bottom",
-  defaultAggregation: "Sum",
   showGridLines:      true,
   showExportMenu:     true,
   showDataLabels:     false,
-  defaultWidth:       640,
-  defaultHeight:      360,
-  autoPrefetchStudio: true,
+  fontScale:          1.2,
+  backgroundColor:    "#ffffff",
 };
 
 export let settings = loadSettings();
@@ -306,12 +303,19 @@ export const isLiveDataset = (ds = state.dataset) => Boolean(ds?.connectionName)
 // Style overrides (from user settings) for the server-rendered recommendation charts shown on the
 // Analyze, Dashboard and Ask-the-Agent pages. Spread into an endpoint's query object.
 export function chartStyleQuery() {
-  return {
+  const q = {
     theme:      settings.defaultTheme,
     renderMode: settings.defaultRenderMode,
     exportMenu: settings.showExportMenu,
     gridLines:  settings.showGridLines,
+    dataLabels: settings.showDataLabels,
+    legend:     settings.legendPosition,
+    fontScale:  settings.fontScale,
   };
+  // Only override the theme background when the user picked a non-white colour.
+  const bg = settings.backgroundColor;
+  if (bg && bg.toLowerCase() !== "#ffffff") q.background = bg;
+  return q;
 }
 
 

@@ -108,8 +108,8 @@ internal static class CompareHtmlRenderer
                     $"<td>{Enc(DisplayText.Humanize(s.Dimension))}</td>" +
                     $"<td><strong>{Enc(s.Category)}</strong></td>" +
                     $"<td>{Enc(DisplayText.Humanize(s.Measure))}</td>" +
-                    $"<td class=\"num\">{Pct(s.BaselineShare)}</td>" +
-                    $"<td class=\"num\">{Pct(s.CurrentShare)}</td>" +
+                    $"<td class=\"num {Direction(s.ShareDelta)}\">{Pct(s.BaselineShare)}</td>" +
+                    $"<td class=\"num {Direction(s.ShareDelta)}\">{Pct(s.CurrentShare)}</td>" +
                     $"<td class=\"num {Direction(s.ShareDelta)}\">{Enc(DatasetComparisonEnginePoints(s.ShareDelta))}</td>" +
                     $"<td>{status}</td></tr>");
             }

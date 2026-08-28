@@ -28,6 +28,14 @@ public sealed class DatasetComparisonEngine
     /// <summary>Below this share change a category's movement is mix noise, not a finding.</summary>
     private const double MinShareDelta = 0.01;
 
+    /// <summary>
+    /// Minimum overlap (shared ÷ union of categories) for a dimension to be a valid basis for a mix
+    /// comparison. Below this the two datasets enumerate largely different categories — non-overlapping
+    /// time periods (weeks, months) or identifier-like columns — so every category reads as new or gone,
+    /// which merely restates that the partition differs rather than revealing a real shift in mix.
+    /// </summary>
+    private const double MinCategoryOverlap = 0.5;
+
     /// <summary>Compares a current analysis against a baseline.</summary>
     public DatasetComparison Compare(AnalyticsResult baseline, AnalyticsResult current)
     {
@@ -210,6 +218,14 @@ public sealed class DatasetComparisonEngine
 
             var beforeBuckets = before.Buckets.ToDictionary(b => b.Key, StringComparer.OrdinalIgnoreCase);
             var afterBuckets = group.Buckets.ToDictionary(b => b.Key, StringComparer.OrdinalIgnoreCase);
+
+            // Skip dimensions whose categories barely overlap: the two sides enumerate different
+            // things (e.g. non-overlapping weeks), so their shifts would only restate the partition.
+            int sharedCategories = beforeBuckets.Keys.Count(afterBuckets.ContainsKey);
+            int unionCategories = beforeBuckets.Keys
+                .Union(afterBuckets.Keys, StringComparer.OrdinalIgnoreCase).Count();
+            if (unionCategories == 0 || (double)sharedCategories / unionCategories < MinCategoryOverlap)
+                continue;
 
             var categories = beforeBuckets.Keys
                 .Union(afterBuckets.Keys, StringComparer.OrdinalIgnoreCase)

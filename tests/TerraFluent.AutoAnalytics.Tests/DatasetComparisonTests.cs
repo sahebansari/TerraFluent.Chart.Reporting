@@ -49,6 +49,19 @@ public class DatasetComparisonTests
     private static DatasetComparison Compare(string baselineCsv, string currentCsv) =>
         new DatasetComparisonEngine().Compare(Analyze(baselineCsv, "Q1"), Analyze(currentCsv, "Q2"));
 
+    /// <summary>Weekly traffic split by channel, over an inclusive week range (mirrors the Web Traffic sample).</summary>
+    private static string WeeklyCsv(int startWeek, int endWeek)
+    {
+        var sb = new StringBuilder("Week,Channel,Sessions,Conversions\n");
+        for (int w = startWeek; w <= endWeek; w++)
+        {
+            string wk = string.Format(CultureInfo.InvariantCulture, "2024-W{0:00}", w);
+            sb.Append(wk).Append(",Organic,").Append(4000 + w * 200).Append(',').Append(180 + w * 10).Append('\n');
+            sb.Append(wk).Append(",Paid,").Append(3000 + w * 150).Append(',').Append(200 + w * 12).Append('\n');
+        }
+        return sb.ToString();
+    }
+
     // ── Measures ──────────────────────────────────────────────────────────────
 
     [Fact]
@@ -149,6 +162,20 @@ public class DatasetComparisonTests
         // Identical datasets produce no share movement at all.
         var comparison = Compare(SalesCsv(10_000, 20_000), SalesCsv(10_000, 20_000));
         Assert.Empty(comparison.CategoryShifts);
+    }
+
+    [Fact]
+    public void Compare_ExcludesDimensionsWithDisjointCategoriesFromMixShifts()
+    {
+        // Splitting a weekly series into two non-overlapping halves enumerates different weeks on
+        // each side. "Week" is therefore not a shared basis for a mix comparison — every week would
+        // read as new or gone, which is noise, not a real shift. The shared "Channel" mix is stable.
+        var comparison = new DatasetComparisonEngine().Compare(
+            Analyze(WeeklyCsv(1, 3), "Weeks 1-3"), Analyze(WeeklyCsv(4, 6), "Weeks 4-6"));
+
+        Assert.True(comparison.IsComparable);
+        Assert.DoesNotContain(comparison.CategoryShifts,
+            s => string.Equals(s.Dimension, "Week", StringComparison.OrdinalIgnoreCase));
     }
 
     // ── Schema ────────────────────────────────────────────────────────────────
