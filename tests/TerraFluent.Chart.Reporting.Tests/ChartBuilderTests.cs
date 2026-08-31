@@ -34,6 +34,32 @@ public class ChartBuilderTests
     }
 
     [Fact]
+    public void RenderToSvg_LongTitle_WrapsIntoLinesAndGrowsCanvasWithoutOverlap()
+    {
+        const string longTitle =
+            "Quarterly Revenue and Cost Breakdown by Business Unit, Region and Product Category for the Trailing Twelve Months";
+
+        var wrapped = ChartBuilder.Create().Title(longTitle).Size(600, 400)
+            .Series(s => s.AddColumn("Revenue", new double?[] { 50, 80, 60 })).RenderToSvg();
+        var shortT = ChartBuilder.Create().Title("Revenue").Size(600, 400)
+            .Series(s => s.AddColumn("Revenue", new double?[] { 50, 80, 60 })).RenderToSvg();
+
+        SvgAssert.WellFormed(wrapped);
+        // The long title is split into <tspan> lines rather than one overflowing line.
+        Assert.Contains("<tspan", wrapped);
+        // The canvas grows to reserve room for the extra lines, so the plot can shift down clear of them.
+        Assert.True(SvgHeight(wrapped) > SvgHeight(shortT),
+            $"wrapped height {SvgHeight(wrapped)} should exceed short-title height {SvgHeight(shortT)}");
+    }
+
+    private static int SvgHeight(string svg)
+    {
+        var doc = new System.Xml.XmlDocument();
+        doc.LoadXml(svg);
+        return int.Parse(doc.DocumentElement!.GetAttribute("height"), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    [Fact]
     public void RenderToSvg_PieChart_ContainsPathElements()
     {
         var svg = ChartBuilder.Create()

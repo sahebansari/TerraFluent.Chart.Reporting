@@ -1,13 +1,13 @@
-/* Settings view — global chart preferences and app options, persisted to the
-   browser's localStorage. These defaults seed the Chart Studio editor. */
+/* Settings view — global chart preferences applied across every chart-rendering
+   view (Chart Studio and the auto-generated charts). Persisted to localStorage. */
 import {
-  $, $$, content, state, esc, toast, loading, errorBox,
+  $, content, state, esc, toast, loading, errorBox,
   ensureCatalogue, settings, saveSettings, resetSettings, DEFAULT_SETTINGS,
 } from "./core.js";
 import { icon } from "./icons.js";
 
 const LEGEND_POSITIONS = ["Bottom", "Top", "Right", "Left", "None"];
-const AGGREGATIONS = ["Sum", "Average", "Count", "Min", "Max", "Median"];
+const FONT_SIZES = [["Small", 1.0], ["Medium", 1.2], ["Large", 1.4]];
 
 export async function renderSettingsView() {
   content.innerHTML = `<div class="card">${loading("Loading settings…")}</div>`;
@@ -18,35 +18,40 @@ export async function renderSettingsView() {
 
   const opts = (arr, sel) => arr.map(v =>
     `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("");
-  const typeOpts = cat.chartTypes.map(t =>
-    `<option${t.name === settings.defaultChartType ? " selected" : ""}>${esc(t.name)}</option>`).join("");
   const modeOpts = cat.renderModes.map(m =>
     `<option${m.name === settings.defaultRenderMode ? " selected" : ""}>${esc(m.name)}</option>`).join("");
+  const fontOpts = FONT_SIZES.map(([label, v]) =>
+    `<option value="${v}"${v === settings.fontScale ? " selected" : ""}>${label}</option>`).join("");
   const check = (on) => on ? " checked" : "";
 
   content.innerHTML = `
     <div class="card" style="margin-bottom:16px">
       <div class="section-head" style="margin-bottom:4px">
-        <div class="titles"><h2>Settings</h2><p>Global preferences that seed new charts. Saved in this browser only — never on a server.</p></div>
+        <div class="titles"><h2>Settings</h2><p>Global chart preferences applied everywhere — the Chart Studio editor and the auto-generated charts on Analyze, Dashboard, Compare and Ask the Agent. Saved in this browser only — never on a server.</p></div>
       </div>
     </div>
 
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr));align-items:start;gap:16px">
       <div class="card">
-        <h3>Chart defaults</h3>
+        <h3>Chart style</h3>
         <div class="row" style="margin-top:12px;gap:12px">
-          <label class="field" style="flex:1 1 150px">Default chart type<select id="setType">${typeOpts}</select></label>
           <label class="field" style="flex:1 1 150px">Default theme<select id="setTheme">${opts(cat.themes, settings.defaultTheme)}</select></label>
-        </div>
-        <div class="row" style="margin-top:12px;gap:12px">
           <label class="field" style="flex:1 1 150px">Default render mode<select id="setMode">${modeOpts}</select></label>
-          <label class="field" style="flex:1 1 150px">Legend position<select id="setLegend">${opts(LEGEND_POSITIONS, settings.legendPosition)}</select></label>
         </div>
         <div class="row" style="margin-top:12px;gap:12px">
-          <label class="field" style="flex:1 1 90px">Width<input type="number" id="setWidth" min="200" max="1600" value="${esc(settings.defaultWidth)}"></label>
-          <label class="field" style="flex:1 1 90px">Height<input type="number" id="setHeight" min="150" max="900" value="${esc(settings.defaultHeight)}"></label>
+          <label class="field" style="flex:1 1 150px">Legend position<select id="setLegend">${opts(LEGEND_POSITIONS, settings.legendPosition)}</select></label>
+          <label class="field" style="flex:1 1 150px">Text size<select id="setFontScale">${fontOpts}</select></label>
         </div>
-        <div class="row" style="margin-top:14px;gap:16px;flex-wrap:wrap">
+        <div class="row" style="margin-top:12px;gap:12px">
+          <label class="field" style="flex:1 1 150px">Background <span class="hint">white = use theme background</span>
+            <input type="color" id="setBg" value="${esc(settings.backgroundColor)}" style="height:38px;padding:3px">
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Chart display</h3>
+        <div class="row" style="margin-top:12px;gap:16px;flex-wrap:wrap">
           <label class="field" style="flex-direction:row;align-items:center;gap:8px;font-weight:600">
             <input type="checkbox" id="setGrid" style="width:auto"${check(settings.showGridLines)}> Show grid lines
           </label>
@@ -55,19 +60,6 @@ export async function renderSettingsView() {
           </label>
           <label class="field" style="flex-direction:row;align-items:center;gap:8px;font-weight:600">
             <input type="checkbox" id="setLabels" style="width:auto"${check(settings.showDataLabels)}> Data labels
-          </label>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Data &amp; behaviour</h3>
-        <div class="row" style="margin-top:12px;gap:12px">
-          <label class="field" style="flex:1 1 150px">Default aggregation<select id="setAgg">${opts(AGGREGATIONS, settings.defaultAggregation)}</select></label>
-        </div>
-        <div class="row" style="margin-top:14px">
-          <label class="field" style="flex-direction:row;align-items:center;gap:8px;font-weight:600">
-            <input type="checkbox" id="setPrefetch" style="width:auto"${check(settings.autoPrefetchStudio)}>
-            Auto-load a summarized chart when opening Chart Studio
           </label>
         </div>
         <p class="hint" style="margin-top:14px">Preferences are stored in this browser's local storage. Clearing site data resets them.</p>
@@ -82,17 +74,14 @@ export async function renderSettingsView() {
     </div>`;
 
   const collect = () => ({
-    defaultChartType:   $("#setType").value,
-    defaultTheme:       $("#setTheme").value,
-    defaultRenderMode:  $("#setMode").value,
-    legendPosition:     $("#setLegend").value,
-    defaultAggregation: $("#setAgg").value,
-    defaultWidth:       clamp(+$("#setWidth").value, 200, 1600, DEFAULT_SETTINGS.defaultWidth),
-    defaultHeight:      clamp(+$("#setHeight").value, 150, 900, DEFAULT_SETTINGS.defaultHeight),
-    showGridLines:      $("#setGrid").checked,
-    showExportMenu:     $("#setExport").checked,
-    showDataLabels:     $("#setLabels").checked,
-    autoPrefetchStudio: $("#setPrefetch").checked,
+    defaultTheme:      $("#setTheme").value,
+    defaultRenderMode: $("#setMode").value,
+    legendPosition:    $("#setLegend").value,
+    fontScale:         parseFloat($("#setFontScale").value) || DEFAULT_SETTINGS.fontScale,
+    backgroundColor:   $("#setBg").value,
+    showGridLines:     $("#setGrid").checked,
+    showExportMenu:    $("#setExport").checked,
+    showDataLabels:    $("#setLabels").checked,
   });
 
   $("#setSave").onclick = () => {
@@ -104,9 +93,4 @@ export async function renderSettingsView() {
     renderSettingsView();
     toast("Settings reset to defaults.");
   };
-}
-
-function clamp(n, min, max, fallback) {
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, n));
 }

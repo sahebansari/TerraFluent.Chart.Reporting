@@ -41,6 +41,28 @@ public abstract class AnalyticSkillBase : IAnalyticSkill
     protected static IReadOnlyList<string> MeasuresOf(IEnumerable<Insight> insights) =>
         insights.SelectMany(i => i.RelatedColumns).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
+    /// <summary>
+    /// Narrows a set of candidates to the goal's target columns — but only when the goal actually
+    /// names one of them. A question that mentions just a dimension ("why is the top region
+    /// declining?") still has to consider every measure, or the skill silently finds nothing.
+    /// </summary>
+    protected static IReadOnlyList<T> NarrowToTargets<T>(
+        IEnumerable<T> candidates, AnalyticGoal goal, Func<T, string> nameOf)
+    {
+        var all = candidates.ToList();
+        if (goal.TargetColumns.Count == 0) return all;
+
+        var targeted = all
+            .Where(c => goal.TargetColumns.Any(t => string.Equals(t, nameOf(c), StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        return targeted.Count > 0 ? targeted : all;
+    }
+
+    /// <summary>Narrows column names to the goal's targets, falling back to all when none match.</summary>
+    protected static IReadOnlyList<string> NarrowToTargets(IEnumerable<string> names, AnalyticGoal goal) =>
+        NarrowToTargets(names, goal, n => n);
+
     /// <summary>Compact, human-readable number formatting (k/M/B, rounded, no scientific notation).</summary>
     protected static string FormatNumber(double value)
     {

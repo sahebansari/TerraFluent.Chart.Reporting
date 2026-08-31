@@ -5,12 +5,14 @@ namespace TerraFluent.Chart.Reporting.Api.Models;
 /// <summary>Input format of the raw data supplied to an analytics endpoint.</summary>
 public enum AnalyzeFormat
 {
-    /// <summary>Detect CSV vs JSON automatically from the payload.</summary>
+    /// <summary>Detect CSV, JSON or base64 XLSX automatically from the payload.</summary>
     Auto = 0,
     /// <summary>Comma-separated values with a header row.</summary>
     Csv = 1,
     /// <summary>A JSON array of flat objects.</summary>
-    Json = 2
+    Json = 2,
+    /// <summary>A base64-encoded <c>.xlsx</c> workbook; the first worksheet is read.</summary>
+    Xlsx = 3
 }
 
 /// <summary>
@@ -19,11 +21,26 @@ public enum AnalyzeFormat
 /// </summary>
 public sealed class AnalyzeRequest
 {
-    /// <summary>The raw data to analyse — CSV text (with header row) or a JSON array of objects.</summary>
+    /// <summary>
+    /// The raw data to analyse — CSV text (with header row), a JSON array of objects, or a
+    /// base64-encoded <c>.xlsx</c> workbook when <see cref="Format"/> is <see cref="AnalyzeFormat.Xlsx"/>.
+    /// </summary>
     public string Data { get; set; } = string.Empty;
 
     /// <summary>How to interpret <see cref="Data"/>. Defaults to <see cref="AnalyzeFormat.Auto"/>.</summary>
     public AnalyzeFormat Format { get; set; } = AnalyzeFormat.Auto;
+
+    /// <summary>
+    /// Name of a server-configured connection to pull the data from instead of supplying it inline.
+    /// Takes precedence over <see cref="Data"/>. List the available names with
+    /// <c>GET /api/analytics/connections</c>.
+    /// </summary>
+    /// <remarks>
+    /// Only the <em>name</em> travels: the URL and any credentials stay in server configuration and
+    /// are never accepted from, or returned to, a caller. Data is pulled fresh on each request and
+    /// discarded once the response is written.
+    /// </remarks>
+    public string? ConnectionName { get; set; }
 
     /// <summary>Optional friendly dataset name used in the summary and dashboard title.</summary>
     public string? DatasetName { get; set; }
@@ -55,6 +72,13 @@ public sealed class AnalyzeRequest
     /// <summary>Absolute z-score threshold for anomaly flagging. Default 3.0.</summary>
     [Range(0.1, 10.0)]
     public double? ZScoreThreshold { get; set; }
+
+    /// <summary>
+    /// Treats the data as already summarized (one row per group, no raw granularity): skips the
+    /// time-series analytics and widens the group-by budget so every measure is broken down by each
+    /// dimension. Default <see langword="false"/>.
+    /// </summary>
+    public bool? PreAggregated { get; set; }
 
     /// <summary>When <see langword="true"/>, a data-quality error aborts the analysis (HTTP 422).</summary>
     public bool ThrowOnValidationError { get; set; }

@@ -25,11 +25,30 @@ public static class DashboardBuilder
         var kpis = BuildKpis(result.Profile, maxKpis);
         var recs = result.Recommendations;
 
-        var trend = recs.Where(r => r.ChartType is ChartType.Line or ChartType.Spline or ChartType.Area).ToList();
-        var comparison = recs.Where(r => r.ChartType is ChartType.Bar or ChartType.Column or ChartType.Pie).ToList();
-        var distribution = recs.Where(r => r.ChartType == ChartType.Column && r.Spec.Title.StartsWith("Distribution", StringComparison.OrdinalIgnoreCase)).ToList();
+        // Without a date axis there are no genuine trends; Line-typed relationship charts (e.g. a
+        // correlation's binned mean) would otherwise masquerade as a trend, so route them to
+        // comparison instead of a nonsensical time-less "Trends" section.
+        bool hasDate = result.Profile.DateColumns.Any();
+
+        var trend = hasDate
+            ? recs.Where(r => r.ChartType is ChartType.Line or ChartType.Spline or ChartType.Area).ToList()
+            : new List<RecommendedChart>();
+
+        // A waterfall bridges consecutive periods, so it reads as a comparison rather than a trend.
+        var comparison = recs.Where(r => r.ChartType is ChartType.Bar or ChartType.Column or ChartType.Pie or ChartType.Waterfall).ToList();
+        if (!hasDate)
+            comparison.AddRange(recs.Where(r => r.ChartType is ChartType.Line or ChartType.Spline));
+
+        // Box plots and heatmaps describe how values are spread, alongside the binned histograms.
+        var distribution = recs
+            .Where(r => r.ChartType is ChartType.BoxPlot or ChartType.Heatmap
+                     || (r.ChartType == ChartType.Column && r.Spec.Title.StartsWith("Distribution", StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
         // Keep distribution charts out of the comparison bucket.
-        comparison = comparison.Except(distribution).ToList();
+        comparison = comparison.Except(distribution)
+            .OrderByDescending(r => r.SuitabilityScore)
+            .ToList();
 
         var anomalies = result.Insights.Where(i => i.Kind == InsightKind.Anomaly).ToList();
 

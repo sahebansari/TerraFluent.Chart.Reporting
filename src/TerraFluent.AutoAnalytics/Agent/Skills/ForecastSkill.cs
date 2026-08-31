@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using TerraFluent.AutoAnalytics.Analytics;
 using TerraFluent.AutoAnalytics.Enums;
 using TerraFluent.AutoAnalytics.Insights;
 using TerraFluent.AutoAnalytics.Recommendation;
@@ -20,6 +21,11 @@ public sealed class ForecastSkill : AnalyticSkillBase
     private const int Horizon = 3;
     private const int MaxMeasures = 3;
 
+    // Plotting a full history (e.g. two years of daily periods) squeezes the projection into well
+    // under 1% of the plot width, so the forecast highlight becomes invisible. The projection is
+    // still fitted on the whole history; only the plotted tail is windowed to keep it legible.
+    private const int MaxHistory = 24;
+
     public override string Name => "Forecast";
     public override string Description => "Projects a measure forward with confidence bands (Holt's linear method).";
 
@@ -29,24 +35,24 @@ public sealed class ForecastSkill : AnalyticSkillBase
 
     public override SkillResult Execute(AgentContext ctx)
     {
-        var measures = ctx.Profile.Measures.Where(m => m.NumericValues.Count >= 4);
-        if (ctx.Goal.TargetColumns.Count > 0)
-            measures = measures.Where(m => ctx.Goal.TargetColumns.Any(t => string.Equals(t, m.Name, StringComparison.OrdinalIgnoreCase)));
+        var measures = NarrowToTargets(
+            ctx.Profile.Measures.Where(m => m.NumericValues.Count >= 4), ctx.Goal, m => m.Name);
 
         var insights = new List<Insight>();
         var charts = new List<RecommendedChart>();
 
-        // Calendar-driven seasonal hint (null → auto-detect via autocorrelation).
-        int? seasonHint = SeasonHint(ctx.Profile);
+        // Reuse the pipeline's forecast engine so the agent and /analyze can never disagree about
+        // the same measure: identical per-period aggregation, identical model selection.
+        var forecasts = new ForecastEngine(Horizon)
+            .Compute(ctx.Profile)
+            .ToDictionary(f => f.Measure, StringComparer.OrdinalIgnoreCase);
 
         foreach (var measure in measures.Take(MaxMeasures))
         {
-            var (labels, values) = OrderedSeries(ctx.Profile, measure);
-            var forecast = Forecasting.Forecast(values, Horizon, seasonHint);
-            if (forecast.IsEmpty) continue;
+            if (!forecasts.TryGetValue(measure.Name, out var projection) || projection.IsEmpty) continue;
 
-            insights.Add(BuildInsight(measure.Name, forecast));
-            charts.Add(BuildChart(measure.Name, labels, values, forecast));
+            insights.Add(BuildInsight(measure.Name, projection.Forecast));
+            charts.Add(BuildChart(measure.Name, projection.HistoryLabels, projection.HistoryValues, projection.Forecast));
         }
 
         if (insights.Count == 0)
@@ -54,20 +60,6 @@ public sealed class ForecastSkill : AnalyticSkillBase
 
         string rationale = $"Projected {insights.Count} measure(s) forward {Horizon} period(s) with Holt's method.";
         return new SkillResult(rationale, insights, charts);
-    }
-
-    // Maps the primary date column's cadence to a seasonal period; null when unknown (auto-detect).
-    private static int? SeasonHint(Profiling.DatasetProfile profile)
-    {
-        var granularity = profile.DateColumns.FirstOrDefault()?.Date?.Granularity;
-        return granularity switch
-        {
-            DateGranularity.Monthly   => 12,
-            DateGranularity.Quarterly => 4,
-            DateGranularity.Weekly    => 7,
-            DateGranularity.Daily     => 7,
-            _                         => (int?)null
-        };
     }
 
     private static Insight BuildInsight(string measure, ForecastResult f)
@@ -103,13 +95,19 @@ public sealed class ForecastSkill : AnalyticSkillBase
         string measure, IReadOnlyList<string> labels, IReadOnlyList<double> values, ForecastResult f)
     {
         int h = f.Points.Count;
-        int history = values.Count;
 
-        var categories = new List<string>(labels);
+        // Window the plotted history to the most recent MaxHistory periods so the projection stays
+        // legible; the forecast itself was already fitted on the full series.
+        int skip = Math.Max(0, values.Count - MaxHistory);
+        var historyValues = values.Skip(skip).ToList();
+        var historyLabels = labels.Skip(skip).ToList();
+        int history = historyValues.Count;
+
+        var categories = new List<string>(historyLabels);
         for (int i = 1; i <= h; i++) categories.Add("+" + i.ToString(CultureInfo.InvariantCulture));
 
         // Actual: history values then gaps; Forecast: gaps then an anchor at the last actual + projections.
-        var actual = values.Select(v => (double?)v).Concat(Enumerable.Repeat((double?)null, h)).ToList();
+        var actual = historyValues.Select(v => (double?)v).Concat(Enumerable.Repeat((double?)null, h)).ToList();
         var projected = new List<double?>(new double?[history - 1]);
         projected.Add(f.LastActual);
         projected.AddRange(f.Points.Select(p => (double?)p.Value));

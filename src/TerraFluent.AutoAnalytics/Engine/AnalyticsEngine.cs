@@ -72,6 +72,19 @@ public sealed class AnalyticsEngine
     public Task<AnalyticsResult> RunAsync(Dataset dataset, AnalyticsOptions? options = null, CancellationToken ct = default)
         => Task.Run(() => Run(dataset, options), ct);
 
+    /// <summary>
+    /// Fetches a live source and analyses it. The rows are held only for the duration of the call —
+    /// nothing is cached between requests.
+    /// </summary>
+    public static async Task<AnalyticsResult> AnalyzeAsync(
+        IAsyncDataSource source, AnalyticsOptions? options = null, CancellationToken ct = default)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        var dataset = await source.LoadAsync(ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        return new AnalyticsEngine().Run(dataset, options);
+    }
+
     // ── Core pipeline ─────────────────────────────────────────────────────────
 
     /// <summary>Runs the full pipeline against a dataset.</summary>
@@ -81,7 +94,7 @@ public sealed class AnalyticsEngine
         options ??= new AnalyticsOptions();
 
         // Phase 1 — schema.
-        var schema = _schema.Discover(dataset);
+        var schema = _schema.Discover(dataset, options.PreAggregated);
 
         // Phase 2 — validation.
         var validation = _validation.Validate(dataset, schema);
@@ -94,7 +107,15 @@ public sealed class AnalyticsEngine
         var profile = _profiling.Profile(dataset, schema);
 
         // Phase 4/5 — analytics.
-        var relationships = new RelationshipEngine(options.MaxGroupCombinations);
+        // Already-summarized data has one row per group and no raw granularity: widen the group-by
+        // budget so every measure is broken down by each dimension, and skip the time-series engines
+        // whose per-period maths has nothing to collapse.
+        bool timeSeries = !options.PreAggregated;
+        int groupBudget = options.PreAggregated
+            ? Math.Min(200, Math.Max(options.MaxGroupCombinations, EligibleGroupPairs(profile)))
+            : options.MaxGroupCombinations;
+
+        var relationships = new RelationshipEngine(groupBudget);
         var trends = new TrendEngine();
         var anomalyEngine = new AnomalyEngine(options.ZScoreThreshold);
 
@@ -103,9 +124,29 @@ public sealed class AnalyticsEngine
             anomalies.AddRange(detector.Detect(profile));
 
         var trendResults  = trends.DetectTrends(profile);
-        var movingAvgs    = new MovingAverageEngine().Compute(profile);
-        var cumulSeries   = new CumulativeSeriesEngine().Compute(profile);
+        var movingAvgs    = timeSeries ? new MovingAverageEngine().Compute(profile) : new List<MovingAverageResult>();
+        var cumulSeries   = timeSeries ? new CumulativeSeriesEngine().Compute(profile) : new List<CumulativeSeriesResult>();
         var compositions  = new CompositionEngine().Compute(profile);
+
+        // Forward-looking and cross-period analytics. These were previously reachable only through
+        // the agent's skills, so a plain /analyze or dashboard could never show a projection.
+        var forecasts = options.EnableForecasting && timeSeries
+            ? new ForecastEngine(options.ForecastHorizon).Compute(profile)
+            : new List<MeasureForecast>();
+
+        var periodComparisons = options.EnablePeriodComparison && timeSeries
+            ? ComparePeriods(profile)
+            : new List<PeriodComparisonResult>();
+
+        var segmentation = options.EnableSegmentation
+            ? new SegmentationEngine().Segment(profile)
+            : null;
+
+        // Ask of each outlier whether any dimension accounts for it, so the narrative can say
+        // "unusual, but normal for EU" instead of leaving the reader to chase it down.
+        var anomalyExplanations = options.EnableAnomalyExplanation
+            ? new AnomalyExplanationEngine().Explain(profile, anomalies)
+            : new List<AnomalyExplanation>();
 
         var findings = new AnalyticsFindings
         {
@@ -115,7 +156,11 @@ public sealed class AnalyticsEngine
             Anomalies       = anomalies,
             MovingAverages  = movingAvgs,
             CumulativeSeries = cumulSeries,
-            Compositions    = compositions
+            Compositions    = compositions,
+            Forecasts       = forecasts,
+            PeriodComparisons = periodComparisons,
+            Segmentation    = segmentation is { IsEmpty: false } ? segmentation : null,
+            AnomalyExplanations = anomalyExplanations
         };
 
         // Phase 6 — insights (built-in + plugins).
@@ -131,7 +176,7 @@ public sealed class AnalyticsEngine
             .ToList();
 
         // Phase 7 — chart recommendations (built-in + plugins).
-        var recommendations = new List<RecommendedChart>(_recommender.Recommend(profile, findings));
+        var recommendations = new List<RecommendedChart>(_recommender.Recommend(profile, findings, options.PreAggregated));
         foreach (var rec in options.ChartRecommenders)
             recommendations.AddRange(rec.Recommend(profile, findings));
 
@@ -151,6 +196,28 @@ public sealed class AnalyticsEngine
             Recommendations = recommendations,
             Summary = summary
         };
+    }
+
+    // Count of (low-cardinality dimension × measure) pairs the group-by engine can form — used to
+    // size the group-by budget so a wide, already-summarized dataset gets a breakdown for every field.
+    private static int EligibleGroupPairs(DatasetProfile profile)
+    {
+        int dims = profile.Categories.Count(c => c.Categorical is { DistinctCount: >= 2 and <= 50 });
+        int measures = profile.Measures.Count(m => m.NumericValues.Count > 0);
+        return dims * measures;
+    }
+
+    // Period-over-period comparison for each measure; measures without enough history drop out.
+    private static List<PeriodComparisonResult> ComparePeriods(DatasetProfile profile)
+    {
+        var engine = new PeriodComparisonEngine();
+        var results = new List<PeriodComparisonResult>();
+        foreach (var measure in profile.Measures)
+        {
+            var comparison = engine.Compare(profile, measure.Name);
+            if (comparison is { IsEmpty: false }) results.Add(comparison);
+        }
+        return results;
     }
 
     private static AnalyticsSummary BuildSummary(

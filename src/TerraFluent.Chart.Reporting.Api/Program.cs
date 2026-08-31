@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using TerraFluent.AutoAnalytics.Connectors.DependencyInjection;
 using TerraFluent.AutoAnalytics.DependencyInjection;
 using TerraFluent.Chart.Reporting.Api.Middleware;
 
@@ -13,6 +14,10 @@ builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = maxBodyBytes
 
 // Deterministic auto-analytics engine (schema → validation → profiling → analytics → insights).
 builder.Services.AddAutoAnalytics();
+
+// Live source connectors. Connections are configured server-side and selected by name, so no
+// credential ever reaches a client. With nothing configured the registry is simply empty.
+builder.Services.AddAutoAnalyticsConnectors(builder.Configuration);
 
 // In-memory store for multi-turn analytic sessions.
 builder.Services.AddSingleton<TerraFluent.Chart.Reporting.Api.Services.SessionStore>();

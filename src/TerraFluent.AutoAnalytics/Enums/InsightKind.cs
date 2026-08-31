@@ -16,5 +16,13 @@ public enum InsightKind
     /// <summary>A distribution/spread characteristic.</summary>
     Distribution,
     /// <summary>A data-quality finding surfaced as an insight.</summary>
-    DataQuality
+    DataQuality,
+    /// <summary>A forward projection of a measure.</summary>
+    Forecast,
+    /// <summary>A period-over-period change (MoM/QoQ/YoY).</summary>
+    PeriodChange,
+    /// <summary>Natural groupings discovered across the measures.</summary>
+    Segmentation,
+    /// <summary>A difference between two datasets being compared.</summary>
+    Comparison
 }

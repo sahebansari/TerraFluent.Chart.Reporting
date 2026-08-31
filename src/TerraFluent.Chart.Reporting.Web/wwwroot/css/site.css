@@ -188,6 +188,13 @@ body {
 .btn.subtle { background: var(--surface-2); color: var(--text); border-color: var(--border); }
 .btn.subtle:hover { background: #eef0f3; }
 .btn.sm { padding: 6px 12px; font-size: 13px; }
+/* Switch toggle — a rounded track with a sliding knob and the label to its right. */
+.switch { display: inline-flex; align-items: center; gap: 10px; background: none; border: 0; padding: 4px 0; cursor: pointer; font: inherit; color: var(--text); font-weight: 600; font-size: 13px; white-space: nowrap; }
+.switch .switch-track { position: relative; width: 40px; height: 22px; border-radius: 999px; background: var(--border-strong); transition: background .15s; flex: 0 0 auto; }
+.switch .switch-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .15s; }
+.switch[aria-checked="true"] .switch-track { background: var(--adp-red); }
+.switch[aria-checked="true"] .switch-knob { transform: translateX(18px); }
+.switch:focus-visible { outline: 2px solid var(--adp-red); outline-offset: 2px; border-radius: 4px; }
 
 /* ── Cards / layout ───────────────────────────────────────────────────── */
 .card {
@@ -398,6 +405,8 @@ table.data th, table.data td { padding: 10px 14px; text-align: left; border-bott
 table.data thead th { background: var(--surface-2); color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; position: sticky; top: 0; }
 table.data tbody tr:hover { background: var(--surface-2); }
 table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.data td.up { color: var(--ok); font-weight: 600; }
+table.data td.down { color: var(--err); font-weight: 600; }
 
 .bar-cell { position: relative; }
 .bar-cell .bar { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(208, 39, 29, .12); border-right: 2px solid var(--adp-red); border-radius: 0 3px 3px 0; }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using TerraFluent.AutoAnalytics.Profiling;
 using TerraFluent.AutoAnalytics.Statistics;
@@ -29,11 +30,15 @@ public sealed class AnomalyEngine
     /// <summary>Detects anomalies in every numeric measure column.</summary>
     public IReadOnlyList<AnomalyResult> Detect(DatasetProfile profile)
     {
+        // The primary date column labels each anomaly with when it happened; without one the label
+        // falls back to the row number so the narrative can still point at something.
+        var date = profile.DateColumns.FirstOrDefault();
+
         var results = new List<AnomalyResult>();
         foreach (var measure in profile.Measures)
         {
             if (measure.NumericValues.Count < 4 || measure.Numeric is null) continue;
-            var anomalies = DetectColumn(measure);
+            var anomalies = DetectColumn(measure, date);
             if (anomalies.Count > 0)
                 results.Add(new AnomalyResult
                 {
@@ -45,9 +50,32 @@ public sealed class AnomalyEngine
         return results.OrderByDescending(r => r.MaxMagnitude).ToList();
     }
 
-    private List<AnomalyPoint> DetectColumn(ColumnStatistics measure)
+    /// <summary>
+    /// Maps each non-missing value back to the dataset row it came from. <c>NumericValues</c>
+    /// compacts missing cells out, so its positions cannot address a row directly — pairing them up
+    /// here is what lets an anomaly be traced to its date and categories.
+    /// </summary>
+    private static List<int> RowIndexes(ColumnStatistics measure)
+    {
+        var byRow = measure.NumericByRow;
+        var rows = new List<int>(measure.NumericValues.Count);
+
+        if (byRow.Count == 0)
+        {
+            // Profile built without row-aligned projections: positions are the best available answer.
+            for (int i = 0; i < measure.NumericValues.Count; i++) rows.Add(i);
+            return rows;
+        }
+
+        for (int row = 0; row < byRow.Count; row++)
+            if (byRow[row].HasValue) rows.Add(row);
+        return rows;
+    }
+
+    private List<AnomalyPoint> DetectColumn(ColumnStatistics measure, ColumnStatistics? date)
     {
         var values = measure.NumericValues;
+        var rowOf = RowIndexes(measure);
         var stats = measure.Numeric!;
         double mean = stats.Mean, sd = stats.StdDev;
         double median = stats.Median;
@@ -62,22 +90,39 @@ public sealed class AnomalyEngine
 
         var flagged = new Dictionary<int, AnomalyPoint>();
 
+        // Builds a point carrying both indices and a human-readable "when" for the narrative.
+        AnomalyPoint Point(int i, double value, string method)
+        {
+            int row = i < rowOf.Count ? rowOf[i] : i;
+            double z = sd == 0 ? 0 : (value - mean) / sd;
+            double robustZ = robustScale > 0 ? (value - median) / robustScale : 0;
+            return new AnomalyPoint
+            {
+                Index = i,
+                RowIndex = row,
+                Value = value,
+                ZScore = z,
+                Magnitude = Math.Abs(robustZ),
+                Method = method,
+                Label = LabelFor(date, row, i)
+            };
+        }
+
         for (int i = 0; i < values.Count; i++)
         {
             double v = values[i];
             double z = sd == 0 ? 0 : (v - mean) / sd;
-            double robustZ = robustScale > 0 ? (v - median) / robustScale : 0;
             // Robust modified Z-score: MAD isn't inflated by the outlier itself, so it flags points
             // the classic Z-score would mask. Falls back to the classic rule when MAD collapses to 0
             // (e.g. >50% identical values).
             double modZ = mad > 0 ? 0.6745 * (v - median) / mad : 0;
 
             if (mad > 0 && Math.Abs(modZ) > ModifiedZThreshold)
-                flagged[i] = new AnomalyPoint { Index = i, Value = v, ZScore = z, Magnitude = Math.Abs(robustZ), Method = "modified-zscore" };
+                flagged[i] = Point(i, v, "modified-zscore");
             else if (mad == 0 && sd > 0 && Math.Abs(z) > _zThreshold)
-                flagged[i] = new AnomalyPoint { Index = i, Value = v, ZScore = z, Magnitude = Math.Abs(robustZ), Method = "zscore" };
+                flagged[i] = Point(i, v, "zscore");
             else if (stats.Iqr > 0 && (v < lowerFence || v > upperFence))
-                flagged.TryAdd(i, new AnomalyPoint { Index = i, Value = v, ZScore = z, Magnitude = Math.Abs(robustZ), Method = "iqr" });
+                flagged.TryAdd(i, Point(i, v, "iqr"));
         }
 
         // Sudden change: point-to-point jump exceeding 3x the median absolute step.
@@ -92,16 +137,22 @@ public sealed class AnomalyEngine
                 {
                     double jump = Math.Abs(values[i] - values[i - 1]);
                     if (jump > 3 * medianStep)
-                    {
-                        double z = sd == 0 ? 0 : (values[i] - mean) / sd;
-                        double robustZ = robustScale > 0 ? (values[i] - median) / robustScale : 0;
-                        flagged.TryAdd(i, new AnomalyPoint { Index = i, Value = values[i], ZScore = z, Magnitude = Math.Abs(robustZ), Method = "spike" });
-                    }
+                        flagged.TryAdd(i, Point(i, values[i], "spike"));
                 }
             }
         }
 
         return flagged.Values.OrderByDescending(a => a.Magnitude).ToList();
+    }
+
+    // Names the point for the narrative: the row's date when there is a date column, else its
+    // position in the series. Without this an anomaly insight can say how extreme a value is but
+    // never where it sits.
+    private static string LabelFor(ColumnStatistics? date, int row, int position)
+    {
+        if (date is not null && row < date.DateByRow.Count && date.DateByRow[row] is DateTime d)
+            return d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return $"row {position + 1}";
     }
 
     // Median of |xᵢ − median| — a robust scale estimate that (unlike the standard deviation) is

@@ -28,22 +28,375 @@ public sealed class ChartRecommendationEngine
         => _maxCategories = maxCategories;
 
     /// <summary>Produces ranked chart recommendations.</summary>
-    public IReadOnlyList<RecommendedChart> Recommend(DatasetProfile profile, AnalyticsFindings findings)
+    public IReadOnlyList<RecommendedChart> Recommend(DatasetProfile profile, AnalyticsFindings findings, bool preAggregated = false)
     {
         var recs = new List<RecommendedChart>();
         recs.AddRange(TimeSeries(profile, findings));
-        recs.AddRange(CategoryComparison(findings));
+        recs.AddRange(CategoryComparison(findings, preAggregated));
         recs.AddRange(ShareAnalysis(findings));
-        recs.AddRange(CorrelationCharts(profile, findings));
+        // A correlation's binned-mean line is a weak, easily-misread view of already-summarized
+        // per-entity data, so skip it there in favour of the direct per-entity comparisons.
+        if (!preAggregated)
+            recs.AddRange(CorrelationCharts(profile, findings));
         recs.AddRange(Distribution(profile));
         recs.AddRange(SingleMetric(profile));
         recs.AddRange(SmoothTrendCharts(findings));
         recs.AddRange(CumulativeCharts(findings));
         recs.AddRange(CompositionCharts(findings));
+        recs.AddRange(ForecastCharts(findings));
+        recs.AddRange(PeriodBridgeCharts(findings));
+        recs.AddRange(SegmentCharts(findings));
+        recs.AddRange(CompositionHeatmaps(findings));
+        recs.AddRange(SpreadByCategory(profile));
+        recs.AddRange(AnomalyContextCharts(findings));
 
         return recs
             .OrderByDescending(r => r.SuitabilityScore)
             .ToList();
+    }
+
+    // ── Anomaly in context: the outlier against each candidate segment's norm ──
+    private IEnumerable<RecommendedChart> AnomalyContextCharts(AnalyticsFindings findings)
+    {
+        // Only the single most extreme anomaly earns a chart; one per outlier would swamp the report.
+        var explanation = findings.AnomalyExplanations
+            .Where(e => !e.IsEmpty)
+            .OrderByDescending(e => e.Magnitude)
+            .FirstOrDefault();
+        if (explanation is null) yield break;
+
+        var attributions = explanation.Attributions.Take(_maxCategories).ToList();
+        string measureDisp = DisplayText.Humanize(explanation.Measure);
+
+        // Each bar pairs a candidate segment's norm with the outlier, so a bar that reaches the
+        // outlier's height is the segment that explains it.
+        var categories = attributions
+            .Select(a => $"{DisplayText.Humanize(a.Dimension)}: {a.Category}")
+            .ToList();
+
+        var norms = attributions.Select(a => (double?)a.CategoryMedian).ToList();
+        var outlier = attributions.Select(_ => (double?)explanation.Value).ToList();
+
+        string verdict = explanation.IsExplained
+            ? "One segment's norm sits close to the outlier, so the value is explained by segment mix."
+            : "No segment's norm comes close to the outlier, so it is a genuine one-off.";
+
+        yield return new RecommendedChart
+        {
+            ChartType = ChartType.Column,
+            SuitabilityScore = explanation.IsExplained ? 72 : 84,
+            Reason = $"The most extreme {measureDisp} anomaly ({DisplayText.FormatNumber(explanation.Value)} " +
+                     $"at {explanation.WhenLabel}) against the typical value of each segment it belongs to. {verdict}",
+            Spec = new ChartSpec
+            {
+                Type = ChartType.Column,
+                Title = $"{measureDisp} anomaly at {explanation.WhenLabel} vs segment norms",
+                XAxisTitle = "Segment",
+                YAxisTitle = measureDisp,
+                Categories = categories,
+                Series = new[]
+                {
+                    new SeriesSpec { Name = "Segment norm", Values = norms },
+                    new SeriesSpec { Name = $"Anomaly ({explanation.WhenLabel})", Values = outlier }
+                }
+            }
+        };
+    }
+
+    // ── Forecast: history line + confidence band => Line over AreaRange ───────
+
+    // A forecast chart earns its keep by showing the projection, so the history behind it is
+    // windowed to a span that still leaves the horizon legible. Plotting a full year of daily
+    // periods squeezes the projection into well under 1% of the plot width.
+    private const int MaxForecastHistory = 24;
+
+    private IEnumerable<RecommendedChart> ForecastCharts(AnalyticsFindings findings)
+    {
+        foreach (var f in findings.Forecasts)
+        {
+            if (f.IsEmpty) continue;
+            var points = f.Forecast.Points;
+            int fitted = f.HistoryValues.Count;
+
+            // The projection is still fitted on the whole history; only the plotted tail is trimmed.
+            int skip = Math.Max(0, fitted - MaxForecastHistory);
+            var historyValues = f.HistoryValues.Skip(skip).ToList();
+            var historyLabels = f.HistoryLabels.Skip(skip).ToList();
+            int history = historyValues.Count;
+
+            // One category axis spanning history then horizon; the projection continues from the
+            // last actual so the line joins up rather than restarting at a gap.
+            var categories = historyLabels
+                .Concat(points.Select(p => $"+{p.Step}"))
+                .ToList();
+
+            var actual = historyValues.Select(v => (double?)v)
+                .Concat(Enumerable.Repeat((double?)null, points.Count))
+                .ToList();
+
+            var projected = Enumerable.Repeat((double?)null, history - 1)
+                .Append(f.Forecast.LastActual)
+                .Concat(points.Select(p => (double?)p.Value))
+                .ToList();
+
+            // History carries no uncertainty, so its band is zero-width (it hugs the actual line) and
+            // only opens out across the projected span. Avoids plotting NaN into the renderer.
+            var band = historyValues.Select(v => new RangeValue(v, v))
+                .Concat(points.Select(p => new RangeValue(p.Lower, p.Upper)))
+                .ToList();
+
+            string measureDisp = DisplayText.Humanize(f.Measure);
+            string method = f.Forecast.Method == "holt-winters" ? "Holt-Winters (seasonal)" : "Holt's linear method";
+            int score = Math.Min(92, 70 + (fitted >= 12 ? 10 : 0) + (f.Forecast.SeasonLength >= 2 ? 6 : 0));
+
+            // History length alone rewards exactly the series that forecast worst: a long, noisy,
+            // trendless series scores highest while its band swamps the data it was fitted on. When
+            // the widest interval is comparable to the spread of the history itself, the projection
+            // carries no usable signal, so demote it rather than ranking it near the top.
+            double spread = f.HistoryValues.Max() - f.HistoryValues.Min();
+            double widest = points[^1].Upper - points[^1].Lower;
+            bool uninformative = spread > 0 && widest >= spread;
+            if (uninformative) score -= 30;
+
+            string caveat = uninformative
+                ? " The interval spans the full range of the history, so treat the projection as " +
+                  "indicative only — this series carries little forecastable signal."
+                : string.Empty;
+            string scope = history < fitted
+                ? $"Fitted on {fitted} periods of history; the latest {history} are plotted."
+                : $"{fitted} periods of history support a projection.";
+
+            yield return new RecommendedChart
+            {
+                ChartType = ChartType.Line,
+                SuitabilityScore = score,
+                Reason = $"{scope} {method} extends " +
+                         $"{measureDisp} {points.Count} period(s) forward, with a shaded 95% confidence band.{caveat}",
+                Spec = new ChartSpec
+                {
+                    Type = ChartType.Line,
+                    Title = $"{measureDisp} forecast",
+                    XAxisTitle = "Period",
+                    YAxisTitle = measureDisp,
+                    Categories = categories,
+                    Series = new[]
+                    {
+                        new SeriesSpec
+                        {
+                            Name = "Confidence band",
+                            TypeOverride = ChartType.AreaRange,
+                            RangeValues = band
+                        },
+                        new SeriesSpec { Name = measureDisp, Values = actual },
+                        new SeriesSpec { Name = "Projected", Values = projected }
+                    }
+                }
+            };
+        }
+    }
+
+    // ── Period-over-period: the bridge from first period to last => Waterfall ──
+    private IEnumerable<RecommendedChart> PeriodBridgeCharts(AnalyticsFindings findings)
+    {
+        // A bridge stays readable for about a dozen steps; longer histories show the most recent
+        // window rather than being dropped entirely.
+        const int MaxSteps = 12;
+
+        foreach (var c in findings.PeriodComparisons)
+        {
+            if (c.Periods.Count < 3) continue;
+
+            var window = c.Periods.Count > MaxSteps + 1
+                ? c.Periods.Skip(c.Periods.Count - (MaxSteps + 1)).ToList()
+                : c.Periods.ToList();
+
+            // Each step's ChangeAbs is measured against its own predecessor, and window[0] is a real
+            // period, so the bridge still balances after windowing.
+            var steps = window.Skip(1).ToList();
+            if (steps.All(p => Math.Abs(p.ChangeAbs) < 1e-9)) continue;
+
+            string measureDisp = DisplayText.Humanize(c.Measure);
+            var categories = new List<string> { window[0].Label };
+            categories.AddRange(steps.Select(p => p.Label));
+
+            var values = new List<double?> { window[0].Value };
+            values.AddRange(steps.Select(p => (double?)p.ChangeAbs));
+
+            string scope = window.Count < c.Periods.Count
+                ? $"the latest {window.Count} of {c.Periods.Count}"
+                : $"{c.Periods.Count}";
+
+            yield return new RecommendedChart
+            {
+                ChartType = ChartType.Waterfall,
+                SuitabilityScore = 74,
+                Reason = $"{scope} {c.Granularity.ToString().ToLowerInvariant()} periods of " +
+                         $"{measureDisp}. A waterfall shows how each period's change bridges the opening " +
+                         "value to the closing one.",
+                Spec = new ChartSpec
+                {
+                    Type = ChartType.Waterfall,
+                    Title = $"{measureDisp} period-over-period bridge",
+                    XAxisTitle = "Period",
+                    YAxisTitle = measureDisp,
+                    Categories = categories,
+                    Series = new[] { new SeriesSpec { Name = measureDisp, Values = values } }
+                }
+            };
+        }
+    }
+
+    // ── Segmentation: how the clustered rows divide => Column of segment sizes ─
+    private IEnumerable<RecommendedChart> SegmentCharts(AnalyticsFindings findings)
+    {
+        var segmentation = findings.Segmentation;
+        if (segmentation is null || segmentation.IsEmpty) yield break;
+
+        var ordered = segmentation.Segments.OrderByDescending(s => s.Size).ToList();
+        string measures = string.Join(", ", segmentation.Measures.Select(DisplayText.Humanize));
+
+        yield return new RecommendedChart
+        {
+            ChartType = ChartType.Column,
+            SuitabilityScore = 68,
+            Reason = $"Rows cluster into {ordered.Count} natural segments across {measures}. " +
+                     "A column chart shows how the population divides between them.",
+            Spec = new ChartSpec
+            {
+                Type = ChartType.Column,
+                Title = $"Segment sizes ({segmentation.RowsClustered} rows)",
+                XAxisTitle = "Segment",
+                YAxisTitle = "Rows",
+                Categories = ordered.Select(s => s.Label).ToList(),
+                Series = new[]
+                {
+                    new SeriesSpec { Name = "Rows", Values = ordered.Select(s => (double?)s.Size).ToList() }
+                }
+            }
+        };
+    }
+
+    // ── Composition across two dimensions => Heatmap ──────────────────────────
+    private IEnumerable<RecommendedChart> CompositionHeatmaps(AnalyticsFindings findings)
+    {
+        foreach (var composition in findings.Compositions)
+        {
+            var columns = composition.Categories;
+            var rowNames = composition.SeriesNames;
+            // A heatmap earns its place only on a genuine grid — several rows and several columns.
+            if (rowNames.Count < 3 || columns.Count < 3) continue;
+            if (rowNames.Count > _maxCategories || columns.Count > 24) continue;
+
+            var cells = new List<HeatCell>(rowNames.Count * columns.Count);
+            for (int r = 0; r < rowNames.Count && r < composition.Values.Count; r++)
+            {
+                var row = composition.Values[r];
+                for (int c = 0; c < columns.Count && c < row.Count; c++)
+                    if (row[c] is double v)
+                        cells.Add(new HeatCell(c, r, v));
+            }
+
+            if (cells.Count == 0) continue;
+
+            string measureDisp = DisplayText.Humanize(composition.Measure);
+            string rowDisp = DisplayText.Humanize(composition.SeriesDimension);
+            string colDisp = DisplayText.Humanize(composition.CategoryDimension);
+
+            yield return new RecommendedChart
+            {
+                ChartType = ChartType.Heatmap,
+                SuitabilityScore = 72,
+                Reason = $"{measureDisp} spans a {rowNames.Count}×{columns.Count} grid of {rowDisp} by {colDisp}. " +
+                         "A heatmap makes the hot and cold cells visible at a glance, which a stacked chart hides.",
+                Spec = new ChartSpec
+                {
+                    Type = ChartType.Heatmap,
+                    Title = $"{measureDisp} by {rowDisp} and {colDisp}",
+                    XAxisTitle = colDisp,
+                    YAxisTitle = rowDisp,
+                    Categories = columns.ToList(),
+                    Series = new[]
+                    {
+                        new SeriesSpec
+                        {
+                            Name = measureDisp,
+                            HeatCells = cells,
+                            RowLabels = rowNames.ToList()
+                        }
+                    }
+                }
+            };
+        }
+    }
+
+    // ── Spread of a measure within each category => BoxPlot ───────────────────
+    private IEnumerable<RecommendedChart> SpreadByCategory(DatasetProfile profile)
+    {
+        // Comparing averages hides how wide each group actually is; a box plot shows the spread.
+        const int MinPerCategory = 5;
+
+        var dimension = profile.Categories
+            .FirstOrDefault(c => c.Categorical is { DistinctCount: >= 2 and <= 8 });
+        if (dimension is null) yield break;
+
+        foreach (var measure in profile.Measures)
+        {
+            if (measure.Numeric is null) continue;
+
+            var groups = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase);
+            int rows = Math.Min(dimension.LabelByRow.Count, measure.NumericByRow.Count);
+            for (int i = 0; i < rows; i++)
+            {
+                string? label = dimension.LabelByRow[i];
+                double? value = measure.NumericByRow[i];
+                if (label is null || value is null) continue;
+                if (!groups.TryGetValue(label, out var list)) groups[label] = list = new List<double>();
+                list.Add(value.Value);
+            }
+
+            var usable = groups
+                .Where(g => g.Value.Count >= MinPerCategory)
+                .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (usable.Count < 2) continue;
+
+            var boxes = usable.Select(g => Summarise(g.Value)).ToList();
+            // If every group has the same spread there is nothing for the reader to compare.
+            if (boxes.All(b => Math.Abs(b.High - b.Low) < 1e-9)) continue;
+
+            string measureDisp = DisplayText.Humanize(measure.Name);
+            string dimDisp = DisplayText.Humanize(dimension.Name);
+
+            yield return new RecommendedChart
+            {
+                ChartType = ChartType.BoxPlot,
+                SuitabilityScore = 70,
+                Reason = $"{usable.Count} {dimDisp} groups each hold at least {MinPerCategory} " +
+                         $"{measureDisp} values. A box plot compares their medians, quartiles and full " +
+                         "range together — detail a bar of averages discards.",
+                Spec = new ChartSpec
+                {
+                    Type = ChartType.BoxPlot,
+                    Title = $"{measureDisp} spread by {dimDisp}",
+                    XAxisTitle = dimDisp,
+                    YAxisTitle = measureDisp,
+                    Categories = usable.Select(g => g.Key).ToList(),
+                    Series = new[] { new SeriesSpec { Name = measureDisp, BoxValues = boxes } }
+                }
+            };
+        }
+    }
+
+    // Five-number summary using the same type-7 percentile convention as the profiler.
+    private static BoxValue Summarise(List<double> values)
+    {
+        var sorted = values.OrderBy(v => v).ToList();
+        return new BoxValue(
+            sorted[0],
+            Statistics.DescriptiveStatistics.Percentile(sorted, 25),
+            Statistics.DescriptiveStatistics.Percentile(sorted, 50),
+            Statistics.DescriptiveStatistics.Percentile(sorted, 75),
+            sorted[^1]);
     }
 
     // ── Time series: date dimension + measure => Line / Area ──────────────────
@@ -111,7 +464,7 @@ public sealed class ChartRecommendationEngine
     }
 
     // ── Category comparison: dimension + measure => Column / Bar ───────────────
-    private IEnumerable<RecommendedChart> CategoryComparison(AnalyticsFindings findings)
+    private IEnumerable<RecommendedChart> CategoryComparison(AnalyticsFindings findings, bool preAggregated = false)
     {
         foreach (var g in findings.Groups)
         {
@@ -124,7 +477,9 @@ public sealed class ChartRecommendationEngine
 
             bool useBar = labels.Any(l => l.Length > 12) || count > 8;
             var type = useBar ? ChartType.Bar : ChartType.Column;
-            int score = 72 + (count is >= 3 and <= 10 ? 12 : 0);
+            // Pre-aggregated data is a per-entity summary, so a ranked comparison of each measure by
+            // entity is the headline chart — score it above the incidental cross-measure views.
+            int score = (preAggregated ? 84 : 72) + (count is >= 3 and <= 10 ? 12 : 0);
 
             string measureDisp = DisplayText.Humanize(g.Measure);
             string dimDisp     = DisplayText.Humanize(g.Dimension);
@@ -279,6 +634,19 @@ public sealed class ChartRecommendationEngine
 
         var labels = new List<string>(bins);
         var means = new List<double?>(bins);
+        int nonEmpty = 0, maxCount = 0;
+        for (int b = 0; b < bins; b++)
+        {
+            if (count[b] == 0) continue;
+            nonEmpty++;
+            if (count[b] > maxCount) maxCount = count[b];
+        }
+
+        // A relationship reads as a trend only when the points spread across several bands. One dense
+        // clump plus a lone outlier band (typical of heavily skewed counts) describes skew, not a
+        // relationship, and renders as a misleading 2-point line — so drop it.
+        if (nonEmpty < 3 || maxCount > 0.8 * n) return (new List<string>(), new List<double?>());
+
         for (int b = 0; b < bins; b++)
         {
             if (count[b] == 0) continue; // drop empty bands so the trend stays continuous
@@ -298,6 +666,11 @@ public sealed class ChartRecommendationEngine
 
             var (labels, counts) = Histogram(m.NumericValues, m.Numeric.Min, m.Numeric.Max);
             if (labels.Count == 0) continue;
+
+            // A histogram where one bin swallows almost everything (heavily skewed counts) renders as
+            // a single spike that conveys nothing — skip it rather than clutter the dashboard.
+            int total = counts.Sum();
+            if (total > 0 && counts.Max() > 0.85 * total) continue;
 
             int score = 60 + (Math.Abs(m.Numeric.Skewness) > 0.8 ? 12 : 0);
             string measureDisp = DisplayText.Humanize(m.Name);

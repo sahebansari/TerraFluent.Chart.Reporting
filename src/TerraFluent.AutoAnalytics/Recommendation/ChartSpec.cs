@@ -4,6 +4,37 @@ using Stacking = TerraFluent.Chart.Reporting.Enums.Stacking;
 
 namespace TerraFluent.AutoAnalytics.Recommendation;
 
+/// <summary>A low/high pair for range series (AreaRange, ColumnRange, ErrorBar).</summary>
+public readonly struct RangeValue
+{
+    public RangeValue(double low, double high) { Low = low; High = high; }
+    public double Low { get; }
+    public double High { get; }
+}
+
+/// <summary>A five-number summary for one box-and-whisker category.</summary>
+public readonly struct BoxValue
+{
+    public BoxValue(double low, double q1, double median, double q3, double high)
+    {
+        Low = low; Q1 = q1; Median = median; Q3 = q3; High = high;
+    }
+    public double Low { get; }
+    public double Q1 { get; }
+    public double Median { get; }
+    public double Q3 { get; }
+    public double High { get; }
+}
+
+/// <summary>One cell of a heatmap grid: a column/row address and the value driving its colour.</summary>
+public readonly struct HeatCell
+{
+    public HeatCell(int column, int row, double value) { Column = column; Row = row; Value = value; }
+    public int Column { get; }
+    public int Row { get; }
+    public double Value { get; }
+}
+
 /// <summary>A named data series within a <see cref="ChartSpec"/>.</summary>
 public sealed class SeriesSpec
 {
@@ -12,6 +43,24 @@ public sealed class SeriesSpec
 
     /// <summary>Single scalar for KPI/gauge specs.</summary>
     public double? ScalarValue { get; init; }
+
+    /// <summary>
+    /// Renders this series as a different type from the spec's own <see cref="ChartSpec.Type"/>.
+    /// Lets one chart combine forms — e.g. a forecast band (AreaRange) beneath its projection line.
+    /// </summary>
+    public ChartType? TypeOverride { get; init; }
+
+    /// <summary>Low/high pairs for AreaRange, ColumnRange and ErrorBar series.</summary>
+    public IReadOnlyList<RangeValue> RangeValues { get; init; } = new List<RangeValue>();
+
+    /// <summary>Five-number summaries for a BoxPlot series, one per category.</summary>
+    public IReadOnlyList<BoxValue> BoxValues { get; init; } = new List<BoxValue>();
+
+    /// <summary>Grid cells for a Heatmap series.</summary>
+    public IReadOnlyList<HeatCell> HeatCells { get; init; } = new List<HeatCell>();
+
+    /// <summary>Row labels for a Heatmap series; the columns come from <see cref="ChartSpec.Categories"/>.</summary>
+    public IReadOnlyList<string> RowLabels { get; init; } = new List<string>();
 }
 
 /// <summary>

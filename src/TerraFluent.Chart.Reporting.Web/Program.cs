@@ -31,7 +31,19 @@ contentTypes.Mappings[".json"] = "application/json; charset=utf-8";
 contentTypes.Mappings[".svg"]  = "image/svg+xml; charset=utf-8";
 
 app.UseDefaultFiles();
-app.UseStaticFiles(new StaticFileOptions { ContentTypeProvider = contentTypes });
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = contentTypes,
+    // Force the browser to revalidate JS/CSS/HTML every load so edits take effect without a hard
+    // refresh (the server still answers 304 when unchanged, so it stays cheap). The SPA's ES modules
+    // import each other by relative path, which a version query on the entry script can't cache-bust.
+    OnPrepareResponse = ctx =>
+    {
+        string ext = System.IO.Path.GetExtension(ctx.File.Name);
+        if (ext is ".js" or ".css" or ".html" or ".json")
+            ctx.Context.Response.Headers["Cache-Control"] = "no-cache, must-revalidate";
+    }
+});
 
 // ── Reverse proxy: forward every /api/** request to the upstream API ─────────────
 app.Map("/api/{**path}", async (HttpContext ctx, IHttpClientFactory factory) =>

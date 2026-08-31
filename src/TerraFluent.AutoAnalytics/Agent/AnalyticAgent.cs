@@ -49,9 +49,17 @@ public sealed class AnalyticAgent
         return Investigate(result, goal);
     }
 
-    /// <summary>Investigates an already-computed analysis result against a natural-language question.</summary>
+    /// <summary>
+    /// Investigates an already-computed analysis result against a natural-language question. Every
+    /// intent the question expresses is pursued, strongest first.
+    /// </summary>
     public InvestigationTrace Investigate(AnalyticsResult result, string? question)
-        => Investigate(result, GoalParser.Parse(question, result.Profile));
+    {
+        if (result is null) throw new ArgumentNullException(nameof(result));
+        return Investigate(result, GoalParser.ParseAll(question, result.Profile),
+            new HashSet<string>(StringComparer.Ordinal),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    }
 
     // ── Core planning loop ──────────────────────────────────────────────────────
 
@@ -72,9 +80,23 @@ public sealed class AnalyticAgent
     /// </summary>
     internal InvestigationTrace Investigate(
         AnalyticsResult result, AnalyticGoal goal, HashSet<string> executed, HashSet<string> priorTitles)
-    {
-        goal ??= AnalyticGoal.Explore();
+        => Investigate(result, new[] { goal ?? AnalyticGoal.Explore() }, executed, priorTitles);
 
+    /// <summary>
+    /// Core planner over a ranked set of seed goals — every intent the user's question expressed.
+    /// The first goal is the headline intent; the rest are pursued in order before the agent's own
+    /// evidence-driven follow-ups.
+    /// </summary>
+    internal InvestigationTrace Investigate(
+        AnalyticsResult result, IReadOnlyList<AnalyticGoal> goals,
+        HashSet<string> executed, HashSet<string> priorTitles)
+    {
+        var seeds = (goals is null || goals.Count == 0)
+            ? new List<AnalyticGoal> { AnalyticGoal.Explore() }
+            : goals.Where(g => g is not null).ToList();
+        if (seeds.Count == 0) seeds.Add(AnalyticGoal.Explore());
+
+        var goal = seeds[0];
         var context = AgentContext.FromResult(result);
 
         var steps = new List<InvestigationStep>();
@@ -82,7 +104,12 @@ public sealed class AnalyticAgent
         var charts = new List<RecommendedChart>();
 
         var queue = new Queue<AnalyticGoal>();
-        queue.Enqueue(goal);
+        var seedSet = new HashSet<AnalyticGoal>(ReferenceEqualityComparer.Instance);
+        foreach (var seed in seeds)
+        {
+            queue.Enqueue(seed);
+            seedSet.Add(seed);
+        }
 
         while (queue.Count > 0 && steps.Count < _maxSteps)
         {
@@ -90,7 +117,7 @@ public sealed class AnalyticAgent
 
             // The user's own directed question is always answered, even if an earlier turn already
             // ran it; only open-ended exploration and the agent's autonomous follow-ups de-duplicate.
-            bool answerDirectly = ReferenceEquals(current, goal) && current.Kind != GoalKind.Explore;
+            bool answerDirectly = seedSet.Contains(current) && current.Kind != GoalKind.Explore;
 
             foreach (var skill in _skills)
             {
@@ -151,7 +178,9 @@ public sealed class AnalyticAgent
             ? rankedInsights[0].Title
             : "No new findings for this question.";
 
-        string narrative = $"Investigated '{goal.Describe()}': ran {steps.Count} step(s), " +
+        // Name every intent the question raised, so a compound question reads as one investigation.
+        string intents = string.Join(" + ", seeds.Select(s => s.Describe()).Distinct(StringComparer.OrdinalIgnoreCase));
+        string narrative = $"Investigated '{intents}': ran {steps.Count} step(s), " +
                            $"surfaced {rankedInsights.Count} insight(s) and {uniqueCharts.Count} supporting chart(s).";
 
         return new InvestigationTrace

@@ -1,11 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using TerraFluent.AutoAnalytics.Agent;
 using TerraFluent.AutoAnalytics.Analytics;
+using TerraFluent.AutoAnalytics.Comparison;
+using TerraFluent.AutoAnalytics.Connectors;
+using TerraFluent.AutoAnalytics.Data.Connections;
 using TerraFluent.AutoAnalytics.Dashboard;
 using TerraFluent.AutoAnalytics.Data;
 using TerraFluent.AutoAnalytics.Data.Sources;
 using TerraFluent.AutoAnalytics.Engine;
 using TerraFluent.AutoAnalytics.Enums;
+using TerraFluent.AutoAnalytics.Insights;
+using TerraFluent.AutoAnalytics.Recommendation;
 using TerraFluent.Chart.Reporting.Api.Models;
 using TerraFluent.Chart.Reporting.Api.Rendering;
 using TerraFluent.Chart.Reporting.Api.Services;
@@ -26,13 +31,32 @@ public sealed class AnalyticsController : ControllerBase
     private readonly AnalyticsEngine _engine;
     private readonly AnalyticAgent _agent;
     private readonly SessionStore _sessions;
+    private readonly ConnectionResolver _connections;
 
-    public AnalyticsController(AnalyticsEngine engine, AnalyticAgent agent, SessionStore sessions)
+    public AnalyticsController(
+        AnalyticsEngine engine, AnalyticAgent agent, SessionStore sessions, ConnectionResolver connections)
     {
         _engine = engine;
         _agent = agent;
         _sessions = sessions;
+        _connections = connections;
     }
+
+    // ── Connections ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Lists the live data connections an operator has configured on this server.
+    /// </summary>
+    /// <remarks>
+    /// Only the name, kind, description and row cap are returned — never the target URL, connection
+    /// string or any credential, which stay in server configuration. Use a returned <c>name</c> as
+    /// <c>connectionName</c> on any analytics endpoint to pull that source instead of sending data
+    /// inline. Returns an empty list when no connections are configured.
+    /// </remarks>
+    [HttpGet("connections")]
+    [ProducesResponseType(typeof(IReadOnlyList<ConnectionDescriptorDto>), StatusCodes.Status200OK)]
+    public IActionResult Connections() =>
+        Ok(_connections.List().Select(ConnectionDescriptorDto.From).ToList());
 
     // ── Full analysis ─────────────────────────────────────────────────────────
 
@@ -54,13 +78,13 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(AnalyticsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult Analyze([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false,
+    public async Task<IActionResult> Analyze([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
-        var result = RunAnalysis(request, ct);
-        return Ok(AnalyticsResponse.From(result, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+        var result = await RunAnalysisAsync(request, ct);
+        return Ok(AnalyticsResponse.From(result, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     /// <summary>
@@ -72,13 +96,13 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult AnalyzeHtml([FromBody] AnalyzeRequest request,
+    public async Task<IActionResult> AnalyzeHtml([FromBody] AnalyzeRequest request,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
-        var result = RunAnalysis(request, ct);
-        return Content(AnalyzeHtmlRenderer.Render(result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)), "text/html");
+        var result = await RunAnalysisAsync(request, ct);
+        return Content(AnalyzeHtmlRenderer.Render(result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)), "text/html");
     }
 
     /// <summary>
@@ -98,15 +122,17 @@ public sealed class AnalyticsController : ControllerBase
         [FromQuery] int? maxRecommendations = null,
         [FromQuery] int? maxGroupCombinations = null,
         [FromQuery] double? zScoreThreshold = null,
+        [FromQuery] bool preAggregated = false,
         [FromQuery] bool throwOnValidationError = false,
         CancellationToken ct = default)
     {
         string data = await ReadBodyAsync(ct);
-        var result = RunAnalysis(new AnalyzeRequest
+        var result = await RunAnalysisAsync(new AnalyzeRequest
         {
             Data = data, Format = AnalyzeFormat.Csv, DatasetName = datasetName, Filter = filter,
             MaxInsights = maxInsights, MaxRecommendations = maxRecommendations,
             MaxGroupCombinations = maxGroupCombinations, ZScoreThreshold = zScoreThreshold,
+            PreAggregated = preAggregated,
             ThrowOnValidationError = throwOnValidationError
         }, ct);
         return Ok(AnalyticsResponse.From(result, includeSvg));
@@ -129,18 +155,66 @@ public sealed class AnalyticsController : ControllerBase
         [FromQuery] int? maxRecommendations = null,
         [FromQuery] int? maxGroupCombinations = null,
         [FromQuery] double? zScoreThreshold = null,
+        [FromQuery] bool preAggregated = false,
         [FromQuery] bool throwOnValidationError = false,
         CancellationToken ct = default)
     {
         string data = await ReadBodyAsync(ct);
-        var result = RunAnalysis(new AnalyzeRequest
+        var result = await RunAnalysisAsync(new AnalyzeRequest
         {
             Data = data, Format = AnalyzeFormat.Json, DatasetName = datasetName, Filter = filter,
             MaxInsights = maxInsights, MaxRecommendations = maxRecommendations,
             MaxGroupCombinations = maxGroupCombinations, ZScoreThreshold = zScoreThreshold,
+            PreAggregated = preAggregated,
             ThrowOnValidationError = throwOnValidationError
         }, ct);
         return Ok(AnalyticsResponse.From(result, includeSvg));
+    }
+
+    // ── Conversion ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Normalises an uploaded <c>.xlsx</c> workbook into CSV text. POST the raw file bytes as the
+    /// request body; the first worksheet is read with its first row as the header.
+    /// </summary>
+    /// <remarks>
+    /// The returned <c>data</c> can be fed straight into any other analytics endpoint. Use this when
+    /// you hold the file bytes; to send a workbook inline instead, base64-encode it and post it with
+    /// <c>"format": "xlsx"</c>.
+    /// Excel stores dates as styled serial numbers, so date columns may arrive as plain numbers —
+    /// format them as text in the workbook if reliable date typing matters.
+    /// </remarks>
+    [HttpPost("convert/xlsx")]
+    [Consumes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream")]
+    [ProducesResponseType(typeof(ConversionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ConvertXlsx([FromQuery] string? datasetName = null, CancellationToken ct = default)
+    {
+        byte[] bytes = await ReadBodyBytesAsync(ct);
+        if (bytes.Length == 0)
+            throw new ArgumentException("Request body must contain the .xlsx file bytes.");
+
+        Dataset dataset;
+        try
+        {
+            dataset = new XlsxDataSource(bytes, datasetName).Load();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or System.Xml.XmlException)
+        {
+            throw new ArgumentException("The uploaded file is not a readable .xlsx workbook.", ex);
+        }
+
+        if (dataset.ColumnCount == 0)
+            throw new ArgumentException("The workbook's first worksheet has no header row to read.");
+
+        return Ok(new ConversionResponse
+        {
+            DatasetName = dataset.Name,
+            Format      = AnalyzeFormat.Csv,
+            Data        = CsvSerializer.ToCsv(dataset),
+            RowCount    = dataset.RowCount,
+            ColumnCount = dataset.ColumnCount
+        });
     }
 
     // ── Focused slices ────────────────────────────────────────────────────────
@@ -150,9 +224,9 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(InsightsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult Insights([FromBody] AnalyzeRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> Insights([FromBody] AnalyzeRequest request, CancellationToken ct = default)
     {
-        var result = RunAnalysis(request, ct);
+        var result = await RunAnalysisAsync(request, ct);
         return Ok(new InsightsResponse
         {
             Summary = SummaryDto.From(result.Summary),
@@ -164,9 +238,9 @@ public sealed class AnalyticsController : ControllerBase
     [HttpPost("validate")]
     [ProducesResponseType(typeof(ValidationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public IActionResult Validate([FromBody] AnalyzeRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> Validate([FromBody] AnalyzeRequest request, CancellationToken ct = default)
     {
-        var result = RunAnalysis(request, ct);
+        var result = await RunAnalysisAsync(request, ct);
         return Ok(ValidationDto.From(result.Validation));
     }
 
@@ -188,14 +262,14 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(AskResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult Ask([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false,
+    public async Task<IActionResult> Ask([FromBody] AnalyzeRequest request, [FromQuery] bool includeSvg = false,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
-        var result = RunAnalysis(request, ct);
+        var result = await RunAnalysisAsync(request, ct);
         var trace = _agent.Investigate(result, request.Question);
-        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     // ── Sessions (multi-turn agent) ───────────────────────────────────────────
@@ -209,9 +283,9 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(SessionCreatedResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult CreateSession([FromBody] AnalyzeRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> CreateSession([FromBody] AnalyzeRequest request, CancellationToken ct = default)
     {
-        var result = RunAnalysis(request, ct);
+        var result = await RunAnalysisAsync(request, ct);
         var session = _agent.StartSession(result);
         string id = _sessions.Add(session);
         return Ok(new SessionCreatedResponse { SessionId = id, Summary = SummaryDto.From(result.Summary) });
@@ -225,13 +299,13 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult AskSession(string id, [FromBody] SessionAskRequest request, [FromQuery] bool includeSvg = false,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null)
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null)
     {
         var session = _sessions.Get(id)
             ?? throw new KeyNotFoundException($"No active session with id '{id}'.");
 
         var trace = session.Ask(request?.Question);
-        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+        return Ok(AskResponse.From(trace, includeSvg, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     // ── Aggregation ───────────────────────────────────────────────────────────
@@ -249,7 +323,7 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(AggregationResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult Aggregate(
+    public async Task<IActionResult> Aggregate(
         [FromBody] AnalyzeRequest request,
         [FromQuery] string measure,
         [FromQuery] string dimension,
@@ -260,13 +334,66 @@ public sealed class AnalyticsController : ControllerBase
         if (string.IsNullOrWhiteSpace(measure) || string.IsNullOrWhiteSpace(dimension))
             throw new ArgumentException("Both 'measure' and 'dimension' query parameters are required.");
 
-        var result = RunAnalysis(request, ct);
+        var result = await RunAnalysisAsync(request, ct);
         var aggregation2 = new AggregationEngine()
             .GroupBy(result.Profile, measure, dimension, secondDimension, aggregation)
             ?? throw new ArgumentException(
                 "Could not aggregate: check that the measure and dimension column names exist in the data.");
 
         return Ok(AggregationResponse.From(aggregation2));
+    }
+
+    // ── Comparison ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Diffs two datasets: structural changes, how each shared measure moved, and how the category
+    /// mix shifted — with ranked insights and supporting charts.
+    /// </summary>
+    /// <remarks>
+    /// Supply both sides inline; each is analysed independently and neither is retained:
+    /// ```json
+    /// {
+    ///   "baseline": { "datasetName": "Q1", "data": "Month,Region,Revenue\n..." },
+    ///   "current":  { "datasetName": "Q2", "data": "Month,Region,Revenue\n..." }
+    /// }
+    /// ```
+    /// Additive measures are compared on totals and per-row attributes on averages. Columns present
+    /// on only one side are reported rather than silently dropped. Set <c>?includeSvg=true</c> to
+    /// embed a rendered SVG for each supporting chart.
+    /// </remarks>
+    [HttpPost("compare")]
+    [ProducesResponseType(typeof(CompareResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Compare([FromBody] CompareRequest request, [FromQuery] bool includeSvg = false,
+        [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
+        CancellationToken ct = default)
+    {
+        var (comparison, insights, charts) = await RunComparisonAsync(request, ct);
+        return Ok(CompareResponse.From(comparison, insights, charts, includeSvg,
+            ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
+    }
+
+    /// <summary>
+    /// Diffs two datasets and returns a complete, self-contained HTML page ready to display in a
+    /// browser or embed in a report.
+    /// </summary>
+    [HttpPost("compare/html")]
+    [Produces("text/html")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> CompareHtml([FromBody] CompareRequest request,
+        [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
+        CancellationToken ct = default)
+    {
+        var (comparison, insights, charts) = await RunComparisonAsync(request, ct);
+        return Content(
+            CompareHtmlRenderer.Render(comparison, insights, charts,
+                ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)),
+            "text/html");
     }
 
     // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -278,14 +405,14 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(DashboardResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult Dashboard([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4,
+    public async Task<IActionResult> Dashboard([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
-        var result = RunAnalysis(request, ct);
+        var result = await RunAnalysisAsync(request, ct);
         var dashboard = DashboardBuilder.Generate(result, maxKpis);
-        return Ok(DashboardResponse.From(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)));
+        return Ok(DashboardResponse.From(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)));
     }
 
     /// <summary>
@@ -297,22 +424,44 @@ public sealed class AnalyticsController : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public IActionResult DashboardHtml([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4,
+    public async Task<IActionResult> DashboardHtml([FromBody] AnalyzeRequest request, [FromQuery] int maxKpis = 4,
         [FromQuery] string? theme = null, [FromQuery] string? renderMode = null,
-        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null,
+        [FromQuery] bool? exportMenu = null, [FromQuery] bool? gridLines = null, [FromQuery] bool? dataLabels = null, [FromQuery] string? legend = null, [FromQuery] double? fontScale = null, [FromQuery] string? background = null,
         CancellationToken ct = default)
     {
-        var result = RunAnalysis(request, ct);
+        var result = await RunAnalysisAsync(request, ct);
         var dashboard = DashboardBuilder.Generate(result, maxKpis);
-        return Content(DashboardHtmlRenderer.Render(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines)), "text/html");
+        return Content(DashboardHtmlRenderer.Render(dashboard, result, ChartStyle.FromQuery(theme, renderMode, exportMenu, gridLines, dataLabels, legend, fontScale, background)), "text/html");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private AnalyticsResult RunAnalysis(AnalyzeRequest request, CancellationToken ct = default)
+    // Analyses both sides independently, then diffs them. Neither dataset outlives the request.
+    private async Task<(DatasetComparison Comparison, IReadOnlyList<Insight> Insights, IReadOnlyList<RecommendedChart> Charts)>
+        RunComparisonAsync(CompareRequest request, CancellationToken ct)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.Data))
-            throw new ArgumentException("Request body must include non-empty 'data' to analyse.");
+        if (request is null)
+            throw new ArgumentException("Request body must include a 'baseline' and a 'current' dataset.");
+
+        // Both sides must be analysed under the same mode, or their column classifications diverge
+        // and the diff reports artefacts of the mode rather than real differences. The "already
+        // summarized" flag is only exposed on the active (current) dataset, so carry it to the baseline.
+        if (request.Current?.PreAggregated == true && request.Baseline is not null)
+            request.Baseline.PreAggregated = true;
+
+        var baseline = await RunAnalysisAsync(request.Baseline, ct);
+        var current = await RunAnalysisAsync(request.Current, ct);
+
+        var comparison = new DatasetComparisonEngine().Compare(baseline, current);
+        return (comparison, ComparisonNarrator.Insights(comparison), ComparisonNarrator.Charts(comparison));
+    }
+
+    private async Task<AnalyticsResult> RunAnalysisAsync(AnalyzeRequest request, CancellationToken ct = default)
+    {
+        bool usesConnection = !string.IsNullOrWhiteSpace(request?.ConnectionName);
+        if (request is null || (!usesConnection && string.IsNullOrWhiteSpace(request.Data)))
+            throw new ArgumentException(
+                "Request body must include non-empty 'data', or a 'connectionName' to pull it from.");
 
         ct.ThrowIfCancellationRequested();
 
@@ -337,16 +486,31 @@ public sealed class AnalyticsController : ControllerBase
             Ensure(z is >= 0.1 and <= 10.0, "zScoreThreshold must be between 0.1 and 10.");
             options.ZScoreThreshold = z;
         }
+        options.PreAggregated = request.PreAggregated ?? false;
         options.ThrowOnValidationError = request.ThrowOnValidationError;
 
-        IDataSource source = ResolveFormat(request) switch
+        // A named connection pulls the rows from a server-configured source; otherwise they came
+        // inline with the request. Either way the dataset lives only for this call.
+        Dataset loaded;
+        if (usesConnection)
         {
-            AnalyzeFormat.Json => new JsonDataSource(request.Data),
-            _                  => new CsvDataSource(request.Data)
-        };
+            options.DatasetName ??= request.ConnectionName;
+            var live = _connections.Resolve(request.ConnectionName!);
+            loaded = await live.LoadAsync(ct).ConfigureAwait(false);
+        }
+        else
+        {
+            IDataSource source = ResolveFormat(request) switch
+            {
+                AnalyzeFormat.Json => new JsonDataSource(request.Data),
+                AnalyzeFormat.Xlsx => new XlsxDataSource(DecodeXlsx(request.Data), request.DatasetName),
+                _                  => new CsvDataSource(request.Data)
+            };
+            loaded = source.Load();
+        }
 
         // Optional row filter applied before analysis (AND-combined conditions).
-        var dataset = SliceExpression.Parse(request.Filter).Apply(source.Load());
+        var dataset = SliceExpression.Parse(request.Filter).Apply(loaded);
         ct.ThrowIfCancellationRequested();
         return _engine.Run(dataset, options);
     }
@@ -357,19 +521,42 @@ public sealed class AnalyticsController : ControllerBase
         if (!condition) throw new ArgumentException(message);
     }
 
-    // Auto-detects CSV vs JSON when the caller did not specify a concrete format.
+    // Auto-detects CSV, JSON or base64 XLSX when the caller did not specify a concrete format.
     private static AnalyzeFormat ResolveFormat(AnalyzeRequest request)
     {
         if (request.Format != AnalyzeFormat.Auto) return request.Format;
         string trimmed = request.Data.TrimStart();
-        return trimmed.StartsWith('[') || trimmed.StartsWith('{')
-            ? AnalyzeFormat.Json
-            : AnalyzeFormat.Csv;
+        if (trimmed.StartsWith('[') || trimmed.StartsWith('{')) return AnalyzeFormat.Json;
+        // Every .xlsx is a ZIP, whose "PK\x03\x04" signature base64-encodes to the "UEsDB" prefix.
+        if (trimmed.StartsWith("UEsDB", StringComparison.Ordinal)) return AnalyzeFormat.Xlsx;
+        return AnalyzeFormat.Csv;
+    }
+
+    // Decodes a base64 .xlsx payload, surfacing a 400 rather than a 500 on malformed input.
+    private static byte[] DecodeXlsx(string data)
+    {
+        try
+        {
+            return Convert.FromBase64String(data.Trim());
+        }
+        catch (FormatException)
+        {
+            throw new ArgumentException(
+                "Format 'xlsx' expects 'data' to be a base64-encoded .xlsx workbook. " +
+                "To upload the raw bytes instead, POST them to /api/analytics/convert/xlsx.");
+        }
     }
 
     private async Task<string> ReadBodyAsync(CancellationToken ct = default)
     {
         using var reader = new StreamReader(Request.Body);
         return await reader.ReadToEndAsync(ct);
+    }
+
+    private async Task<byte[]> ReadBodyBytesAsync(CancellationToken ct = default)
+    {
+        using var buffer = new MemoryStream();
+        await Request.Body.CopyToAsync(buffer, ct);
+        return buffer.ToArray();
     }
 }

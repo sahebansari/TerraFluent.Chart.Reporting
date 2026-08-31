@@ -81,7 +81,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
         }
 
         private static void AppendLegend(StringBuilder sb, ChartOptions options,
-            int svgWidth, int svgHeight, int plotHeight, string clipId, int bottomPad = PaddingBottom, int labelVertH = 0, int topLegendOffset = 0)
+            int svgWidth, int svgHeight, int plotHeight, string clipId, int bottomPad = PaddingBottom, int labelVertH = 0, int topLegendOffset = 0, int titleExtraH = 0)
         {
             var leg = options.Legend;
             int    padding  = leg.Padding;
@@ -212,7 +212,8 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 // Legend sits in the gap between title/subtitle and the (shifted) plot area.
                 bool hasTitle    = !string.IsNullOrEmpty(options.Title?.Text);
                 bool hasSubtitle = !string.IsNullOrEmpty(options.Subtitle?.Text);
-                double headerBottom = hasSubtitle ? 44.0 : (hasTitle ? 28.0 : 4.0);
+                // A wrapped title occupies extra lines, so drop the legend below them.
+                double headerBottom = (hasSubtitle ? 44.0 : (hasTitle ? 28.0 : 4.0)) + titleExtraH;
                 blockY = headerBottom + margin + leg.Y;
             }
             else if (string.Equals(vAlign, "middle", StringComparison.OrdinalIgnoreCase))
