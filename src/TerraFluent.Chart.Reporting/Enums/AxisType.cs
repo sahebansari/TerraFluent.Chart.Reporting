@@ -1,7 +1,7 @@
 namespace TerraFluent.Chart.Reporting.Enums
 {
     /// <summary>
-    /// The scale type applied to an axis. Mirrors HighCharts <c>xAxis.type</c> / <c>yAxis.type</c>.
+    /// The scale type applied to an axis.
     /// </summary>
     public enum AxisType
     {

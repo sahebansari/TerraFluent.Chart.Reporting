@@ -753,7 +753,7 @@ namespace TerraFluent.Chart.Reporting.Builder
         /// <param name="color">Stroke colour. Defaults to red (<c>#FF0000</c>).</param>
         /// <param name="width">Stroke width in pixels. Default 1.</param>
         /// <param name="label">Optional label shown at the right edge of the line.</param>
-        /// <param name="dashStyle">Optional HighCharts-style dash style (e.g. <c>"Dash"</c>, <c>"Dot"</c>).</param>
+        /// <param name="dashStyle">Optional dash style (e.g. <c>"Dash"</c>, <c>"Dot"</c>).</param>
         public ChartBuilder PlotLine(double value, string color = ChartColor.Red, int width = 1, string? label = null, string? dashStyle = null)
         {
             if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width), width, "PlotLine width must be greater than zero.");

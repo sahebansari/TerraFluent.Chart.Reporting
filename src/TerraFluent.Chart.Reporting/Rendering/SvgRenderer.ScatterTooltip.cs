@@ -295,7 +295,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             if (tooltip.ShowArrow)
                 sb.AppendLine($"    <polygon class=\"tooltip-bg\" points=\"{F(ntx - NotchW / 2)},{F(nty)} {F(ntx + NotchW / 2)},{F(nty)} {F(ntx)},{F(nty + NotchH)}\"/>");
 
-            // ── Color bullet (Highcharts-style series swatch) ────────────────────────────
+            // ── Color bullet (series swatch) ────────────────────────────
             if (hasBullet)
             {
                 // Bullet sits on the point text line (single) or second line (multi)

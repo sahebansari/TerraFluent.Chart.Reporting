@@ -83,7 +83,7 @@ namespace TerraFluent.Chart.Reporting.Models
         /// Default <c>true</c>. Only active in Animated and Interactive render modes.
         /// </summary>
         public bool Crosshair { get; set; } = true;
-        /// <summary>Stroke colour of the crosshair line. Default Highcharts-style light blue-grey.</summary>
+        /// <summary>Stroke colour of the crosshair line. Default light blue-grey.</summary>
         public string CrosshairColor { get; set; } = "rgba(204,214,235,0.50)";
         /// <summary>Stroke width (px) of the crosshair line. Default 1.</summary>
         public int CrosshairWidth { get; set; } = 1;
@@ -91,7 +91,7 @@ namespace TerraFluent.Chart.Reporting.Models
         // ---- shared & follow-pointer ----
         /// <summary>
         /// When <c>true</c> and <see cref="Enums.SvgMode.Interactive"/>, a single tooltip box
-        /// shows all series values at the same x-index (Highcharts <em>shared</em> style).
+        /// shows all series values at the same x-index (shared-tooltip style).
         /// Default <c>false</c>.
         /// </summary>
         public bool Shared { get; set; } = false;

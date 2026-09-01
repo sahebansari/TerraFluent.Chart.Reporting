@@ -16,14 +16,14 @@
     <!-- NuGet Package Metadata -->
     <PackageId>TerraFluent.Chart.Reporting</PackageId>
     <Version>1.0.0</Version>
-    <Authors>TerraFluent</Authors>
+    <Authors>Saheb Ansari, TerraFluent</Authors>
     <Company>TerraFluent</Company>
-    <Copyright>Copyright © TerraFluent 2025</Copyright>
-    <Description>A fluent C# library for generating SVG charts — server-side, zero JavaScript dependency. Inspired by the HighCharts API design. Supports Line, Spline, Bar, Column, Area, Pie, Scatter, Waterfall, Gauge, and DataRing chart types across Static, Animated, and Interactive render modes.</Description>
-    <PackageTags>svg;chart;reporting;fluent;highcharts;dotnet;server-side;blazor;pdf;email</PackageTags>
+    <Copyright>Copyright © Saheb Ansari 2026</Copyright>
+    <Description>A fluent C# library for generating SVG charts — server-side, with zero JavaScript and zero external dependencies. 26 chart types including Line, Spline, Area, Column, Bar, Pie/Donut, Scatter, Bubble, Heatmap, Waterfall, Gauge, DataRing, Radar, BoxPlot, Candlestick, OHLC, Funnel, Treemap, Gantt, Sankey and Parliament, across Static, Animated, and Interactive render modes.</Description>
+    <PackageTags>svg;chart;reporting;fluent;dotnet;server-side;blazor;pdf;email</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/TerraFluent/TerraFluent.Chart.Reporting</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TerraFluent/TerraFluent.Chart.Reporting</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/sahebansari/TerraFluent.Chart.Reporting</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sahebansari/TerraFluent.Chart.Reporting</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Initial release — fluent SVG chart generation with zero external dependencies.</PackageReleaseNotes>
@@ -33,7 +33,6 @@
     <!-- Reproducible / auditable builds -->
     <Deterministic>true</Deterministic>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
 
     <!-- Symbol package (snupkg) for consumer debuggability -->
     <IncludeSymbols>true</IncludeSymbols>

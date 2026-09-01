@@ -1,605 +1,602 @@
 # API Reference
 
-Complete method reference for every builder in TerraFluent.Chart.Reporting.
+A complete method reference for every public builder, enum, theme, and data type in TerraFluent.Chart.Reporting.
+
+All fluent methods return the builder they were called on, so every call can be chained. Unless noted otherwise, methods validate their arguments and throw `ArgumentException` / `ArgumentOutOfRangeException` / `ArgumentNullException` on invalid input.
+
+> **Namespaces**
+> - Builders: `TerraFluent.Chart.Reporting.Builder`
+> - Models & data types: `TerraFluent.Chart.Reporting.Models`
+> - Enums: `TerraFluent.Chart.Reporting.Enums`
+
+---
+
+## Contents
+
+- [ChartBuilder](#chartbuilder) — the fluent entry point
+- [Series (ChartSeriesBuilder)](#series-chartseriesbuilder) — adding data series
+- [SeriesBuilder](#seriesbuilder) — per-series styling
+- [LegendBuilder](#legendbuilder)
+- [TooltipBuilder](#tooltipbuilder)
+- [AnimationBuilder](#animationbuilder)
+- [AnnotationBuilder](#annotationbuilder)
+- [LabelLayoutBuilder](#labellayoutbuilder)
+- [DataLabelOptions](#datalabeloptions)
+- [DonutCenterOptions](#donutcenteroptions)
+- [Enums](#enums)
+- [ChartTheme](#charttheme)
+- [ChartColor](#chartcolor)
+- [Data-point types](#data-point-types)
+- [IChartBuilder](#ichartbuilder)
 
 ---
 
 ## ChartBuilder
 
-Entry point: `ChartBuilder.Create()`
+`TerraFluent.Chart.Reporting.Builder.ChartBuilder`
 
-### Factory
+The fluent entry point for building a chart. Create one with `ChartBuilder.Create()`.
+
+### Creating a builder
 
 | Method | Returns | Description |
 |---|---|---|
-| `ChartBuilder.Create()` | `ChartBuilder` | Creates a new builder with the default `SvgRenderer`. |
-| `ChartBuilder.Create(ISvgRenderer)` | `ChartBuilder` | Creates a new builder with a custom renderer. |
-| `Fork()` | `ChartBuilder` | Returns a deep-copy of the current builder state. Subsequent changes to either builder are independent. |
+| `ChartBuilder.Create()` | `ChartBuilder` | Creates a fresh builder with the default renderer. |
+| `ChartBuilder.Create(ISvgRenderer renderer)` | `ChartBuilder` | Creates a builder with a custom renderer implementation. |
+| `ChartBuilder.FromJson(string json)` | `ChartBuilder` | Rehydrates a builder from serialized `ChartOptions` JSON. *(net6.0+ only)* |
 
----
+### Chart type (default for `Add`)
 
-### Chart Type (default type for `.Series(s => s.Add(…))`)
+These set the fallback type used by the generic `Series(s => s.Add(...))` method. Prefer the typed `AddLine`/`AddColumn`/… helpers instead.
 
-> These methods set the fallback type used by the generic `Add()` method only.  
-> Typed helpers like `AddLine`, `AddColumn`, `AddArea` always use their own explicit type.
+`AsPie()` · `AsLine()` · `AsArea()` · `AsColumn()` · `AsBar()` · `AsSpline()` · `AsScatter()` · `AsWaterfall()` · `AsGauge()` · `AsDataRing()` · `AsBubble()` · `AsHeatmap()` · `AsColumnRange()` · `AsAreaRange()` · `AsFunnel()` · `AsTreemap()` · `AsDumbbell()` · `AsStream()` · `AsGantt()` · `AsSankey()`
 
-| Method | Chart type set |
-|---|---|
-| `AsLine()` | `ChartType.Line` |
-| `AsSpline()` | `ChartType.Spline` |
-| `AsArea()` | `ChartType.Area` |
-| `AsColumn()` | `ChartType.Column` |
-| `AsBar()` | `ChartType.Bar` |
-| `AsPie()` | `ChartType.Pie` |
-| `AsScatter()` | `ChartType.Scatter` |
-| `AsWaterfall()` | `ChartType.Waterfall` |
-| `AsGauge()` | `ChartType.Gauge` |
-| `AsDataRing()` | `ChartType.DataRing` |
-| `AsBubble()` | `ChartType.Bubble` |
-| `AsHeatmap()` | `ChartType.Heatmap` |
-| `AsColumnRange()` | `ChartType.ColumnRange` |
-| `AsAreaRange()` | `ChartType.AreaRange` |
-| `AsFunnel()` | `ChartType.Funnel` |
-| `AsTreemap()` | `ChartType.Treemap` |
-
----
-
-### Render Mode
+### Render mode
 
 | Method | Description |
 |---|---|
-| `AsStatic()` | No CSS hover, no JS, no SMIL. Safe for PDF and email. Also disables animation. |
-| `AsAnimated()` | SMIL/CSS animations, no JS. Suitable for Blazor and browser embedding. |
-| `AsInteractive()` | CSS hover + embedded JS interactions. Browser-only. |
+| `AsStatic()` | Pure SVG — no CSS hover, no JS, no animation. Safe for PDF and email. Also disables animation. |
+| `AsAnimated()` | SVG + CSS hover + SMIL animation. No JavaScript. Ideal for Blazor and browser embedding. |
+| `AsInteractive()` | SVG + CSS + embedded JavaScript (tooltips, legend toggle, export, drill-down). Browser only. |
 
----
-
-### Canvas
-
-| Method | Parameters | Description |
-|---|---|---|
-| `Size(width, height)` | `int, int` | Sets width and height in pixels. Both must be > 0. |
-| `Width(width)` | `int?` | Sets only width. Pass `null` for responsive (fluid) width. |
-| `Height(height)` | `int` | Sets only height. Must be > 0. |
-| `ResponsiveWidth()` | — | Clears fixed width → SVG renders with `width="100%"`. |
-| `Background(color)` | `string` | Overrides the active theme's background colour. |
-
----
-
-### Title & Subtitle
+### Dimensions & background
 
 | Method | Description |
 |---|---|
-| `Title(string)` | Sets title text. Pass `null` or empty to hide. |
-| `Title(Action<ChartTitle>)` | Full title config (text, alignment, custom CSS style). |
-| `Subtitle(string)` | Sets subtitle text below the title. |
-| `Subtitle(Action<ChartTitle>)` | Full subtitle config. |
+| `Size(int width, int height)` | Sets width and height in pixels. |
+| `Width(int? width)` | Sets width; pass `null` for responsive (`width="100%"`). |
+| `Height(int height)` | Sets height. |
+| `ResponsiveWidth()` | Clears the fixed width — SVG renders at `width="100%"`. |
+| `Responsive(bool responsive = true)` | Alias for `ResponsiveWidth()`. |
+| `Background(string color)` | Sets the chart background colour. |
 
-**`ChartTitle` properties** (used in the lambda overloads):
-
-| Property | Type | Description |
-|---|---|---|
-| `Text` | `string?` | Title text. |
-| `Align` | `string` | `"left"`, `"center"` (default), or `"right"`. |
-| `Style` | `string?` | Inline CSS applied to the title `<text>` element. |
-
----
-
-### Theme & Colors
+### Theme & palette
 
 | Method | Description |
 |---|---|
-| `Theme(ChartTheme)` | Applies a complete theme (background, palette, fonts). |
-| `Colors(params string[])` | Overrides the palette colour array without changing the rest of the theme. |
-| `Colors(IEnumerable<string>)` | Same but accepts any enumerable (e.g. from a database). |
+| `Theme(ChartTheme theme)` | Applies a built-in or custom theme. |
+| `Colors(params string[] colors)` | Overrides the series palette. |
+| `Colors(IEnumerable<string> colors)` | Overrides the series palette from any enumerable. |
+| `StackNormal()` | Stacks Column/Area/Bar series cumulatively. |
+| `StackPercent()` | Stacks series normalised to 100 %. |
 
-**Built-in themes:** `ChartTheme.Default`, `ChartTheme.Dark`, `ChartTheme.Pastel`, `ChartTheme.Monochrome`
-
-See [Themes & Styling](themes-and-styling.md) for details.
-
----
-
-### Stacking
+### Title & subtitle
 
 | Method | Description |
 |---|---|
-| `StackNormal()` | Column and Area series stack cumulatively (totals visible). |
-| `StackPercent()` | Column and Area series normalise to 100 % of the total per category. |
-
----
+| `Title(string text)` | Sets the title text. |
+| `Title(Action<ChartTitle> configure)` | Configures the title (text, alignment, style). |
+| `Subtitle(string text)` | Sets the subtitle text. |
+| `Subtitle(Action<ChartTitle> configure)` | Configures the subtitle. |
 
 ### Axes
 
-#### X-Axis
+| Method | Description |
+|---|---|
+| `Labels(params string[] labels)` | Sets slice or X-axis category labels. |
+| `XAxis(Action<Axis> configure)` | Configures the X-axis. |
+| `XAxis(string title, params string[] categories)` | Sets X-axis title + category labels. |
+| `XAxisFormat(string format)` | X-axis tick-label format string, e.g. `"{value} kg"`. |
+| `XAxisTickInterval(double interval)` | X-axis tick interval in data units (> 0). |
+| `XAxisDateTime(IEnumerable<DateTime> values, string? format = null)` | Uses a datetime X-axis with auto tick thinning. |
+| `YAxis(Action<Axis> configure)` | Configures the primary Y-axis. |
+| `YAxis(string title, double? min = null, double? max = null)` | Sets Y-axis title + optional bounds. |
+| `YAxisFormat(string format)` | Y-axis tick-label format string. |
+| `YAxisTickInterval(double interval)` | Y-axis tick interval in data units (> 0). |
+| `YAxisLogarithmic()` | Switches the primary Y-axis to a logarithmic scale. |
+| `YAxisInverted(bool inverted = true)` | Inverts the primary Y-axis direction. |
+| `YAxis2(Action<Axis> configure)` | Configures the secondary (right-hand) Y-axis. |
+| `YAxis2Logarithmic()` | Logarithmic scale on the secondary Y-axis. |
+| `YAxis2Inverted(bool inverted = true)` | Inverts the secondary Y-axis. |
+| `GridLines(bool visible = true)` | Shows/hides plot grid lines. |
+| `HideGridLines()` | Hides plot grid lines. |
+
+### Plot bands & lines
 
 | Method | Description |
 |---|---|
-| `XAxis(Action<Axis>)` | Full X-axis config via lambda. |
-| `XAxis(string title, params string[] categories)` | Shorthand: set title + categories in one call. |
-| `Labels(params string[])` | Alternative shorthand — sets categories only (no title). |
-| `XAxisFormat(string)` | Tick-label format string, e.g. `"{value}%"`. |
-| `XAxisTickInterval(double)` | Distance between ticks in data units. Must be > 0. |
+| `PlotBand(double from, double to, string color = "rgba(68,170,213,0.15)", string? label = null)` | Adds a shaded reference band on the primary Y-axis. |
+| `PlotLine(double value, string color = ChartColor.Red, int width = 1, string? label = null, string? dashStyle = null)` | Adds a reference line on the primary Y-axis. |
 
-#### Y-Axis (primary)
+### Legend & tooltip
 
 | Method | Description |
 |---|---|
-| `YAxis(Action<Axis>)` | Full Y-axis config via lambda. |
-| `YAxis(string title, double? min, double? max)` | Shorthand: title + optional scale bounds. |
-| `YAxisFormat(string)` | Tick-label format string, e.g. `"${value}k"`. |
-| `YAxisTickInterval(double)` | Distance between ticks in data units. Must be > 0. |
-
-#### Y-Axis2 (secondary, right side)
-
-| Method | Description |
-|---|---|
-| `YAxis2(Action<Axis>)` | Configures the right-hand Y-axis. Creates it if it doesn't exist. |
-
-Bind a series to the secondary axis with `cfg.OnSecondaryAxis()` inside `AddLine(…, cfg => cfg.OnSecondaryAxis())`.
-
-#### `Axis` Properties (inside lambda)
-
-| Property | Type | Default | Description |
-|---|---|---|---|
-| `Title` | `string?` | `null` | Axis title text. |
-| `Min` | `double?` | auto | Minimum scale value. |
-| `Max` | `double?` | auto | Maximum scale value. |
-| `Visible` | `bool` | `true` | Show/hide the axis. |
-| `GridLineVisible` | `bool` | `true` | Show/hide grid lines. |
-| `GridLineColor` | `string?` | theme | Grid line colour. |
-| `LabelFormat` | `string?` | `null` | Tick label format (`{value}`). |
-| `TickInterval` | `double?` | auto | Distance between ticks. |
-| `LabelRotation` | `double` | 0 | Rotation in degrees (e.g. −45 for diagonal labels). |
-| `Categories` | `List<string>` | `[]` | Category names for categorical axes. |
-| `PlotBands` | `List<PlotBand>` | `[]` | Reference bands. |
-| `PlotLines` | `List<PlotLine>` | `[]` | Reference lines. |
-
----
-
-### Plot Annotations
-
-#### PlotBand (shaded reference region)
-
-```csharp
-// Shorthand on ChartBuilder:
-.PlotBand(from: 0, to: 200, color: "rgba(144,237,125,0.15)", label: "Good")
-
-// Via lambda:
-.YAxis(y => y.PlotBands.Add(new PlotBand { From = 0, To = 200,
-    Color = "rgba(144,237,125,0.15)", Label = "Good" }))
-```
-
-| Parameter | Type | Description |
-|---|---|---|
-| `from` | `double` | Lower Y value of the band. Must be < `to`. |
-| `to` | `double` | Upper Y value of the band. |
-| `color` | `string` | Fill colour (CSS colour). Default: semi-transparent blue. |
-| `label` | `string?` | Optional label at the right edge of the band. |
-
-#### PlotLine (reference line)
-
-```csharp
-// Shorthand on ChartBuilder:
-.PlotLine(value: 500, color: ChartColor.ChartRed, width: 2, label: "SLA limit", dashStyle: "Dash")
-
-// Via lambda:
-.YAxis(y => y.PlotLines.Add(new PlotLine { Value = 500,
-    Color = ChartColor.ChartRed, Width = 2, DashStyle = "Dash", Label = "SLA limit" }))
-```
-
-| Parameter | Type | Description |
-|---|---|---|
-| `value` | `double` | Y value at which the line is drawn. |
-| `color` | `string` | Stroke colour. Default: `ChartColor.Red` (`#FF0000`). |
-| `width` | `int` | Stroke width px. Default: 1. |
-| `label` | `string?` | Optional label at the right edge. |
-| `dashStyle` | `string?` | `"Solid"`, `"Dash"`, `"Dot"`, `"DashDot"`, `"LongDash"`. |
-
----
-
-### Legend
-
-```csharp
-.Legend(l => l
-    .AtBottom().AlignCenter().Horizontal()
-    .Padding(10).ItemFontSize(12)
-    .Border("#e2e8f0", width: 1, radius: 4)
-    .BackgroundColor("rgba(255,255,255,0.9)"))
-
-.HideLegend()   // shorthand to disable
-```
-
-**`LegendBuilder` Methods:**
-
-| Method | Description |
-|---|---|
-| `Disable()` | Hides the legend. |
-| `AlignLeft()` / `AlignCenter()` / `AlignRight()` | Horizontal alignment. |
-| `AtTop()` / `AtMiddle()` / `AtBottom()` | Vertical position. |
-| `TopLeft()` / `TopCenter()` / `TopRight()` | Combined shorthand. |
-| `BottomLeft()` / `BottomCenter()` / `BottomRight()` | Combined shorthand. |
-| `Horizontal()` | Items flow left-to-right (default). |
-| `Vertical()` | Items stack in a single column. |
-| `Padding(int)` | Inner padding between border and items (px). |
-| `Offset(int x, int y)` | Pixel offset from the computed position. |
-| `OffsetX(int)` / `OffsetY(int)` | Individual axis offsets. |
-| `ItemFontSize(int)` | Label font size (px). |
-| `ItemFontColor(string)` | Label text colour. |
-| `ItemStyle(string css)` | Raw CSS applied to each item `<text>`. |
-| `SymbolSize(int width, int height)` | Dimensions of the colour swatch. |
-| `SymbolRadius(int)` | Corner radius of the swatch (use half of width for circles). |
-| `Border(string color, int width, int radius)` | Legend box border. |
-| `BorderColor(string)` / `BorderWidth(int)` / `BorderRadius(int)` | Individual border properties. |
-| `BackgroundColor(string)` | Legend box fill colour. |
-| `Margin(int)` | Outer margin between the legend box and chart edges (px). |
-
----
-
-### Tooltip
-
-```csharp
-.Tooltip(t => t
-    .BackgroundColor("rgba(30,30,60,0.92)")
-    .TextColor("#e8f4ff")
-    .FontSize(12)
-    .Border(ChartColor.ChartBlue, width: 1, radius: 6)
-    .Padding(14)
-    .Format("{label}: ${value}k"))
-
-.DisableTooltip()   // shorthand to disable
-```
-
-**`TooltipBuilder` Methods:**
-
-| Method | Description |
-|---|---|
-| `Disable()` | Disables tooltips. |
-| `BackgroundColor(string)` | Tooltip box background colour. |
-| `TextColor(string)` | Text colour inside the tooltip. |
-| `FontSize(int)` | Font size (px). |
-| `FontFamily(string?)` | Font family. Pass `null` to inherit the chart theme font. |
-| `Border(string color, int width, int radius)` | Sets all border properties at once. |
-| `BorderColor(string)` / `BorderWidth(int)` / `BorderRadius(int)` | Individual border properties. |
-| `Padding(int)` | Inner padding (px). |
-| `HideArrow()` | Removes the triangular pointer beneath the tooltip box. |
-| `Format(string)` | Content template. Placeholders: `{label}` = series name, `{value}` = numeric value. |
-| `HeaderFormat(string)` | Optional header line above the data row. |
-| `PointFormat(string)` | Per-point row format (used with `HeaderFormat`). |
-| `TransitionDuration(double seconds)` | CSS transition for fade-in/out. Default 0.15 s. |
-
----
+| `Legend(Action<LegendBuilder> configure)` | Configures the legend. See [LegendBuilder](#legendbuilder). |
+| `HideLegend()` | Hides the legend. |
+| `Tooltip(Action<TooltipBuilder> configure)` | Configures tooltips. See [TooltipBuilder](#tooltipbuilder). |
+| `DisableTooltip()` | Disables tooltips. |
 
 ### Animation
 
-```csharp
-.Animate(800)                        // enable with duration (ms)
-.Animation(a => a.EaseInOut())       // configure easing
-.DisableAnimation()                  // turn off
-```
+| Method | Description |
+|---|---|
+| `Animate(int milliseconds = 800)` | Enables animation with the given duration. |
+| `Animation(Action<AnimationBuilder> configure)` | Configures animation timing and easing. |
+| `DisableAnimation()` | Disables load animations. |
 
-**`AnimationBuilder` Methods:**
+### Series
 
 | Method | Description |
 |---|---|
-| `Duration(TimeSpan)` | Animation duration. |
-| `DurationMs(int)` | Duration in milliseconds (convenience overload). |
-| `EaseIn()` | Starts slow, ends fast. |
-| `EaseOut()` | Starts fast, ends slow (default). |
-| `EaseInOut()` | Slow at both ends. |
-| `Linear()` | Constant speed. |
-| `Bounce()` | Bounces at the end. |
-| `Elastic()` | Elastic snap at the end. |
-| `Enable()` / `Disable()` | Toggle animation on/off. |
+| `Series(Action<ChartSeriesBuilder> configure)` | Opens the series scope. See [Series](#series-chartseriesbuilder). |
+| `ClearSeries()` | Removes all series. |
+| `RemoveSeries(string name)` | Removes the first series matching `name`. |
+| `ShowDataLabels()` | Enables data labels on every series. |
 
----
-
-### Series Management
+### Export & interactivity (Interactive mode only)
 
 | Method | Description |
 |---|---|
-| `Series(Action<ChartSeriesBuilder>)` | Opens the series scope. Chain `AddLine(…)`, `AddColumn(…)`, etc. inside. |
-| `ShowDataLabels()` | Enables data labels on ALL series (existing and future). |
-| `ClearSeries()` | Removes all series from the chart. |
-| `RemoveSeries(string name)` | Removes the first series with the given name. |
+| `ShowExportButton(string label = "⬇ SVG")` | Adds an SVG download button. |
+| `ShowExportMenu(params string[] formats)` | Adds a multi-format export menu (`"SVG"`, `"PNG"`, `"JPEG"`, `"PDF"`). Omit for all four. |
+| `OnPointClick(string handler)` | Registers a JavaScript click handler for data points. |
 
----
+### Labels, annotations & advanced layout
 
-### Output / Rendering
+| Method | Description |
+|---|---|
+| `LabelLayout(Action<LabelLayoutBuilder> configure)` | Controls X-axis label rotation, wrapping, skipping, scaling. See [LabelLayoutBuilder](#labellayoutbuilder). |
+| `Annotations(Action<AnnotationBuilder> configure)` | Adds free-form labels/lines/rects/circles. See [AnnotationBuilder](#annotationbuilder). |
+| `RangeSelector(Action<RangeSelectorOptions> configure)` | Adds the interactive navigator strip (Interactive mode). |
+| `SyncGroup(string groupId)` | Joins a synchronised-tooltip group shared by charts on the same page. |
+| `ShowDataTable(int rowHeight = 20, int fontSize = 10)` | Appends a data table of raw values beneath the chart. |
+| `ApplyTemplate(IChartTemplate template)` | Applies a preset template, overwriting only the settings it touches. |
 
-| Method | Return | Description |
+### Accessibility & localization
+
+| Method | Description |
+|---|---|
+| `AriaLabel(string label)` | Overrides the accessible name (SVG `<title>` / `aria-label`). |
+| `AriaDescription(string description)` | Overrides the accessible description (SVG `<desc>`). |
+| `Culture(CultureInfo culture)` | Sets the culture for number formatting and the SVG `lang`. |
+| `Culture(string cultureName)` | Sets the culture by name, e.g. `"de-DE"`. |
+| `RightToLeft(bool rtl = true)` | Enables RTL text direction. |
+
+### Data quality
+
+| Method | Returns | Description |
+|---|---|---|
+| `ThrowOnDataQualityErrors()` | `ChartBuilder` | Throws `DataQualityException` on render when an `Error`-severity issue is found. |
+| `AnalyzeDataQuality()` | `DataQualityReport` | Runs quality analysis without rendering. |
+| `GetLastDataQualityReport()` | `DataQualityReport?` | Returns the report from the most recent analysis or render (`null` before the first). |
+
+### Render / output
+
+| Method | Returns | Description |
 |---|---|---|
 | `RenderToSvg()` | `string` | Renders and returns the SVG markup. |
-| `RenderToHtml(caption?, cssClass?)` | `string` | SVG wrapped in `<figure>`. |
-| `RenderToFile(filePath)` | `void` | Writes SVG to a file. Directory must exist. |
-| `RenderToHtmlFile(filePath, caption?, cssClass?)` | `void` | Writes HTML fragment to a file. |
-| `RenderToStream(stream)` | `void` | Writes UTF-8 SVG bytes to a stream. |
-| `RenderToBytes()` | `byte[]` | Returns the SVG as a UTF-8 byte array. |
-| `RenderToStreamAsync(stream, ct)` | `Task` | Async. `.NET 6+` only. |
-| `RenderToFileAsync(filePath, ct)` | `Task` | Async. `.NET 6+` only. |
-| `RenderToHtmlFileAsync(filePath, caption?, cssClass?, ct)` | `Task` | Async. `.NET 6+` only. |
-| `GetOptions()` | `ChartOptions` | Returns the raw options for advanced inspection. |
-| `Build()` | `ChartOptions` | Returns an independent snapshot of the current options. |
+| `RenderToHtml(string? caption = null, string? cssClass = null)` | `string` | Renders a self-contained HTML `<figure>` fragment. |
+| `RenderToBytes()` | `byte[]` | Renders the SVG as UTF-8 bytes. |
+| `RenderToDataUri()` | `string` | Renders as a `data:image/svg+xml;base64,…` URI. |
+| `RenderToStream(Stream stream)` | `void` | Writes UTF-8 SVG bytes to a stream. |
+| `RenderToFile(string filePath)` | `void` | Writes the SVG to a file. |
+| `RenderToHtmlFile(string filePath, string? caption = null, string? cssClass = null)` | `void` | Writes the HTML fragment to a file. |
+| `RenderToStreamAsync(Stream stream, CancellationToken ct = default)` | `Task` | Async stream write. *(net6.0+ only)* |
+| `RenderToFileAsync(string filePath, CancellationToken ct = default)` | `Task` | Async file write. *(net6.0+ only)* |
+| `RenderToHtmlFileAsync(string filePath, string? caption = null, string? cssClass = null, CancellationToken ct = default)` | `Task` | Async HTML file write. *(net6.0+ only)* |
+
+### Snapshot & variants
+
+| Method | Returns | Description |
+|---|---|---|
+| `Fork()` | `ChartBuilder` | Returns a new builder starting from a deep copy of the current configuration. |
+| `Clone()` | `ChartBuilder` | Alias for `Fork()`. |
+| `GetOptions()` | `ChartOptions` | Returns the live options object for advanced customisation. |
+| `GetSnapshot()` | `ChartOptions` | Returns an independent deep-copy snapshot. |
 
 ---
 
-## ChartSeriesBuilder
+## Series (ChartSeriesBuilder)
 
-Obtained inside `.Series(s => s.AddLine(…))`. All `Add*` methods return `ChartSeriesBuilder` so you can chain multiple series:
+`TerraFluent.Chart.Reporting.Builder.ChartSeriesBuilder`
 
-```csharp
-.Series(s => s
-    .AddLine("Revenue", data1, cfg => cfg.Color(ChartColor.ChartBlue))
-    .AddColumn("Cost",  data2, cfg => cfg.Color(ChartColor.ChartOrange))
-    .AddArea("Profit",  data3))
-```
+Obtained inside `.Series(s => …)`. Each `Add*` method appends one series and returns the series builder so multiple series can be chained. Every method accepts an optional `Action<SeriesBuilder>? configure` to style that series (see [SeriesBuilder](#seriesbuilder)).
 
-### Standard Series (double?[] or double[])
+### Cartesian series (`double[]` or `double?[]`)
 
-All accept an optional `Action<SeriesBuilder>` as the last parameter for per-series configuration.
+`null` values in a `double?[]` are treated as gaps (see `NullGap`).
 
-| Method | Chart type | Data type |
+| Method | Data | Notes |
 |---|---|---|
-| `Add(name, data, cfg?)` | Uses `PrimaryChartType` (set by `AsLine()` etc.) | `IEnumerable<double?>` |
-| `AddLine(name, data, cfg?)` | Line | `IEnumerable<double?>` or `double[]` |
-| `AddSpline(name, data, cfg?)` | Spline | `IEnumerable<double?>` or `double[]` |
-| `AddArea(name, data, cfg?)` | Area | `IEnumerable<double?>` or `double[]` |
-| `AddColumn(name, data, cfg?)` | Column | `IEnumerable<double?>` or `double[]` |
-| `AddBar(name, data, cfg?)` | Bar (horizontal) | `IEnumerable<double?>` or `double[]` |
-| `AddScatter(name, data, cfg?)` | Scatter | `IEnumerable<double?>` or `double[]` |
-| `AddFunnel(name, data, cfg?)` | Funnel | `IEnumerable<double?>` or `double[]` |
-| `AddTreemap(name, data, cfg?)` | Treemap | `IEnumerable<double?>` or `double[]` |
+| `AddLine(name, data, configure?)` | `double[]` / `double?[]` | Straight-segment line. |
+| `AddSpline(name, data, configure?)` | `double[]` / `double?[]` | Smooth Bézier curve. |
+| `AddArea(name, data, configure?)` | `double[]` / `double?[]` | Filled area. |
+| `AddColumn(name, data, configure?)` | `double[]` / `double?[]` | Vertical bars. |
+| `AddBar(name, data, configure?)` | `double[]` / `double?[]` | Horizontal bars. |
+| `AddScatter(name, data, configure?)` | `double[]` / `double?[]` | Dots only. |
+| `AddRadar(name, data, configure?)` | `double[]` / `double?[]` | Radar/polar area. |
+| `AddFunnel(name, data, configure?)` | `double[]` / `double?[]` | Funnel stages. |
+| `AddTreemap(name, data, configure?)` | `double[]` / `double?[]` | Proportional rectangles. |
+| `AddStream(name, data, configure?)` | `double[]` / `double?[]` | ThemeRiver stacked band. |
+| `AddPie(name, data, configure?)` | `double[]` / `double?[]` | Pie/donut slices. |
+| `Add(name, data, configure?)` | `double[]` / `double?[]` | Uses the builder's default chart type (`AsX()`). |
 
-**Null gaps:** A `null` in a `double?[]` skips that data point — the line/column is not drawn at that index.
+### Single-value series
 
-### Waterfall
-
-```csharp
-.AddWaterfall(
-    name:   "P&L",
-    data:   new double?[] { 500, 800, -320, 980 },
-    totals: new[] { true, false, false, true })
-```
-
-| Parameter | Type | Description |
+| Method | Data | Notes |
 |---|---|---|
-| `name` | `string` | Series display name. |
-| `data` | `IEnumerable<double?>` | Values. Positive = up, negative = down. `null` = skip. |
-| `totals` | `IEnumerable<bool>` | `true` at index `i` = column `i` resets to an absolute value (draws from zero). |
-| `cfg` | `Action<SeriesBuilder>?` | Optional per-series styling. |
+| `AddGauge(name, double value, configure?)` | `double` | Semi-circular dial. |
+| `AddDataRing(name, double value, configure?)` | `double` | Full 360° progress ring. |
 
-### Gauge / DataRing (single value)
+### Structured-point series
 
-```csharp
-.AddGauge("CPU %", 67, cfg => cfg.Color(ChartColor.ChartBlue))
-.AddDataRing("CSAT", 87, cfg => cfg.Color(ChartColor.ChartBlue))
-```
-
-| Parameter | Type | Description |
+| Method | Data type | Notes |
 |---|---|---|
-| `name` | `string` | Series display name. |
-| `value` | `double` | The value to display. Must be within `YAxis.Min`–`YAxis.Max`. |
-| `cfg` | `Action<SeriesBuilder>?` | Optional styling. |
+| `AddWaterfall(name, data, totals?, configure?)` | `double?[]` + `bool[]` | `totals[i]=true` marks absolute/total bars. |
+| `AddBubble(name, data, configure?)` | `BubblePoint[]` | X, Y, and Z (size). |
+| `AddHeatmap(name, data, configure?)` | `HeatmapPoint[]` | Col/row/value grid. |
+| `AddColumnRange(name, data, configure?)` | `RangePoint[]` | Low–high vertical bars. |
+| `AddAreaRange(name, data, configure?)` | `RangePoint[]` | Low–high filled band. |
+| `AddDumbbell(name, data, configure?)` | `RangePoint[]` | Low–high dot pairs. |
+| `AddErrorBar(name, data, configure?)` | `RangePoint[]` | Error whiskers. |
+| `AddBoxPlot(name, data, configure?)` | `BoxPlotPoint[]` | Five-number summary boxes. |
+| `AddCandlestick(name, data, configure?)` | `OhlcPoint[]` | OHLC candles (up/down colours). |
+| `AddOhlc(name, data, configure?)` | `OhlcPoint[]` | OHLC bars. |
+| `AddParliament(name, groups, configure?)` | `ParliamentGroup[]` | Semicircular seat layout. |
+| `AddGantt(name, tasks, configure?)` | `GanttTask[]` | Horizontal task timeline. |
+| `AddSankey(name, nodes, links, configure?)` | `SankeyNode[]` + `SankeyLink[]` | Node-link flow diagram. |
 
-### Bubble (3D scatter)
+### Computed overlays
 
-```csharp
-.AddBubble("Product A", new[] { new BubblePoint(12, 28, 85) }, cfg => …)
-```
+Derive a new series from existing data.
 
-| Parameter | Type | Description |
-|---|---|---|
-| `name` | `string` | Series display name. |
-| `data` | `IEnumerable<BubblePoint>` | Collection of `(X, Y, Z)` triplets. |
-| `cfg` | `Action<SeriesBuilder>?` | Optional styling. |
-
-### Heatmap (grid cells)
-
-```csharp
-.AddHeatmap("Sales", new[] { new HeatmapPoint(0, 0, 42) }, cfg => …)
-```
-
-| Parameter | Type | Description |
-|---|---|---|
-| `name` | `string` | Series display name. |
-| `data` | `IEnumerable<HeatmapPoint>` | Collection of `(Col, Row, Value)` triples. |
-| `cfg` | `Action<SeriesBuilder>?` | Optional styling + row labels. |
-
-### ColumnRange / AreaRange (low–high)
-
-```csharp
-.AddColumnRange("London", new[] { new RangePoint(2, 8) }, cfg => …)
-.AddAreaRange("Band",     new[] { new RangePoint(120, 160) }, cfg => …)
-```
-
-| Parameter | Type | Description |
-|---|---|---|
-| `name` | `string` | Series display name. |
-| `data` | `IEnumerable<RangePoint>` | Collection of `(Low, High)` pairs. |
-| `cfg` | `Action<SeriesBuilder>?` | Optional styling. |
+| Method | Notes |
+|---|---|
+| `AddLinearRegression(name, sourceData, configure?)` | Least-squares trend line. |
+| `AddMovingAverage(name, sourceData, int period = 3, configure?)` | Simple moving average; first `period − 1` points are `null`. |
+| `AddExponentialSmoothing(name, sourceData, double alpha = 0.3, configure?)` | Exponentially-smoothed series. |
 
 ---
 
 ## SeriesBuilder
 
-Obtained inside the optional `cfg => …` lambda of any `Add*` method.
+`TerraFluent.Chart.Reporting.Builder.SeriesBuilder`
+
+Passed to the `configure` lambda of every `Add*` method to style that one series.
 
 ### Appearance
 
 | Method | Description |
 |---|---|
-| `Color(string)` | Fill / stroke colour (hex or CSS colour). |
-| `LineWidth(int px)` | Line stroke width (Line, Spline, Area). |
-| `Solid()` | Solid line (default). |
-| `Dashed()` | Dashed line. |
-| `Dotted()` | Dotted line. |
-| `DashDotted()` | Alternating dash-dot. |
-| `LongDashed()` | Long-dashed line. |
-| `FillOpacity(double 0–1)` | Area fill transparency. Default 0.25. |
+| `Color(string color)` | Series colour (accepts a `ChartColor` constant or any CSS colour). |
+| `LineWidth(int px)` | Line/spline stroke width. |
+| `FillOpacity(double opacity)` | Area/column fill opacity `0.0`–`1.0`. |
+| `Solid()` · `Dashed()` · `Dotted()` · `DashDotted()` · `LongDashed()` | Line dash style shortcuts. |
 
-### Border (Column / Bar / Scatter)
+### Fill (gradient & pattern)
 
 | Method | Description |
 |---|---|
-| `Border(string color, int width, int radius)` | Sets all border properties at once. |
-| `BorderColor(string)` | Stroke colour around bars / scatter markers. |
-| `BorderWidth(int px)` | Border stroke width. |
-| `BorderRadius(int px)` | Corner radius for column/bar rectangles. |
+| `LinearGradientFill(int angleDegrees, params (double offset, string color)[] stops)` | Linear gradient fill. |
+| `RadialGradientFill(params (double offset, string color)[] stops)` | Radial gradient fill. |
+| `PatternFill(PatternKind pattern, string foreground, string? background = null, double size = 8)` | Hatched/dotted pattern fill. |
+| `Fill(SeriesFill fill)` | Applies a fully-configured `SeriesFill`. |
 
-### Markers (Line / Scatter)
-
-| Method | Description |
-|---|---|
-| `MarkerSize(int radiusPx)` | Radius of the dot at each data point. Must be > 0. |
-| `MarkerEnabled(bool)` | Show/hide markers for Line and Spline series. |
-
-### Visibility & Legend
+### Border
 
 | Method | Description |
 |---|---|
-| `Visible(bool)` | Show/hide the series in the plot area. |
-| `Hide()` | Shorthand for `Visible(false)`. |
-| `ShowInLegend(bool)` | Show/hide this series in the legend. |
-| `HideFromLegend()` | Shorthand for `ShowInLegend(false)`. |
+| `Border(string color, int width = 1, int radius = 0)` | Sets border colour, width, and corner radius together. |
+| `BorderColor(string color)` · `BorderWidth(int px)` · `BorderRadius(int px)` | Individual border properties. |
 
-### Axis Binding
+### Markers
 
 | Method | Description |
 |---|---|
-| `OnYAxis(int index)` | `0` = primary left, `1` = secondary right. |
-| `OnSecondaryAxis()` | Shorthand for `OnYAxis(1)`. |
+| `MarkerSize(int radiusPx)` | Marker radius. |
+| `MarkerEnabled(bool enabled = true)` | Show/hide markers. |
+| `MarkerSymbol(MarkerSymbol symbol)` | `Circle`, `Square`, `Diamond`, `Triangle`, `TriangleDown`. |
 
-### Pie / Donut
-
-| Method | Description |
-|---|---|
-| `DonutHole(double fraction)` | 0 = solid pie, 0.5 = half-radius donut, clamped to [0, 0.95]. |
-
-### Data Labels
-
-| Access | Description |
-|---|---|
-| `cfg.DataLabel` | Direct access to `DataLabelOptions` — chain its methods. |
-| `cfg.Label(dl => …)` | Lambda shorthand that returns `SeriesBuilder` for chaining. |
-
-**`DataLabelOptions` Methods:**
+### Thresholds & gaps
 
 | Method | Description |
 |---|---|
-| `Show()` | Enables data labels for this series. |
-| `Hide()` | Disables data labels. |
-| `Format(string)` | Label text template. `{value}` = numeric value. |
-| `Color(string)` | Label text colour. |
-| `FontSize(int px)` | Label font size. |
-| `Background(string)` | Label pill background colour. |
-| `Radius(double fraction)` | Pie/Donut: radial distance from center. `> 1.0` places label outside with spline connector. |
-| `OffsetY(double px)` | Vertical offset (positive = down). |
+| `Zone(double? upTo, string color)` | Colours the series up to a threshold value (`null` = to infinity). |
+| `Zones(params (double? upTo, string color)[] zones)` | Multiple threshold colour bands. |
+| `NullGap(GapPolicy policy)` | How `null` points render: `Break`, `Connect`, or `Zero`. |
+| `TargetLine(double value, string? label = null, string? color = null, string? dashStyle = null, int lineWidth = 1)` | Per-series target/reference line. |
 
-### Donut Center Label
-
-| Access | Description |
-|---|---|
-| `cfg.DonutCenter` | Direct access to `DonutCenterOptions`. |
-| `cfg.Center(c => …)` | Lambda shorthand. |
-
-**`DonutCenterOptions` Methods:**
+### Visibility & legend
 
 | Method | Description |
 |---|---|
-| `Show(string? text)` | Shows the center label. If `text` is omitted, the sum of the pie data is auto-computed. |
-| `Hide()` | Hides the center label. |
-| `Title(string)` | Caption displayed above the main value. |
-| `Color(string)` | Main value text colour. |
-| `TitleColor(string)` | Caption text colour. |
-| `FontSize(int px)` | Main value font size. |
-| `TitleFontSize(int px)` | Caption font size. |
+| `Visible(bool visible = true)` · `Hide()` | Show or hide the series. |
+| `ShowInLegend(bool show = true)` · `HideFromLegend()` | Legend inclusion. |
+| `OnYAxis(int index)` · `OnSecondaryAxis()` | Bind the series to a specific Y-axis. |
 
-### Heatmap Row Labels
+### Pie / donut, labels & centres
 
-| Access | Description |
+| Member | Description |
 |---|---|
-| `cfg.HeatmapRowLabels` | `List<string>` — add row labels in row-0-first order. |
+| `DonutHole(double fraction)` | Sets the donut hole size (0–1). |
+| `DonutCenter` | Property → [DonutCenterOptions](#donutcenteroptions). |
+| `DataLabel` | Property → [DataLabelOptions](#datalabeloptions). |
+| `Label(Action<DataLabelOptions> configure)` | Configure data labels via lambda. |
+| `ParliamentCenter` / `CenterLabel(Action<ParliamentCenterOptions>)` | Parliament centre caption. |
+| `HeatmapRowLabels` | `List<string>` of heatmap row labels. |
+
+### Drill-down & insights
+
+| Method | Description |
+|---|---|
+| `WithDrilldown(ChartOptions childChart)` | Attach a child chart shown on click (Interactive). |
+| `WithDrilldown(int dataIndex, ChartOptions childChart)` | Attach a child chart to a specific point. |
+| `AutoInsight(Action<AutoInsightBuilder> configure)` | Auto-annotate peaks/troughs/trends. |
+
+---
+
+## LegendBuilder
+
+`Legend(l => …)`
+
+| Group | Methods |
+|---|---|
+| Visibility | `Disable()` |
+| Horizontal align | `Align(string)`, `AlignLeft()`, `AlignCenter()`, `AlignRight()` |
+| Vertical align | `VerticalAlign(string)`, `AtTop()`, `AtMiddle()`, `AtBottom()` |
+| Position shorthands | `TopLeft()`, `TopCenter()`, `TopRight()`, `BottomLeft()`, `BottomCenter()`, `BottomRight()` |
+| Offset | `Offset(int x, int y)`, `OffsetX(int)`, `OffsetY(int)` |
+| Layout | `Layout(string)`, `Horizontal()`, `Vertical()`, `Padding(int)`, `Margin(int)` |
+| Item text | `ItemStyle(string css)`, `ItemFontSize(int)`, `ItemFontColor(string)` |
+| Symbol | `SymbolSize(int w, int h)`, `SymbolRadius(int)` |
+| Border | `Border(string color, int width = 1, int radius = 0)`, `BorderColor(string)`, `BorderWidth(int)`, `BorderRadius(int)` |
+| Background | `BackgroundColor(string)` |
+
+---
+
+## TooltipBuilder
+
+`Tooltip(t => …)` *(active in Animated and Interactive modes)*
+
+| Group | Methods |
+|---|---|
+| Visibility | `Disable()` |
+| Background | `BackgroundColor(string)` |
+| Border | `Border(string color, int width = 1, int radius = 4)`, `BorderColor(string)`, `BorderWidth(int)`, `BorderRadius(int)` |
+| Text | `TextColor(string)`, `FontSize(int)`, `FontFamily(string?)` |
+| Layout | `Padding(int)`, `HideArrow()`, `NoShadow()` |
+| Content | `Format(string)`, `HeaderFormat(string)`, `PointFormat(string)` |
+| Value formatting | `ValuePrefix(string)`, `ValueSuffix(string)` |
+| Crosshair | `NoCrosshair()`, `CrosshairStyle(string color, int width = 1)` |
+| Behaviour | `EnableShared()`, `EnableFollowPointer()`, `TransitionDuration(double seconds)` |
+
+Format tokens: `{label}`, `{value}`, `{series}`.
+
+---
+
+## AnimationBuilder
+
+`Animation(a => …)`
+
+| Group | Methods |
+|---|---|
+| Duration | `Duration(TimeSpan)`, `Duration(int milliseconds)` |
+| Easing | `Linear()`, `EaseIn()`, `EaseOut()`, `EaseInOut()`, `Bounce()`, `Elastic()` |
+
+---
+
+## AnnotationBuilder
+
+`Annotations(a => …)` — coordinates are in data space (category index / axis value).
+
+| Group | Methods |
+|---|---|
+| Layout | `SmartLayout(Action<AnnotationLayoutOptions>? configure = null)` |
+| Shapes | `Label(x, y, text, configure?)`, `Line(x1, y1, x2, y2, configure?)`, `Rect(x1, y1, x2, y2, configure?)`, `Circle(x, y, radiusPx, configure?)` |
+| Placement helpers | `LabelAbove(x, y, text, offsetPx = 18, configure?)`, `LabelBelow(…)`, `LabelLeft(x, y, text, offsetPx = 8, configure?)`, `LabelRight(…)` |
+| Raw | `Add(Annotation annotation)` |
+
+---
+
+## LabelLayoutBuilder
+
+`LabelLayout(l => …)` — controls dense X-axis category labels.
+
+| Group | Methods |
+|---|---|
+| Rotation | `Rotation(int degrees)`, `AutoRotate(int maxDegrees = 90)`, `NoRotation()` |
+| Wrapping | `Wrap(int maxCharsPerLine = 12)`, `NoWrap()` |
+| Skipping | `Skip(int n)`, `AutoSkip(bool enabled = true)` |
+| Font scaling | `FontSizeRange(int min, int max)`, `NoAutoScale()` |
+| Collision | `EnableCollisionDetection()`, `DisableCollisionDetection()` |
+| Positioning | `Stagger(int offsetPx = 10)`, `NoStagger()`, `HorizontalPadding(int px)` |
+
+---
+
+## DataLabelOptions
+
+Accessed via `cfg.DataLabel` or `cfg.Label(dl => …)`.
+
+| Method | Description |
+|---|---|
+| `Show()` / `Hide()` | Enable/disable labels. |
+| `Format(string fmt)` | Format string, e.g. `"{value}%"`, `"${value}k"`. |
+| `Color(string color)` | Text colour. |
+| `FontSize(int px)` | Text size. |
+| `Background(string color)` | Pill background colour. |
+| `Radius(double fraction)` | Pie/donut: label radius (`> 1` places labels outside with a connector). |
+| `OffsetY(double pixels)` | Vertical nudge. |
+
+---
+
+## DonutCenterOptions
+
+Accessed via `cfg.DonutCenter` on pie/donut and data-ring series.
+
+| Method | Description |
+|---|---|
+| `Show()` / `Show(string customText)` / `Hide()` | Toggle the centre label. |
+| `Title(string title)` | Caption shown above the value. |
+| `Text(string text)` | Custom centre text (overrides the computed total). |
+| `FontSize(int px)` / `TitleFontSize(int px)` | Value / caption sizes. |
+| `Color(string color)` / `TitleColor(string color)` | Value / caption colours. |
+
+---
+
+## Enums
+
+`TerraFluent.Chart.Reporting.Enums`
+
+### ChartType
+`Line`, `Spline`, `Area`, `Column`, `Bar`, `Pie`, `Scatter`, `Waterfall`, `Gauge`, `DataRing`, `Bubble`, `Heatmap`, `ColumnRange`, `AreaRange`, `Funnel`, `Treemap`, `Radar`, `BoxPlot`, `ErrorBar`, `Candlestick`, `Ohlc`, `Dumbbell`, `Stream`, `Gantt`, `Sankey`, `Parliament`.
+
+### SvgMode
+`Static` · `Animated` · `Interactive`.
+
+### Easing
+`Linear` · `EaseIn` · `EaseOut` · `EaseInOut` · `Bounce` · `Elastic`.
+
+### MarkerSymbol
+`Circle` · `Square` · `Diamond` · `Triangle` · `TriangleDown`.
+
+### AxisType
+`Linear` · `Logarithmic` · `DateTime`.
+
+### Stacking
+`None` (side-by-side) · `Normal` (cumulative) · `Percent` (100 %).
+
+### GapPolicy
+`Break` (visible gaps, default) · `Connect` (skip nulls) · `Zero` (plot nulls at zero).
+
+### WarningSeverity
+`Info = 0` · `Warning = 1` · `Error = 2`.
+
+---
+
+## ChartTheme
+
+`TerraFluent.Chart.Reporting.Models.ChartTheme`
+
+### Built-in presets (`static readonly ChartTheme`)
+
+| Preset | Style |
+|---|---|
+| `Default` | Blue-orange on white. |
+| `Dark` | Bright palette on midnight navy. |
+| `Pastel` | Soft palette on off-white. |
+| `Monochrome` | Greyscale on white. |
+| `Ocean` | Blue-teal on deep ocean. |
+| `Sunset` | Warm palette on purple-navy. |
+| `Forest` | Earthy greens on cream. |
+| `Neon` | Electric palette on near-black. |
+| `Minimal` | Muted Tableau-10 on white. |
+| `Warm` | Earth tones on parchment. |
+| `Arctic` | Cool blues on ice-blue. |
+| `Business` | Corporate blue-red on white. |
+| `Material` | Material Design 500 palette. |
+| `TrafficLight` | Green/amber/red status palette. |
+| `Accessible` | Colour-blind-safe (Wong 2011). |
+| `Vivid` | Full-spectrum distinct palette. |
+| `HighContrast` | WCAG AA (≥ 4.5:1) palette. |
+
+### Properties
+
+`BackgroundColor`, `PlotBackgroundColor`, `GridLineColor`, `AxisLineColor`, `TextColor`, `FontFamily`, `FontScale` (default `1.0`), `Colors` (`string[]`), `TooltipBackground`, `TooltipTextColor`, `PositiveColor`, `NegativeColor`, `AccentColor`.
+
+### Factory
 
 ```csharp
-cfg.HeatmapRowLabels.AddRange(new[] { "North", "South", "East" });
+ChartTheme.Custom(
+    string? backgroundColor = null, string? plotBackgroundColor = null,
+    string? gridLineColor = null,   string? axisLineColor = null,
+    string? textColor = null,       string? fontFamily = null,
+    string[]? colors = null,        string? tooltipBackground = null,
+    string? tooltipTextColor = null,string? positiveColor = null,
+    string? negativeColor = null,   string? accentColor = null);
+
+ChartTheme Clone();   // copy an existing theme (e.g. to tweak FontScale)
 ```
-
----
-
-## Easing enum
-
-| Value | SMIL equivalent | Curve description |
-|---|---|---|
-| `EaseOut` (default) | `ease-out` | Fast start, slow end |
-| `EaseIn` | `ease-in` | Slow start, fast end |
-| `EaseInOut` | `ease-in-out` | Slow at both ends |
-| `Linear` | `linear` | Constant speed |
-| `Bounce` | custom | Elastic bounce at finish |
-| `Elastic` | custom | Overshoot + settle |
-
----
-
-## SvgMode enum
-
-| Value | CSS hover | JS | SMIL |
-|---|---|---|---|
-| `Static` | No | No | No |
-| `Animated` | Yes | No | Yes |
-| `Interactive` | Yes | Yes | Yes |
-
----
-
-## ChartType enum
-
-`Line`, `Spline`, `Area`, `Column`, `Bar`, `Pie`, `Scatter`, `Waterfall`, `Gauge`, `DataRing`, `Bubble`, `Heatmap`, `ColumnRange`, `AreaRange`, `Funnel`, `Treemap`
-
----
-
-## Stacking enum
-
-| Value | Description |
-|---|---|
-| `None` | Default — series plotted independently. |
-| `Normal` | Each series stacks on top of the previous (shows cumulative totals). |
-| `Percent` | Each series normalised to a % of the per-category total (always sums to 100 %). |
 
 ---
 
 ## ChartColor
 
-`static class` in namespace `TerraFluent.Chart.Reporting.Models`. Provides 130+ named `public const string` colour constants and utility methods.
+`TerraFluent.Chart.Reporting.Models.ChartColor`
 
-```csharp
-using TerraFluent.Chart.Reporting.Models;
-```
+130+ named `const string` colour constants plus curated palettes and utilities.
 
-### Constant groups
+### Series palette constants
 
-| Group | Prefix | Example |
+| Constant | Hex | Slot |
 |---|---|---|
-| Chart palette | `ChartColor.Chart…` | `ChartColor.ChartBlue` = `#7CB5EC` |
-| Pastel palette | `ChartColor.Pastel…` | `ChartColor.PastelSkyBlue` = `#A8D8EA` |
-| Standard CSS / web | various | `ChartColor.Red`, `ChartColor.White`, `ChartColor.Black` |
+| `ChartBlue` | `#7CB5EC` | 1 |
+| `ChartOrange` | `#F7A35C` | 2 |
+| `ChartGreen` | `#90ED7D` | 3 |
+| `ChartYellow` | `#E4D354` | 4 |
+| `ChartIndigo` | `#8085E9` | 5 |
+| `ChartRose` | `#F15C80` | 6 |
+| `ChartTeal` | `#2B908F` | 7 |
+| `ChartRed` | `#F45B5B` | 8 |
 
-### Pre-built palettes
+Also includes all standard CSS named colours (`Red`, `SteelBlue`, `ForestGreen`, …), pastel constants (`PastelSkyBlue`, …), and theme-specific tokens.
 
-| Property | Type | Description |
-|---|---|---|
-| `ChartColor.Palette.Default` | `string[]` | HighCharts-inspired 8-colour palette |
-| `ChartColor.Palette.Pastel` | `string[]` | 8 soft pastel colours |
-| `ChartColor.Palette.Material` | `string[]` | Material Design palette |
-| `ChartColor.Palette.Business` | `string[]` | Blues and greys |
-| `ChartColor.Palette.Accessible` | `string[]` | WCAG high-contrast colours |
-| `ChartColor.Palette.TrafficLight` | `string[]` | Red / amber / green |
-| `ChartColor.Palette.Monochrome` | `string[]` | Greyscale range |
+### Palette arrays (`ChartColor.Palette.*`)
+
+`Default`, `Dark`, `Pastel`, `Monochrome`, `Ocean`, `Sunset`, `Forest`, `Neon`, `Minimal`, `Warm`, `Arctic`, `Business`, `Material`, `TrafficLight`, `Accessible`, `Vivid` (each 20 colours), and `HighContrast` (16 colours).
 
 ### Utility methods
 
 | Method | Returns | Description |
 |---|---|---|
-| `FromRgb(r, g, b)` | `string` | Builds a hex string from RGB byte components. |
-| `WithOpacity(hex, alpha)` | `string` | Converts a hex colour to `rgba(…, alpha)`. Alpha 0–1. |
-| `Lighten(hex, amount)` | `string` | Lightens the colour by `amount` (0–1). |
-| `Darken(hex, amount)` | `string` | Darkens the colour by `amount` (0–1). |
-| `Mix(hexA, hexB, weight)` | `string` | Linearly blends two hex colours. `weight=0.5` = equal blend. |
+| `FromRgb(int r, int g, int b)` | `string` | Hex from RGB components. |
+| `WithOpacity(string hex, double alpha)` | `string` | `rgba(…)` with the given alpha. |
+| `Lighten(string hex, double amount = 0.3)` | `string` | Lighter tint. |
+| `Darken(string hex, double amount = 0.3)` | `string` | Darker shade. |
+| `Mix(string hexA, string hexB, double weight = 0.5)` | `string` | Blend of two colours. |
 
-See [Themes & Styling → ChartColor Catalogue](themes-and-styling.md#chartcolor-catalogue) for full usage examples.
+---
+
+## Data-point types
+
+`TerraFluent.Chart.Reporting.Models` — inputs for structured series.
+
+| Type | Constructor | Purpose |
+|---|---|---|
+| `BubblePoint` | `(double x, double y, double z)` | Bubble: position + size. |
+| `HeatmapPoint` | `(int col, int row, double value)` | Heatmap cell. |
+| `RangePoint` | `(double low, double high)` | ColumnRange, AreaRange, Dumbbell, ErrorBar. |
+| `BoxPlotPoint` | `(double low, double q1, double median, double q3, double high)` | Box-and-whisker summary. |
+| `OhlcPoint` | `(double open, double high, double low, double close)` | Candlestick / OHLC. |
+| `GanttTask` | `{ Name, Start, End, Color?, Label? }` | Gantt row. |
+| `ParliamentGroup` | `(string name, string color, int seats)` | Parliament seat block. |
+| `SankeyNode` | `{ Name, Color? }` | Sankey node. |
+| `SankeyLink` | `{ From, To, Value, Color? }` | Sankey flow (indices into the node list). |
+
+---
+
+## IChartBuilder
+
+`TerraFluent.Chart.Reporting.Builder.IChartBuilder`
+
+An interface mirroring the full `ChartBuilder` surface. Depend on `IChartBuilder` in your services for testable, decoupled code, and register the concrete builder in DI:
+
+```csharp
+services.AddScoped<IChartBuilder>(_ => ChartBuilder.Create());
+```
+
+All chaining, configuration, and render methods listed above are available on the interface. The async render methods (`RenderToStreamAsync`, `RenderToFileAsync`, `RenderToHtmlFileAsync`) are present only on `net6.0` and newer targets.
+
+---
+
+See also: [Getting Started](getting-started.md) · [Chart Types](chart-types.md) · [Themes & Styling](themes-and-styling.md) · [Advanced Features](advanced.md) · [Troubleshooting & FAQ](troubleshooting.md)

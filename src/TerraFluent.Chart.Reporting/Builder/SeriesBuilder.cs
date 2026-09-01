@@ -219,7 +219,7 @@ namespace TerraFluent.Chart.Reporting.Builder
         /// <param name="value">Y value at which the line is drawn.</param>
         /// <param name="label">Optional label shown at the right edge of the line.</param>
         /// <param name="color">Stroke colour. <c>null</c> = inherits the series colour at render time.</param>
-        /// <param name="dashStyle">HighCharts-style dash pattern (e.g. <c>"Dash"</c>). <c>null</c> = solid.</param>
+        /// <param name="dashStyle">Dash pattern (e.g. <c>"Dash"</c>). <c>null</c> = solid.</param>
         /// <param name="lineWidth">Stroke width in pixels. Default <c>1</c>.</param>
         public SeriesBuilder TargetLine(double value, string? label = null, string? color = null,
             string? dashStyle = null, int lineWidth = 1)

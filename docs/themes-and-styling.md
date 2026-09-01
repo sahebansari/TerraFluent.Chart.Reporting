@@ -16,7 +16,7 @@ ChartBuilder.Create()
 
 | Theme | Background | Text | Palette style | Best for |
 |---|---|---|---|---|
-| `ChartTheme.Default` | `#ffffff` white | `#333333` dark | Blue-orange (Highcharts-inspired) | General use |
+| `ChartTheme.Default` | `#ffffff` white | `#333333` dark | Blue-orange | General use |
 | `ChartTheme.Dark` | `#1a1a2e` navy | `#f0f0ff` light | Neon-adjacent bright palette | Browser dashboards |
 | `ChartTheme.Pastel` | `#fafafa` off-white | `#555555` grey | Soft muted palette | Presentations, reports |
 | `ChartTheme.Monochrome` | `#ffffff` white | `#000000` black | Greyscale only | Print, greyscale PDFs |
@@ -178,7 +178,7 @@ using TerraFluent.Chart.Reporting.Models;
 Apply a complete curated palette in one call:
 
 ```csharp
-.Colors(ChartColor.Palette.Default)      // HighCharts-inspired (same as no override)
+.Colors(ChartColor.Palette.Default)      // Default palette (same as no override)
 .Colors(ChartColor.Palette.Pastel)       // soft pastels — matches ChartTheme.Pastel
 .Colors(ChartColor.Palette.Material)     // Material Design colours
 .Colors(ChartColor.Palette.Business)     // professional blues / greys
@@ -204,7 +204,7 @@ string custom  = ChartColor.FromRgb(124, 181, 236);
 string mixed   = ChartColor.Mix(ChartColor.ChartBlue, ChartColor.White, 0.5);
 ```
 
-> The full catalogue (130+ constants: CSS named colours, web-safe primaries, chart palette, pastels, and more) is defined in `Models/Color.cs`.
+> The full catalogue (130+ constants: CSS named colours, web-safe primaries, chart palette, pastels, and more) is defined in `Models/ChartColor.cs`.
 
 ---
 

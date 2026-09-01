@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
+<Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Suppression>
+    <DiagnosticId>CP0006</DiagnosticId>
+    <Target>M:TerraFluent.Chart.Reporting.Builder.IChartBuilder.RenderToFileAsync(System.String,System.Threading.CancellationToken)</Target>
+    <Left>lib/netstandard2.1/TerraFluent.Chart.Reporting.dll</Left>
+    <Right>lib/net6.0/TerraFluent.Chart.Reporting.dll</Right>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0006</DiagnosticId>
+    <Target>M:TerraFluent.Chart.Reporting.Builder.IChartBuilder.RenderToHtmlFileAsync(System.String,System.String,System.String,System.Threading.CancellationToken)</Target>
+    <Left>lib/netstandard2.1/TerraFluent.Chart.Reporting.dll</Left>
+    <Right>lib/net6.0/TerraFluent.Chart.Reporting.dll</Right>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0006</DiagnosticId>
+    <Target>M:TerraFluent.Chart.Reporting.Builder.IChartBuilder.RenderToStreamAsync(System.IO.Stream,System.Threading.CancellationToken)</Target>
+    <Left>lib/netstandard2.1/TerraFluent.Chart.Reporting.dll</Left>
+    <Right>lib/net6.0/TerraFluent.Chart.Reporting.dll</Right>
+  </Suppression>
+</Suppressions>

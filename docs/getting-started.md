@@ -46,7 +46,7 @@ string svg = ChartBuilder.Create()
   </text>
   <text x="350" y="46" text-anchor="middle" font-size="11" fill="#666666">Jan – Jun 2025</text>
   <!-- grid lines, axis labels, SMIL-animated line path … -->
-  <path d="M … L … L …" fill="none" stroke=ChartColor.ChartBlue stroke-width="2">
+  <path d="M … L … L …" fill="none" stroke="#7CB5EC" stroke-width="2">
     <animate attributeName="stroke-dashoffset" from="…" to="0" dur="0.8s" fill="freeze"/>
   </path>
 </svg>

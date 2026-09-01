@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace TerraFluent.Chart.Reporting.Models
 {
     /// <summary>
-    /// Configuration for a chart axis. Mirrors HighCharts <c>xAxis</c> / <c>yAxis</c>.
+    /// Configuration for a chart axis.
     /// </summary>
     public class Axis
     {

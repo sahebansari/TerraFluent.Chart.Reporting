@@ -8,7 +8,7 @@ namespace TerraFluent.Chart.Reporting.Models
     {
         // ------------------------------------------------------------------ built-in themes
 
-        /// <summary>HighCharts-inspired default theme (white background, blue-orange palette).</summary>
+        /// <summary>Default theme (white background, blue-orange palette).</summary>
         public static readonly ChartTheme Default = new ChartTheme();
 
         /// <summary>Returns a shallow copy of this theme (all scalar/colour settings), so callers can
@@ -254,7 +254,7 @@ namespace TerraFluent.Chart.Reporting.Models
         };
 
         /// <summary>
-        /// HighCharts-inspired vivid theme (white background, full-spectrum distinct palette).
+        /// Vivid theme (white background, full-spectrum distinct palette).
         /// Every series colour pops clearly on the clean white canvas — ideal for dashboards
         /// and presentations where visual impact matters.
         /// </summary>

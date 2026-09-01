@@ -15,7 +15,7 @@ namespace TerraFluent.Chart.Reporting.Models
         /// <summary>Stroke width in pixels.</summary>
         public int Width { get; set; } = 1;
 
-        /// <summary>Optional HighCharts-style dash style (e.g. "Dash", "Dot", "LongDash").</summary>
+        /// <summary>Optional dash style (e.g. "Dash", "Dot", "LongDash").</summary>
         public string? DashStyle { get; set; }
 
         /// <summary>Optional label shown at the right edge of the line.</summary>

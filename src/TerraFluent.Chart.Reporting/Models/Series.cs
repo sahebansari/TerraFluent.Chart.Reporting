@@ -4,7 +4,6 @@ namespace TerraFluent.Chart.Reporting.Models
 {
     /// <summary>
     /// Represents a single data series in the chart (e.g. one line, one bar group, one pie).
-    /// Mirrors HighCharts <c>series</c> configuration.
     /// </summary>
     public class Series
     {

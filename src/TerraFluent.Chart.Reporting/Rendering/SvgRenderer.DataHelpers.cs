@@ -342,7 +342,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
         }
 
         /// <summary>
-        /// Maps a HighCharts-style DashStyle name to an SVG <c>stroke-dasharray</c> attribute snippet.
+        /// Maps a DashStyle name to an SVG <c>stroke-dasharray</c> attribute snippet.
         /// Returns an empty string for "Solid" or unrecognised values.
         /// </summary>
         private static string BuildDashAttr(string? dashStyle)

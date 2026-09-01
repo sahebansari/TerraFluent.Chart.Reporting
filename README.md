@@ -1,7 +1,6 @@
 # TerraFluent.Chart.Reporting
 
 A fluent C# library for generating **SVG charts server-side** — zero JavaScript dependency, zero external NuGet dependencies.
-Inspired by the HighCharts API design.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -32,18 +31,23 @@ string svg = ChartBuilder.Create()
 
 ## Chart Types
 
-| Type | Method |
-|---|---|
-| Line | `AddLine` |
-| Spline | `AddSpline` |
-| Area | `AddArea` |
-| Column | `AddColumn` |
-| Bar | `AddBar` |
-| Pie / Donut | `AddPie` |
-| Scatter | `AddScatter` |
-| Waterfall | `AddWaterfall` |
-| Gauge | `AddGauge` |
-| DataRing | `AddDataRing` |
+26 chart types are supported. See the [Chart Types guide](docs/chart-types.md) for full examples.
+
+| Type | Method | Type | Method |
+|---|---|---|---|
+| Line | `AddLine` | Bubble | `AddBubble` |
+| Spline | `AddSpline` | Heatmap | `AddHeatmap` |
+| Area | `AddArea` | ColumnRange | `AddColumnRange` |
+| Column | `AddColumn` | AreaRange | `AddAreaRange` |
+| Bar | `AddBar` | Funnel | `AddFunnel` |
+| Pie / Donut | `AddPie` | Treemap | `AddTreemap` |
+| Scatter | `AddScatter` | Radar | `AddRadar` |
+| Waterfall | `AddWaterfall` | BoxPlot | `AddBoxPlot` |
+| Gauge | `AddGauge` | ErrorBar | `AddErrorBar` |
+| DataRing | `AddDataRing` | Candlestick | `AddCandlestick` |
+| Dumbbell | `AddDumbbell` | OHLC | `AddOhlc` |
+| Stream | `AddStream` | Gantt | `AddGantt` |
+| Sankey | `AddSankey` | Parliament | `AddParliament` |
 
 ---
 
@@ -201,25 +205,8 @@ await chart.RenderToStreamAsync(responseStream);
 
 ---
 
-## Data Handling & Privacy
-
-The analytics engine and web app are built around a **process-in-memory, never-persist** principle:
-
-- **No database, no disk storage.** Raw data you analyze is never written to a database or file on the server. The pipeline is a stateless transform: data in → analysis/charts out.
-- **Browser holds nothing.** In the web app, your dataset lives only in in-memory JavaScript — it is **not** saved to `localStorage`, `sessionStorage`, cookies, or IndexedDB, and is cleared on refresh or tab close.
-- **Stateless API endpoints** (`analyze`, `dashboard`, `insights`, `validate`, `aggregate`, `compare`, `convert/xlsx`) parse, compute, and return — the data is garbage-collected after the response. An uploaded `.xlsx` is normalised to CSV in memory and handed straight back; no copy is kept. `compare` takes both datasets in one request and retains neither.
-- **Sessions are the one exception, and they self-expire.** The multi-turn "Ask the Agent" feature keeps a computed result **in memory only** so follow-up questions are fast. It uses a bounded store with a sliding **30-minute idle TTL** (configurable) and a capacity cap — nothing survives an app restart.
-- **Exports are yours.** "Export dashboard/analysis" produces a self-contained HTML file downloaded to *your* device; the server keeps no copy.
-- **Deterministic, so nothing needs caching.** Identical input always yields identical output, so there is no value in retaining your data server-side.
-
-- **Live connections pull, they don't copy.** `TerraFluent.AutoAnalytics.Connectors` adds optional server-side data sources. An operator configures them by name; a client selects one with `"connectionName": "Sales"` and never sees — or supplies — the URL or credentials. Rows are fetched fresh per request and discarded, so nothing is cached or stored. The connections listing has no field for a target or secret, and failure messages redact both (including in server logs).
-
-> Connectors ship as a **separate package**, so consumers who only analyse files keep the analytics engine dependency-free.
-
----
-
 ## License
 
-MIT
+Released under the **MIT License** — free for commercial and personal use, modification, and redistribution. See [LICENSE](LICENSE) for the full text.
 
 

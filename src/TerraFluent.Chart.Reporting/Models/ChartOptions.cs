@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace TerraFluent.Chart.Reporting.Models
 {
     /// <summary>
-    /// Root options object for a chart — the C# equivalent of the HighCharts options object.
+    /// Root options object for a chart.
     /// </summary>
     public class ChartOptions
     {

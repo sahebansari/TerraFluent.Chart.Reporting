@@ -1,6 +1,6 @@
 # Chart Types
 
-All 16 chart types available in TerraFluent.Chart.Reporting, each with a complete code example and description of the rendered output.
+All 26 chart types available in TerraFluent.Chart.Reporting, each with a complete code example and description of the rendered output.
 
 ---
 
@@ -24,6 +24,18 @@ All 16 chart types available in TerraFluent.Chart.Reporting, each with a complet
 | [AreaRange](#14-arearange) | `AddAreaRange` | `RangePoint[]` | Confidence bands |
 | [Funnel](#15-funnel) | `AddFunnel` | `double[]` | Pipeline / conversion |
 | [Treemap](#16-treemap) | `AddTreemap` | `double[]` | Hierarchical proportions |
+| [Radar](#17-radar) | `AddRadar` | `double[]` | Multivariate comparison |
+| [BoxPlot](#18-boxplot) | `AddBoxPlot` | `BoxPlotPoint[]` | Statistical distribution |
+| [ErrorBar](#19-errorbar) | `AddErrorBar` | `RangePoint[]` | Uncertainty / variance |
+| [Candlestick](#20-candlestick) | `AddCandlestick` | `OhlcPoint[]` | OHLC price candles |
+| [OHLC](#21-ohlc) | `AddOhlc` | `OhlcPoint[]` | OHLC price bars |
+| [Dumbbell](#22-dumbbell) | `AddDumbbell` | `RangePoint[]` | Before/after comparison |
+| [Stream](#23-stream) | `AddStream` | `double[]` | ThemeRiver flow over time |
+| [Gantt](#24-gantt) | `AddGantt` | `GanttTask[]` | Project timeline |
+| [Sankey](#25-sankey) | `AddSankey` | `SankeyNode[]` + `SankeyLink[]` | Flow between stages |
+| [Parliament](#26-parliament) | `AddParliament` | `ParliamentGroup[]` | Seat / composition layout |
+
+> **Computed overlays** — you can also derive series from existing data with `AddLinearRegression`, `AddMovingAverage`, and `AddExponentialSmoothing`. See the [API Reference](api-reference.md#computed-overlays).
 
 ---
 
@@ -587,6 +599,291 @@ string svg = ChartBuilder.Create()
 ```
 
 **Rendered output:** The chart area is divided into eight coloured rectangles. "US Equities" (3 200) occupies the largest rectangle (roughly half the chart). Each rectangle is labelled with its asset name and value. Colours cycle through the theme palette.
+
+---
+
+## 17. Radar
+
+Plots several axes radiating from a centre, with each series drawn as a closed polygon. Ideal for comparing multiple entities across the same set of metrics.
+
+```csharp
+string svg = ChartBuilder.Create()
+    .Title("Skill Assessment")
+    .Size(560, 520)
+    .XAxis("Skill", "Coding","Design","Testing","DevOps","Docs","Comms")
+    .AsAnimated()
+    .Series(s => s
+        .AddRadar("Alice", new double[] { 90, 60, 75, 50, 65, 80 },
+            cfg => cfg.Color(ChartColor.ChartBlue).FillOpacity(0.25))
+        .AddRadar("Bob",   new double[] { 65, 85, 60, 80, 55, 70 },
+            cfg => cfg.Color(ChartColor.ChartOrange).FillOpacity(0.25)))
+    .RenderToSvg();
+```
+
+**Rendered output:** Six spokes labelled with each skill. Two translucent polygons (blue, orange) overlay one another so strengths and gaps are immediately visible. A legend distinguishes the two people.
+
+---
+
+## 18. BoxPlot
+
+A box-and-whisker chart showing the five-number summary (min, Q1, median, Q3, max) per category. Perfect for comparing distributions.
+
+```csharp
+using TerraFluent.Chart.Reporting.Models;
+
+string svg = ChartBuilder.Create()
+    .Title("Response Time Distribution by Endpoint (ms)")
+    .Size(700, 420)
+    .XAxis("Endpoint", "/login","/search","/checkout","/report")
+    .YAxis("ms", min: 0)
+    .AsAnimated()
+    .Series(s => s
+        .AddBoxPlot("Latency", new[]
+        {
+            // BoxPlotPoint(low, q1, median, q3, high)
+            new BoxPlotPoint( 40,  70,  95, 130, 210),
+            new BoxPlotPoint( 55,  90, 120, 160, 260),
+            new BoxPlotPoint( 80, 140, 190, 250, 400),
+            new BoxPlotPoint(120, 220, 300, 410, 620),
+        }))
+    .RenderToSvg();
+```
+
+**Rendered output:** Four boxes, one per endpoint. Each box spans Q1–Q3 with a median line inside; whiskers extend to min and max. `/report` sits highest, revealing the slowest and most variable endpoint.
+
+**`BoxPlotPoint` struct:** `Low`, `Q1`, `Median`, `Q3`, `High`.
+
+---
+
+## 19. ErrorBar
+
+Draws a vertical whisker from a low to a high value per category — typically overlaid on a line or column series to show uncertainty.
+
+```csharp
+using TerraFluent.Chart.Reporting.Models;
+
+string svg = ChartBuilder.Create()
+    .Title("Measured Mean ± Std. Dev.")
+    .Size(700, 400)
+    .XAxis("Sample", "A","B","C","D","E")
+    .YAxis("Value", min: 0)
+    .AsAnimated()
+    .Series(s => s
+        .AddLine("Mean", new double[] { 30, 42, 38, 55, 48 },
+            cfg => cfg.Color(ChartColor.ChartBlue))
+        .AddErrorBar("± SD", new[]
+        {
+            new RangePoint(26, 34), new RangePoint(37, 47), new RangePoint(33, 43),
+            new RangePoint(49, 61), new RangePoint(43, 53),
+        }, cfg => cfg.Color(ChartColor.Charcoal)))
+    .RenderToSvg();
+```
+
+**Rendered output:** A blue mean line with a grey error whisker at each point, each capped top and bottom, spanning the low–high uncertainty band.
+
+---
+
+## 20. Candlestick
+
+Financial OHLC candles. Up sessions (close ≥ open) use the theme's positive colour; down sessions use the negative colour.
+
+```csharp
+using TerraFluent.Chart.Reporting.Models;
+
+string svg = ChartBuilder.Create()
+    .Title("ACME — Daily OHLC")
+    .Size(720, 420)
+    .XAxis("Day", "Mon","Tue","Wed","Thu","Fri")
+    .YAxis("Price ($)")
+    .AsAnimated()
+    .Series(s => s
+        .AddCandlestick("ACME", new[]
+        {
+            // OhlcPoint(open, high, low, close)
+            new OhlcPoint(120, 128, 118, 126),
+            new OhlcPoint(126, 130, 122, 123),
+            new OhlcPoint(123, 133, 121, 132),
+            new OhlcPoint(132, 135, 128, 129),
+            new OhlcPoint(129, 140, 127, 138),
+        }))
+    .RenderToSvg();
+```
+
+**Rendered output:** Five candles. Each has a thin high–low wick and a thick open–close body. Green bodies mark up days, red bodies mark down days.
+
+**`OhlcPoint` struct:** `Open`, `High`, `Low`, `Close`.
+
+---
+
+## 21. OHLC
+
+The same open/high/low/close data drawn as bars instead of candles: a high–low vertical bar with a left tick (open) and a right tick (close).
+
+```csharp
+using TerraFluent.Chart.Reporting.Models;
+
+string svg = ChartBuilder.Create()
+    .Title("ACME — OHLC Bars")
+    .Size(720, 420)
+    .XAxis("Day", "Mon","Tue","Wed","Thu","Fri")
+    .YAxis("Price ($)")
+    .AsAnimated()
+    .Series(s => s
+        .AddOhlc("ACME", new[]
+        {
+            new OhlcPoint(120, 128, 118, 126),
+            new OhlcPoint(126, 130, 122, 123),
+            new OhlcPoint(123, 133, 121, 132),
+            new OhlcPoint(132, 135, 128, 129),
+            new OhlcPoint(129, 140, 127, 138),
+        }))
+    .RenderToSvg();
+```
+
+**Rendered output:** Five vertical bars. A left-pointing tick marks the open price and a right-pointing tick marks the close. Colour follows the same up/down convention as candlesticks.
+
+---
+
+## 22. Dumbbell
+
+A dot-plot connecting a low and a high value per category — great for before/after or start/end comparisons.
+
+```csharp
+using TerraFluent.Chart.Reporting.Models;
+
+string svg = ChartBuilder.Create()
+    .Title("Salary Change After Promotion")
+    .Size(700, 420)
+    .XAxis("Role", "Junior","Mid","Senior","Lead","Principal")
+    .YAxis("Salary ($k)", min: 0)
+    .AsAnimated()
+    .Series(s => s
+        .AddDumbbell("Before → After", new[]
+        {
+            new RangePoint( 60,  72), new RangePoint( 85, 100),
+            new RangePoint(110, 132), new RangePoint(140, 168),
+            new RangePoint(175, 210),
+        }, cfg => cfg.Color(ChartColor.ChartBlue)))
+    .RenderToSvg();
+```
+
+**Rendered output:** For each role, two dots connected by a bar — the left/lower dot is the "before" value, the right/upper dot the "after". The connector length shows the size of each raise.
+
+---
+
+## 23. Stream
+
+A ThemeRiver: stacked areas rendered around a centred baseline so the whole silhouette flows organically. Good for showing how a total and its composition evolve over time.
+
+```csharp
+string svg = ChartBuilder.Create()
+    .Title("Genre Popularity Over Time")
+    .Size(720, 420)
+    .XAxis("Year", "2019","2020","2021","2022","2023","2024")
+    .AsAnimated()
+    .Series(s => s
+        .AddStream("Pop",     new double[] { 40, 45, 52, 60, 58, 64 })
+        .AddStream("Rock",    new double[] { 55, 50, 48, 44, 42, 40 })
+        .AddStream("Hip-Hop", new double[] { 30, 38, 47, 55, 62, 70 })
+        .AddStream("Jazz",    new double[] { 18, 17, 16, 16, 15, 15 }))
+    .RenderToSvg();
+```
+
+**Rendered output:** Four coloured bands flow left-to-right around a central axis. The thickness of each band at any year is its value; the overall shape widens as total popularity grows.
+
+---
+
+## 24. Gantt
+
+A horizontal project timeline. Each task is a bar spanning its start-to-end position on the X (time) axis.
+
+```csharp
+using TerraFluent.Chart.Reporting.Models;
+
+string svg = ChartBuilder.Create()
+    .Title("Release Plan (weeks)")
+    .Size(760, 380)
+    .XAxis(x => { x.Title = "Week"; x.Min = 0; x.Max = 12; })
+    .AsAnimated()
+    .Series(s => s
+        .AddGantt("Schedule", new[]
+        {
+            new GanttTask { Name = "Design",      Start = 0, End = 3 },
+            new GanttTask { Name = "Development",  Start = 2, End = 8, Color = ChartColor.ChartBlue },
+            new GanttTask { Name = "Testing",      Start = 7, End = 10 },
+            new GanttTask { Name = "Launch",       Start = 10, End = 12, Color = ChartColor.ChartGreen },
+        }))
+    .RenderToSvg();
+```
+
+**Rendered output:** Four stacked rows, each with a bar positioned along the week axis. Overlapping bars show parallel work (Design and Development overlap at weeks 2–3). Custom colours highlight key phases.
+
+**`GanttTask` properties:** `Name`, `Start`, `End`, optional `Color`, optional `Label`.
+
+---
+
+## 25. Sankey
+
+A node-link flow diagram. Nodes are stages; links carry a quantity whose thickness is proportional to its value.
+
+```csharp
+using TerraFluent.Chart.Reporting.Models;
+
+string svg = ChartBuilder.Create()
+    .Title("Website Conversion Flow")
+    .Size(760, 440)
+    .AsAnimated()
+    .Series(s => s
+        .AddSankey("Flow",
+            nodes: new[]
+            {
+                new SankeyNode { Name = "Visitors" },   // 0
+                new SankeyNode { Name = "Sign-ups" },   // 1
+                new SankeyNode { Name = "Trials" },     // 2
+                new SankeyNode { Name = "Paid" },       // 3
+                new SankeyNode { Name = "Churned" },    // 4
+            },
+            links: new[]
+            {
+                new SankeyLink { From = 0, To = 1, Value = 1000 },
+                new SankeyLink { From = 1, To = 2, Value = 620 },
+                new SankeyLink { From = 2, To = 3, Value = 240 },
+                new SankeyLink { From = 2, To = 4, Value = 380 },
+            }))
+    .RenderToSvg();
+```
+
+**Rendered output:** Five stacked nodes connected by curved ribbons. The Visitors→Sign-ups ribbon is the thickest; the split from Trials shows how many converted to Paid versus Churned. Link thickness encodes each flow's magnitude.
+
+**`SankeyLink.From` / `To`** are zero-based indices into the `nodes` array.
+
+---
+
+## 26. Parliament
+
+A semicircular seating chart — one dot per seat, grouped by party. Standard for election results and any whole-of-assembly composition.
+
+```csharp
+using TerraFluent.Chart.Reporting.Models;
+
+string svg = ChartBuilder.Create()
+    .Title("Parliament Composition (200 seats)")
+    .Size(640, 400)
+    .AsAnimated()
+    .Series(s => s
+        .AddParliament("Seats", new[]
+        {
+            new ParliamentGroup("Progressive", ChartColor.ChartBlue,   82),
+            new ParliamentGroup("Conservative", ChartColor.ChartRed,   74),
+            new ParliamentGroup("Green",        ChartColor.ChartGreen,  26),
+            new ParliamentGroup("Independent",  ChartColor.Charcoal,    18),
+        }))
+    .RenderToSvg();
+```
+
+**Rendered output:** An arc of 200 coloured dots arranged in concentric rows, grouped left-to-right by party. Each party occupies a contiguous block sized by its seat count. A legend maps colours to parties.
+
+**`ParliamentGroup` constructor:** `(string name, string color, int seats)`.
 
 ---
 

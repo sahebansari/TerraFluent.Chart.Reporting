@@ -12,7 +12,7 @@ namespace TerraFluent.Chart.Reporting.Models
         /// <summary>Whether data labels are visible on this series.</summary>
         public bool    Enabled         { get; set; } = false;
 
-        /// <summary>HighCharts-style format string, e.g. <c>"{value}%"</c> or <c>"${value}k"</c>.</summary>
+        /// <summary>Format string, e.g. <c>"{value}%"</c> or <c>"${value}k"</c>.</summary>
         public string? FormatString    { get; set; }
 
         /// <summary>Text colour override. <c>null</c> = use the chart theme's <see cref="ChartTheme.TextColor"/>.</summary>

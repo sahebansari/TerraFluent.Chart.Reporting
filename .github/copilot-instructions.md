@@ -2,7 +2,7 @@
 
 ## Project Purpose
 A fluent C# class library that generates SVG charts server-side with zero JavaScript dependency.
-Inspired by the HighCharts API design. Targets `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`, `net10.0`.
+Targets `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`, `net10.0`.
 
 ## Solution Structure
 ```

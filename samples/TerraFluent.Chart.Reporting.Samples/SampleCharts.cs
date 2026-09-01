@@ -1721,7 +1721,7 @@ internal static partial class Program
         ChartBuilder.Create()
             .Theme(ChartTheme.Vivid)
             .Title("Global Market Performance")
-            .Subtitle("ChartTheme.Vivid \u2014 HighCharts-inspired full-spectrum palette")
+            .Subtitle("ChartTheme.Vivid \u2014 full-spectrum palette")
             .Size(720, 440)
             .AsAnimated()
             .XAxis(x => x.Categories.AddRange(new[] { "Q1", "Q2", "Q3", "Q4", "Q5", "Q6" }))

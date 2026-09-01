@@ -2,7 +2,7 @@
 
 **Server-side SVG chart generation for .NET. Zero JavaScript. Zero external dependencies.**
 
-TerraFluent.Chart.Reporting generates fully self-contained SVG charts entirely in C#, inspired by the Highcharts API design. Drop the SVG string into an HTML page, a Blazor component, a PDF report, or an email — it just works.
+TerraFluent.Chart.Reporting generates fully self-contained SVG charts entirely in C#. Drop the SVG string into an HTML page, a Blazor component, a PDF report, or an email — it just works.
 
 ---
 
@@ -11,10 +11,11 @@ TerraFluent.Chart.Reporting generates fully self-contained SVG charts entirely i
 | Guide | What it covers |
 |---|---|
 | [Getting Started](getting-started.md) | Install, first chart, ASP.NET / Blazor integration |
-| [Chart Types](chart-types.md) | All 16 chart types with full code + SVG output |
+| [Chart Types](chart-types.md) | All 26 chart types with full code + SVG output |
 | [Themes & Styling](themes-and-styling.md) | Built-in themes, custom themes, ChartColor catalogue, series colors, borders, opacity |
 | [Advanced Features](advanced.md) | Render modes, output methods, axes, plot bands, stacking, Fork, DI |
-| [API Reference](api-reference.md) | Complete method table for every builder |
+| [API Reference](api-reference.md) | Complete method reference for every builder, enum, theme, and data type |
+| [Troubleshooting & FAQ](troubleshooting.md) | Common issues, exceptions, and integration answers |
 
 ---
 
@@ -56,9 +57,9 @@ Paste it directly into HTML or save it with `.RenderToFile("chart.svg")`.
 | **Target frameworks** | `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`, `net10.0` |
 | **External dependencies** | None — pure BCL only |
 | **Output** | Self-contained SVG string |
-| **Chart types** | 16 types (Line, Spline, Area, Column, Bar, Pie/Donut, Scatter, Waterfall, Gauge, DataRing, Bubble, Heatmap, ColumnRange, AreaRange, Funnel, Treemap) |
+| **Chart types** | 26 types (Line, Spline, Area, Column, Bar, Pie/Donut, Scatter, Waterfall, Gauge, DataRing, Bubble, Heatmap, ColumnRange, AreaRange, Funnel, Treemap, Radar, BoxPlot, ErrorBar, Candlestick, OHLC, Dumbbell, Stream, Gantt, Sankey, Parliament) |
 | **Render modes** | Static (PDF/email safe), Animated (SMIL), Interactive (JS) |
-| **Built-in themes** | Default, Dark, Pastel, Monochrome, Custom |
+| **Built-in themes** | Default, Dark, Pastel, Monochrome, Ocean, Sunset, Forest, Neon, Minimal, Warm, Arctic, Business, Material, TrafficLight, Accessible, Vivid, HighContrast, + Custom |
 
 ---
 

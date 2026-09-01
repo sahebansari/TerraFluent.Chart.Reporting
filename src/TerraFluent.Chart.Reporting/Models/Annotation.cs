@@ -52,7 +52,7 @@ namespace TerraFluent.Chart.Reporting.Models
         /// <summary>Stroke width in pixels for line, rect and circle outlines.</summary>
         public int StrokeWidth { get; set; } = 1;
 
-        /// <summary>Optional HighCharts-style dash pattern (e.g. "Dash", "Dot", "LongDash").</summary>
+        /// <summary>Optional dash pattern (e.g. "Dash", "Dot", "LongDash").</summary>
         public string? DashStyle { get; set; }
 
         /// <summary>Font size in pixels for label text.</summary>

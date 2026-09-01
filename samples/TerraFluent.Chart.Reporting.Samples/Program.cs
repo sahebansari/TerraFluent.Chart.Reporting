@@ -5,8 +5,8 @@ namespace TerraFluent.Chart.Reporting.Samples;
 
 /// <summary>
 /// Console application that generates sample SVG charts to showcase the
-/// TerraFluent.Chart.Reporting library features. Individual .svg files, a self-contained index.html,
-/// and an AutoAnalytics dashboard.html are written to the output folder.
+/// TerraFluent.Chart.Reporting library features. Individual .svg files and a self-contained
+/// index.html are written to the output folder.
 /// </summary>
 /// <remarks>
 /// This file holds only the orchestration (theme, output folder, <see cref="Main"/> and the chart
@@ -326,7 +326,7 @@ internal static partial class Program
             AnnotationsChart));
 
         charts.Add(Run("73_vivid_theme", "Vivid Theme",
-            "ChartTheme.Vivid \u2014 HighCharts-inspired full-spectrum palette.",
+            "ChartTheme.Vivid \u2014 full-spectrum palette.",
             VividTheme));
 
         charts.Add(Run("74_label_layout", "Label Layout Builder",
@@ -471,40 +471,9 @@ internal static partial class Program
         }
         finally { Console.ResetColor(); }
 
-        Console.Write("  Generating auto-dashboard ... ");
-        
-        try
-        {
-            AutoAnalyticsDashboardSample.Generate(OutputDir);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("OK");
-        }
-        catch (Exception ex)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"FAILED \u2014 {ex.Message}");
-        }
-        finally { Console.ResetColor(); }
-
-        Console.Write("  Generating agent report ... ");
-        try
-        {
-            AutoAnalyticsAgentSample.Generate(OutputDir);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("OK");
-        }
-        catch (Exception ex)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"FAILED \u2014 {ex.Message}");
-        }
-        finally { Console.ResetColor(); }
-
         Console.WriteLine();
         Console.WriteLine($"Output folder : {OutputDir}");
         Console.WriteLine($"Showcase page : {Path.Combine(OutputDir, "index.html")}");
-        Console.WriteLine($"Smart dashboard: {Path.Combine(OutputDir, "dashboard.html")}");
-        Console.WriteLine($"Agent report  : {Path.Combine(OutputDir, "agent-report.html")}");
         Console.WriteLine("Open index.html in a browser to view all charts.");
     }
 

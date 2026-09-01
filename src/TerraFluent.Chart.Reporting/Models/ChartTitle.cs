@@ -1,7 +1,7 @@
 namespace TerraFluent.Chart.Reporting.Models
 {
     /// <summary>
-    /// Chart title and subtitle configuration. Mirrors HighCharts <c>title</c> / <c>subtitle</c>.
+    /// Chart title and subtitle configuration.
     /// </summary>
     public class ChartTitle
     {

@@ -517,7 +517,7 @@ namespace TerraFluent.Chart.Reporting.Models
         // These are the exact hex values used in the library's built-in themes.
         // =================================================================
 
-        /// <summary>#7CB5EC — Highcharts-inspired sky blue (Default/Animated theme, series 1).</summary>
+        /// <summary>#7CB5EC — sky blue (Default/Animated theme, series 1).</summary>
         public const string ChartBlue = "#7CB5EC";
 
         /// <summary>#F7A35C — warm orange (Default/Animated theme, series 2).</summary>
@@ -1078,7 +1078,7 @@ namespace TerraFluent.Chart.Reporting.Models
         /// <summary>#AA4499 — accessible purple; Accessible theme palette series 12.</summary>
         public const string AccessiblePurple = "#AA4499";
 
-        // ── Vivid theme palette colours (HighCharts-inspired) ────────────────────
+        // ── Vivid theme palette colours ────────────────────
 
         /// <summary>#2CAFFE — vivid sky blue; Vivid theme palette series 1.</summary>
         public const string VividBlue = "#2CAFFE";
@@ -1331,7 +1331,7 @@ namespace TerraFluent.Chart.Reporting.Models
         {
             // ── Theme palettes ────────────────────────────────────────────────────────
 
-            /// <summary>Highcharts-inspired blue-orange palette (matches <see cref="ChartTheme.Default"/>, 20 colours).</summary>
+            /// <summary>Blue-orange palette (matches <see cref="ChartTheme.Default"/>, 20 colours).</summary>
             public static readonly string[] Default = new[]
             {
                 ChartBlue, ChartOrange, ChartGreen, ChartYellow,
@@ -1484,7 +1484,7 @@ namespace TerraFluent.Chart.Reporting.Models
             };
 
             /// <summary>
-            /// Vivid full-spectrum palette inspired by HighCharts' modern default colours (20 colours).
+            /// Vivid full-spectrum palette of modern, distinct colours (20 colours).
             /// Every hue is maximally distinct and pops on a white background.
             /// </summary>
             public static readonly string[] Vivid = new[]

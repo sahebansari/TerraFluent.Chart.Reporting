@@ -20,7 +20,7 @@ namespace TerraFluent.Chart.Reporting.Models
         /// <summary>Stroke width in pixels. Default <c>1</c>.</summary>
         public int LineWidth { get; set; } = 1;
 
-        /// <summary>HighCharts-style dash style string (e.g. <c>"Dash"</c>, <c>"Dot"</c>). <c>null</c> = solid.</summary>
+        /// <summary>Dash style string (e.g. <c>"Dash"</c>, <c>"Dot"</c>). <c>null</c> = solid.</summary>
         public string? DashStyle { get; set; }
     }
 }

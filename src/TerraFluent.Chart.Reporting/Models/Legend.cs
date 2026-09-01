@@ -1,7 +1,7 @@
 namespace TerraFluent.Chart.Reporting.Models
 {
     /// <summary>
-    /// Legend configuration. Mirrors HighCharts <c>legend</c>.
+    /// Legend configuration.
     /// </summary>
     public class Legend
     {
