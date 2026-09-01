@@ -3,12 +3,69 @@ using System.Text;
 namespace TerraFluent.Chart.Reporting.Samples;
 
 /// <summary>
-/// Builds the HTML output pages for the sample app: the <c>index.html</c> chart showcase.
-/// Split from <see cref="Program"/> to keep orchestration lean.
+/// Builds the HTML output pages for the sample app: the <c>index.html</c> chart showcase
+/// written next to the SVGs, and the <c>docs/showcase.html</c> + <c>docs/showcase.md</c>
+/// gallery emitted into the repository docs folder. Split from <see cref="Program"/> to keep
+/// orchestration lean.
 /// </summary>
 internal static partial class Program
 {
     private static void GenerateIndexHtml(IEnumerable<ChartEntry> charts)
+    {
+        string html = BuildShowcaseHtml(
+            charts,
+            subtitle: "Server-side SVG chart generation for .NET \u2014 zero JavaScript dependency.",
+            includeStandaloneLinks: true);
+        File.WriteAllText(Path.Combine(OutputDir, "index.html"), html, Encoding.UTF8);
+    }
+
+    /// <summary>
+    /// Emits a self-contained <c>showcase.html</c> gallery plus a markdown <c>showcase.md</c>
+    /// index into the repository <c>docs/</c> folder so the documentation carries the same
+    /// visual chart catalogue as the sample app. No-op (with a console note) if the docs folder
+    /// cannot be located.
+    /// </summary>
+    private static void GenerateDocsShowcase(IEnumerable<ChartEntry> charts)
+    {
+        var list = charts.Where(c => !string.IsNullOrEmpty(c.Svg)).ToList();
+
+        string? docsDir = FindDocsDir();
+        if (docsDir is null)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("SKIPPED \u2014 docs/ folder not found");
+            Console.ResetColor();
+            return;
+        }
+
+        // docs charts are embedded inline, so the per-card standalone-SVG link is dropped.
+        string html = BuildShowcaseHtml(
+            list,
+            subtitle: "A live visual catalogue of every chart type and feature \u2014 all rendered as self-contained SVG.",
+            includeStandaloneLinks: false);
+        File.WriteAllText(Path.Combine(docsDir, "showcase.html"), html, Encoding.UTF8);
+
+        File.WriteAllText(Path.Combine(docsDir, "showcase.md"), BuildShowcaseMarkdown(list), Encoding.UTF8);
+    }
+
+    /// <summary>Walks up from the running binary to the repository root and returns its <c>docs/</c> path, or <c>null</c>.</summary>
+    private static string? FindDocsDir()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "TerraFluent.Chart.Reporting.sln")))
+            {
+                string docs = Path.Combine(dir.FullName, "docs");
+                return Directory.Exists(docs) ? docs : null;
+            }
+            dir = dir.Parent;
+        }
+        return null;
+    }
+
+    /// <summary>Renders the shared chart-gallery HTML page used by both the sample app and the docs showcase.</summary>
+    private static string BuildShowcaseHtml(IEnumerable<ChartEntry> charts, string subtitle, bool includeStandaloneLinks)
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!DOCTYPE html>");
@@ -51,7 +108,7 @@ internal static partial class Program
         sb.AppendLine("<body>");
         sb.AppendLine("  <header>");
         sb.AppendLine("    <h1>TerraFluent.Chart.Reporting</h1>");
-        sb.AppendLine("    <p>Server-side SVG chart generation for .NET \u2014 zero JavaScript dependency.</p>");
+        sb.AppendLine($"    <p>{HtmlEncode(subtitle)}</p>");
         sb.AppendLine("  </header>");
         sb.AppendLine("  <main>");
         sb.AppendLine("    <div class=\"grid\">");
@@ -72,11 +129,19 @@ internal static partial class Program
                 int end = inlineSvg.IndexOf("?>", StringComparison.Ordinal);
                 if (end >= 0) inlineSvg = inlineSvg[(end + 2)..].TrimStart();
             }
+            // Inline SVG scripts are parsed as HTML raw text; comment out the XML CDATA
+            // guards so they stay valid JS and don't trip HTML/JS validators.
+            inlineSvg = inlineSvg
+                .Replace("<![CDATA[", "//<![CDATA[")
+                .Replace("]]>", "//]]>");
             sb.AppendLine("          " + inlineSvg.Replace("\n", "\n          ").TrimEnd());
             sb.AppendLine("        </div>");
-            sb.AppendLine("        <div class=\"card-footer\">");
-            sb.AppendLine($"          <a href=\"{HtmlEncode(chart.FileName)}.svg\" target=\"_blank\">Open as standalone SVG &#8599;</a>");
-            sb.AppendLine("        </div>");
+            if (includeStandaloneLinks)
+            {
+                sb.AppendLine("        <div class=\"card-footer\">");
+                sb.AppendLine($"          <a href=\"{HtmlEncode(chart.FileName)}.svg\" target=\"_blank\">Open as standalone SVG &#8599;</a>");
+                sb.AppendLine("        </div>");
+            }
             sb.AppendLine("      </div>");
             index++;
         }
@@ -87,8 +152,40 @@ internal static partial class Program
         sb.AppendLine("</body>");
         sb.AppendLine("</html>");
 
-        File.WriteAllText(Path.Combine(OutputDir, "index.html"), sb.ToString(), Encoding.UTF8);
+        return sb.ToString();
     }
+
+    /// <summary>Builds the markdown <c>showcase.md</c> index that links to the HTML gallery and lists every chart.</summary>
+    private static string BuildShowcaseMarkdown(IReadOnlyList<ChartEntry> charts)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("# Chart Showcase");
+        sb.AppendLine();
+        sb.AppendLine("A live visual catalogue of every chart type and feature in TerraFluent.Chart.Reporting \u2014 "
+            + "each entry is a self-contained SVG rendered entirely server-side, with zero JavaScript dependency.");
+        sb.AppendLine();
+        sb.AppendLine("> **[\u25b6 Open the interactive showcase (showcase.html)](showcase.html)** \u2014 "
+            + "a single browsable page with all charts rendered inline. Best viewed in a browser.");
+        sb.AppendLine();
+        sb.AppendLine("For copy-paste code behind each chart type, see **[Chart Types](chart-types.md)**.");
+        sb.AppendLine();
+        sb.AppendLine($"_Catalogue of {charts.Count} charts \u00b7 generated {DateTime.UtcNow:yyyy-MM-dd} UTC._");
+        sb.AppendLine();
+        sb.AppendLine("| # | Chart | What it demonstrates |");
+        sb.AppendLine("|---|---|---|");
+        int index = 1;
+        foreach (var chart in charts)
+        {
+            sb.AppendLine($"| {index:D2} | {MarkdownEscape(chart.Title)} | {MarkdownEscape(chart.Description)} |");
+            index++;
+        }
+        sb.AppendLine();
+        return sb.ToString();
+    }
+
+    private static string MarkdownEscape(string text) =>
+        text.Replace("\\", "\\\\")
+            .Replace("|", "\\|");
 
     private static string HtmlEncode(string text) =>
         text.Replace("&", "&amp;")

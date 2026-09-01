@@ -11,6 +11,7 @@ TerraFluent.Chart.Reporting generates fully self-contained SVG charts entirely i
 | Guide | What it covers |
 |---|---|
 | [Getting Started](getting-started.md) | Install, first chart, ASP.NET / Blazor integration |
+| [Chart Showcase](showcase.md) | Live visual gallery of every chart type and feature (opens `showcase.html`) |
 | [Chart Types](chart-types.md) | All 26 chart types with full code + SVG output |
 | [Themes & Styling](themes-and-styling.md) | Built-in themes, custom themes, ChartColor catalogue, series colors, borders, opacity |
 | [Advanced Features](advanced.md) | Render modes, output methods, axes, plot bands, stacking, Fork, DI |
