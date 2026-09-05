@@ -365,6 +365,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (options.RenderMode != SvgMode.Static && options.Tooltip.Enabled)
                 {
                     tooltipLayer.AppendLine("  <g class=\"data-point\">");
+                    AppendHoverBandV(tooltipLayer, options, cx, groupW, plotHeight);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(xL)}\" y=\"{F(yHi)}\" width=\"{F(boxW)}\" height=\"{F(Math.Max(1.0, yLo - yHi))}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, cx, yMed, series.Name, p.Median, svgWidth, svgHeight, options.Tooltip, color);
                     tooltipLayer.AppendLine("  </g>");
@@ -407,6 +408,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (options.RenderMode != SvgMode.Static && options.Tooltip.Enabled)
                 {
                     tooltipLayer.AppendLine("  <g class=\"data-point\">");
+                    AppendHoverBandV(tooltipLayer, options, cx, groupW, plotHeight);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(cx - capW)}\" y=\"{F(yHi)}\" width=\"{F(capW * 2)}\" height=\"{F(Math.Max(1.0, yLo - yHi))}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, cx, yHi, series.Name, Math.Max(p.Low, p.High), svgWidth, svgHeight, options.Tooltip, color);
                     tooltipLayer.AppendLine("  </g>");

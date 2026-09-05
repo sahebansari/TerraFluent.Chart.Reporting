@@ -795,6 +795,34 @@ namespace TerraFluent.Chart.Reporting.Builder
             return this;
         }
 
+        // ------------------------------------------------------------------ credits
+
+        /// <summary>
+        /// Shows the fixed TerraFluent attribution label (<c>terrafluent.dev</c>) in the chart corner.
+        /// The label text and link are not configurable — callers may only show/hide it and choose
+        /// its corner. It is shown by default; call <see cref="HideCredits"/> to remove it.
+        /// </summary>
+        public ChartBuilder ShowCredits()
+        {
+            _options.Credits.Enabled = true;
+            return this;
+        }
+
+        /// <summary>Shows the attribution label in the given corner.</summary>
+        public ChartBuilder ShowCredits(CreditsPosition position)
+        {
+            _options.Credits.Enabled  = true;
+            _options.Credits.Position = position;
+            return this;
+        }
+
+        /// <summary>Hides the attribution / branding label.</summary>
+        public ChartBuilder HideCredits()
+        {
+            _options.Credits.Enabled = false;
+            return this;
+        }
+
         // ------------------------------------------------------------------ label layout
 
         /// <summary>

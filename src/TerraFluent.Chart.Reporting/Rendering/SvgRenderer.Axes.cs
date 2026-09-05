@@ -72,7 +72,8 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     {
                         string gc = options.YAxis.GridLineColor ?? options.Theme.GridLineColor;
                         string yp = F(y);
-                        sb.AppendLine($"  <line aria-hidden=\"true\" class=\"grid-line\" stroke=\"{Escape(gc)}\" x1=\"{PaddingLeft}\" y1=\"{yp}\" x2=\"{PaddingLeft + plotWidth}\" y2=\"{yp}\"/>");
+                        string gridOp = options.Theme.ModernStyle ? " stroke-opacity=\"0.45\"" : string.Empty;
+                        sb.AppendLine($"  <line aria-hidden=\"true\" class=\"grid-line\" stroke=\"{Escape(gc)}\"{gridOp} x1=\"{PaddingLeft}\" y1=\"{yp}\" x2=\"{PaddingLeft + plotWidth}\" y2=\"{yp}\"/>");
                     }
 
                     sb.AppendLine($"  <text class=\"axis-label\" x=\"{PaddingLeft - 6}\" y=\"{F(y + 4)}\" text-anchor=\"end\" fill=\"{Escape(options.Theme.TextColor)}\">{FormatAxisTick(tick, yTickFmt, displayCulture)}</text>");
@@ -125,7 +126,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                         if (xIsDate && cats[i] == lastShownLabel) continue;
                         lastShownLabel = cats[i];
 
-                        if (options.XAxis.GridLineVisible)
+                        if (options.XAxis.GridLineVisible && !options.Theme.ModernStyle)
                         {
                             string gc = options.XAxis.GridLineColor ?? options.Theme.GridLineColor;
                             string xp = F(x);
@@ -176,7 +177,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                         double x = PaddingLeft + (tick - xMin) / (xMax - xMin) * plotWidth;
                         if (x < PaddingLeft - 1 || x > PaddingLeft + plotWidth + 1) continue;
 
-                        if (options.XAxis.GridLineVisible)
+                        if (options.XAxis.GridLineVisible && !options.Theme.ModernStyle)
                         {
                             string gc = options.XAxis.GridLineColor ?? options.Theme.GridLineColor;
                             sb.AppendLine($"  <line aria-hidden=\"true\" class=\"grid-line\" stroke=\"{Escape(gc)}\" x1=\"{F(x)}\" y1=\"{PaddingTop}\" x2=\"{F(x)}\" y2=\"{F(tickY)}\"/>");

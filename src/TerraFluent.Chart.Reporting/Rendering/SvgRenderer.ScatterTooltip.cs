@@ -72,6 +72,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (options.RenderMode != SvgMode.Static)
                 {
                     tooltipLayer.AppendLine($"  <g class=\"data-point\">");
+                    AppendHoverBandV(tooltipLayer, options, px, step, plotHeight);
                     tooltipLayer.AppendLine($"    <circle cx=\"{F(px)}\" cy=\"{F(py)}\" r=\"8\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, px, py - 14, series.Name, v, svgWidth, svgHeight, options.Tooltip,
                         color, PaddingTop, PaddingTop + plotHeight);
@@ -91,13 +92,21 @@ namespace TerraFluent.Chart.Reporting.Rendering
             double crosshairTop = -1, double crosshairBottom = -1,
             int dataIndex = -1, string xLabel = "",
             Enums.MarkerSymbol markerSymbol = Enums.MarkerSymbol.Circle,
-            bool suppressVisibleMarker = false, string? rsGroupId = null)
+            bool suppressVisibleMarker = false, string? rsGroupId = null,
+            bool hollowMarker = false,
+            double bandWidth = 0, string? bandFill = null)
         {
             if (!markerEnabled && !suppressVisibleMarker) return;
             string rHit = (markerSize + 4).ToString(CultureInfo.InvariantCulture);
             // Shape in sb
             if (!suppressVisibleMarker)
-                sb.AppendLine("  " + MarkerShape(markerSymbol, cx, cy, markerSize, Escape(color), Escape(markerBorderColor), 1.5));
+            {
+                // Modern hollow ring: background-filled dot outlined in the series colour.
+                if (hollowMarker)
+                    sb.AppendLine("  " + MarkerShape(markerSymbol, cx, cy, markerSize, Escape(markerBorderColor), Escape(color), 2.0));
+                else
+                    sb.AppendLine("  " + MarkerShape(markerSymbol, cx, cy, markerSize, Escape(color), Escape(markerBorderColor), 1.5));
+            }
             // Tooltip hit-area in overlay layer
             if (mode != SvgMode.Static)
             {
@@ -106,6 +115,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     ? $" data-di=\"{dataIndex}\" data-val=\"{Escape(FormatTick(value))}\" data-name=\"{Escape(seriesName)}\" data-color=\"{Escape(color)}\" data-ax=\"{F(cx)}\" data-ay=\"{F(cy - 20)}\" data-xlabel=\"{Escape(xLabel)}\""
                     : string.Empty;
                 tooltipLayer.AppendLine($"  <g class=\"data-point\"{rsAttr}{dataAttrs}>");
+                // Modern hover highlight band — full-height strip behind the hovered point.
+                if (bandFill != null && bandWidth > 0 && crosshairTop >= 0 && crosshairBottom > crosshairTop)
+                    tooltipLayer.AppendLine($"    <rect class=\"hover-band\" x=\"{F(cx - bandWidth / 2)}\" y=\"{F(crosshairTop)}\" width=\"{F(bandWidth)}\" height=\"{F(crosshairBottom - crosshairTop)}\" rx=\"6\" fill=\"{bandFill}\"/>");
                 tooltipLayer.AppendLine($"    <circle cx=\"{F(cx)}\" cy=\"{F(cy)}\" r=\"{rHit}\" class=\"hit-area\" stroke=\"none\"/>");
                 AppendTooltip(tooltipLayer, cx, cy - 20, seriesName, value, svgWidth, svgHeight, tooltip,
                     color, crosshairTop, crosshairBottom);

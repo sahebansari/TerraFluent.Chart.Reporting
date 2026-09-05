@@ -86,6 +86,15 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     sb.AppendLine($"    {p}.data-point:hover .crosshair-x {{ opacity: 1; }}");
                 }
 
+                // Modern hover highlight band — a full-height translucent strip revealed behind the
+                // hovered category/point. Emitted only for ModernStyle so classic charts stay plain.
+                if (options.Tooltip.Enabled && t.ModernStyle)
+                {
+                    string ttDurBand = options.Tooltip.TransitionDuration.ToString("F2", CultureInfo.InvariantCulture);
+                    sb.AppendLine($"    {p}.hover-band {{ opacity: 0; transition: opacity {ttDurBand}s; pointer-events: none; }}");
+                    sb.AppendLine($"    {p}.data-point:hover .hover-band {{ opacity: 1; }}");
+                }
+
                 // Hit-area overlay — provides noticeable hover feedback on the underlying visible shape.
                 // fill  : light violet tint overlays the shape on hover.
                 // stroke: vivid violet border outlines the shape edge clearly on any chart colour.

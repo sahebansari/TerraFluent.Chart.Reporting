@@ -246,14 +246,14 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (anim)
                 {
                     double baseYPx = PaddingTop + plotHeight;
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseYPx)}\" width=\"{F(barW)}\" height=\"0\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series)}>");
+                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseYPx)}\" width=\"{F(barW)}\" height=\"0\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series, options)}>");
                     sb.AppendLine($"      <animate attributeName=\"height\" from=\"0\" to=\"{F(barH)}\" dur=\"{dur}\" fill=\"freeze\"{ease}/>");
                     sb.AppendLine($"      <animate attributeName=\"y\" from=\"{F(baseYPx)}\" to=\"{F(yTop)}\" dur=\"{dur}\" fill=\"freeze\"{ease}/>");
                     sb.AppendLine($"    </rect>");
                 }
                 else
                 {
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(yTop)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series)}/>");
+                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(yTop)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series, options)}/>");
                 }
                 sb.AppendLine($"  </g>");
 
@@ -267,6 +267,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (options.RenderMode != SvgMode.Static)
                 {
                     tooltipLayer.AppendLine($"  <g class=\"data-point\">");
+                    AppendHoverBandV(tooltipLayer, options, PaddingLeft + groupW * i + groupW / 2.0, groupW, plotHeight);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(x)}\" y=\"{F(yTop)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     // Tooltip shows Low–High range
                     string rangeLabel = $"{series.Name}: {FormatTick(rawLo)}\u2013{FormatTick(rawHi)}";

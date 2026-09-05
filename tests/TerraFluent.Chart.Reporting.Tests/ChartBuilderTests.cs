@@ -4000,5 +4000,379 @@ public class ChartBuilderTests
         Assert.Equal("#abc", clone.FillColor);
         Assert.Equal("#def", clone.HandleColor);
     }
+
+    // ------------------------------------------------------------------ ModernStyle theme flag
+
+    private static ChartTheme ModernTheme()
+    {
+        var t = ChartTheme.Default.Clone();
+        t.ModernStyle = true;
+        return t;
+    }
+
+    private static ChartTheme ClassicTheme()
+    {
+        var t = ChartTheme.Default.Clone();
+        t.ModernStyle = false;
+        return t;
+    }
+
+    [Fact]
+    public void ModernStyle_Column_RoundsCornersAndAddsGradient()
+    {
+        var svg = ChartBuilder.Create()
+            .Theme(ModernTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 50, 80, 60 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("rx=\"3\"", svg);            // softly rounded column corners
+        Assert.Contains("<linearGradient", svg);      // sheen gradient definition
+        Assert.Contains("url(#", svg);                // bars reference the gradient
+    }
+
+    [Fact]
+    public void ModernStyle_Off_Column_KeepsFlatSquareBars()
+    {
+        var svg = ChartBuilder.Create()
+            .Theme(ClassicTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 50, 80, 60 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.DoesNotContain("rx=\"3\"", svg);
+        Assert.DoesNotContain("mcol-", svg);          // no modern gradient id
+    }
+
+    [Fact]
+    public void ModernStyle_Column_HorizontalGridOnlyAndLighter()
+    {
+        var svg = ChartBuilder.Create()
+            .Theme(ModernTheme())
+            .Size(600, 400)
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .YAxis(y => y.GridLineVisible = true)
+            .Series(s => s.AddColumn("Sales", new double?[] { 50, 80, 60 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        // Horizontal (Y) grid lines are lightened.
+        Assert.Contains("stroke-opacity=\"0.45\"", svg);
+
+        // Every emitted grid line must be horizontal (y1 == y2); no vertical X grid lines.
+        var doc = System.Xml.Linq.XDocument.Parse(svg);
+        var ns = doc.Root!.Name.Namespace;
+        var gridLines = doc.Descendants(ns + "line")
+            .Where(l => (string?)l.Attribute("class") == "grid-line")
+            .ToList();
+        Assert.NotEmpty(gridLines);
+        foreach (var l in gridLines)
+        {
+            Assert.Equal((string?)l.Attribute("y1"), (string?)l.Attribute("y2"));
+        }
+    }
+
+    [Fact]
+    public void ModernStyle_StaticMode_GradientPresentWithoutScript()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ModernTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 50, 80, 60 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("<linearGradient", svg);      // geometry-only polish survives Static mode
+        Assert.DoesNotContain("<script", svg);
+    }
+
+    [Fact]
+    public void ModernTheme_Preset_EnablesModernStyleOutOfTheBox()
+    {
+        Assert.True(ChartTheme.Modern.ModernStyle);
+
+        var svg = ChartBuilder.Create()
+            .Theme(ChartTheme.Modern)
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 50, 80, 60 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("rx=\"3\"", svg);
+        Assert.Contains("<linearGradient", svg);
+    }
+
+    [Fact]
+    public void ModernStyle_Column_HasSoftShadowFilter()
+    {
+        var svg = ChartBuilder.Create()
+            .Theme(ModernTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 50, 80, 60 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("<filter", svg);
+        Assert.Contains("feDropShadow", svg);
+        Assert.Contains("-shadow)\"", svg);   // a rect references the shadow filter
+    }
+
+    [Fact]
+    public void ModernStyle_Off_Column_HasNoShadowFilter()
+    {
+        var svg = ChartBuilder.Create()
+            .Theme(ClassicTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 50, 80, 60 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.DoesNotContain("feDropShadow", svg);
+    }
+
+    [Fact]
+    public void ModernStyle_Line_UsesHollowRingMarkers()
+    {
+        var bg = ChartTheme.Default.BackgroundColor;
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ModernTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddLine("Trend", new double?[] { 10, 30, 20 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        // A hollow marker is a <circle> filled with the background colour (the background itself is a <rect>).
+        var doc = System.Xml.Linq.XDocument.Parse(svg);
+        var ns = doc.Root!.Name.Namespace;
+        bool hollow = doc.Descendants(ns + "circle")
+            .Any(c => string.Equals((string?)c.Attribute("fill"), bg, StringComparison.OrdinalIgnoreCase));
+        Assert.True(hollow, "expected at least one background-filled hollow ring marker");
+    }
+
+    [Fact]
+    public void ModernStyle_Pie_WidensSliceSeparators()
+    {
+        var svg = ChartBuilder.Create()
+            .Theme(ModernTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddPie("Share", new double?[] { 30, 50, 20 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("stroke-width=\"3\"", svg);
+        Assert.Contains("stroke-linejoin=\"round\"", svg);
+    }
+
+    [Fact]
+    public void ModernStyle_Area_FadesToTransparent()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ModernTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddArea("Vol", new double?[] { 10, 30, 20 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("marea-", svg);
+        Assert.Contains("stop-opacity=\"0.35\"", svg);
+        Assert.Contains("stop-opacity=\"0.03\"", svg);
+    }
+
+    [Fact]
+    public void ModernStyle_IsDefaultOnAllThemes()
+    {
+        Assert.True(new ChartTheme().ModernStyle);
+        Assert.True(ChartTheme.Default.ModernStyle);
+        Assert.True(ChartTheme.Dark.ModernStyle);
+        Assert.True(ChartTheme.Custom(backgroundColor: "#101010").ModernStyle);
+    }
+
+    [Fact]
+    public void Legend_LineSeriesSwatch_ReflectsMarkerSymbol()
+    {
+        // On-chart markers are disabled so the only diamond polygon comes from the legend swatch.
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddLine("Trend", new double?[] { 1, 2, 3 },
+                cfg => cfg.MarkerSymbol(MarkerSymbol.Diamond).MarkerEnabled(false)))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("<polygon", svg);   // diamond marker glyph in the legend swatch
+    }
+
+    [Fact]
+    public void Legend_ColumnSeriesSwatch_StaysRectangle()
+    {
+        var svg = ChartBuilder.Create()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        // A rectangular swatch immediately precedes the legend label for non-marker series.
+        ExtractLegendSwatchFill(svg, "Sales");
+    }
+
+    [Fact]
+    public void HoverBand_InteractiveColumn_EmitsBand()
+    {
+        var svg = ChartBuilder.Create()
+            .AsInteractive()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains(".hover-band", svg);                 // CSS rule
+        Assert.Contains("class=\"hover-band\"", svg);         // band rect
+        Assert.Contains(":hover .hover-band", svg);           // reveal on hover
+    }
+
+    [Fact]
+    public void HoverBand_InteractiveLine_EmitsBand()
+    {
+        var svg = ChartBuilder.Create()
+            .AsInteractive()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddLine("Trend", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("class=\"hover-band\"", svg);
+    }
+
+    [Fact]
+    public void HoverBand_InteractiveBar_EmitsBand()
+    {
+        var svg = ChartBuilder.Create()
+            .AsInteractive()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddBar("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("class=\"hover-band\"", svg);
+    }
+
+    [Fact]
+    public void HoverBand_InteractiveScatter_EmitsBand()
+    {
+        var svg = ChartBuilder.Create()
+            .AsInteractive()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddScatter("Points", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("class=\"hover-band\"", svg);
+    }
+
+    [Fact]
+    public void HoverBand_StaticMode_Excluded()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormedAndExcludes(svg, "hover-band");
+    }
+
+    [Fact]
+    public void HoverBand_ClassicTheme_Excluded()
+    {
+        var svg = ChartBuilder.Create()
+            .AsInteractive()
+            .Theme(ClassicTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormedAndExcludes(svg, "hover-band");
+    }
+
+    // ------------------------------------------------------------------ credits / branding
+
+    [Fact]
+    public void Credits_EnabledByDefault_EmitsFixedBrandHyperlink()
+    {
+        var svg = ChartBuilder.Create()
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Contains("class=\"tf-credit\"", svg);
+        Assert.Contains("<a href=\"https://terrafluent.dev\"", svg);
+        Assert.Contains("rel=\"noopener noreferrer\"", svg);
+        Assert.Contains("terrafluent.dev", svg);
+    }
+
+    [Fact]
+    public void HideCredits_RemovesLabel()
+    {
+        var svg = ChartBuilder.Create()
+            .HideCredits()
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormedAndExcludes(svg, "tf-credit");
+    }
+
+    [Fact]
+    public void ShowCredits_Position_MovesLabel()
+    {
+        var svg = ChartBuilder.Create()
+            .Size(600, 400)
+            .ShowCredits(CreditsPosition.TopLeft)
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        // Top-left → text-anchor start near the top of the canvas.
+        Assert.Contains("class=\"tf-credit\"", svg);
+        Assert.Contains("text-anchor=\"start\"", svg);
+    }
+
+    [Fact]
+    public void Credits_RendersInStaticModeWithoutScript()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormedAndContains(svg, "tf-credit");
+        Assert.DoesNotContain("<script", svg);
+    }
+
+    [Fact]
+    public void Credits_TextAndHref_AreFixedBrand()
+    {
+        var c = new CreditsOptions();
+        Assert.Equal("terrafluent.dev", c.Text);
+        Assert.Equal("https://terrafluent.dev", c.Href);
+        Assert.True(c.Enabled);   // shown by default
+    }
+
+    [Fact]
+    public void Credits_Clone_CopiesConfigurableProperties()
+    {
+        var c = new CreditsOptions { Enabled = false, Position = CreditsPosition.TopRight, Color = "#123456", FontSize = 11, Opacity = 0.4 };
+        var clone = c.Clone();
+
+        Assert.False(clone.Enabled);
+        Assert.Equal(CreditsPosition.TopRight, clone.Position);
+        Assert.Equal("#123456", clone.Color);
+        Assert.Equal(11, clone.FontSize);
+        Assert.Equal(0.4, clone.Opacity);
+        Assert.Equal("terrafluent.dev", clone.Text);   // fixed
+    }
 }
 

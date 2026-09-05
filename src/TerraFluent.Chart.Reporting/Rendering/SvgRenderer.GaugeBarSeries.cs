@@ -299,6 +299,13 @@ namespace TerraFluent.Chart.Reporting.Rendering
             double barPad = groupH * 0.1;
             double barH   = (groupH - barPad * 2) / Math.Max(barCount, 1);
 
+            // Modern sheen gradient (opt-in) — lighter at the free (right) end of each bar.
+            if (fillPaint == null)
+                barFill = ModernBarFill(sb, options, color, barFill, $"{clipId}-mbar-{barIdx}", horizontal: true);
+
+            // Modern soft-shadow elevation (opt-in).
+            string barShadow = options.Theme.ModernStyle ? $" filter=\"url(#{clipId}-shadow)\"" : string.Empty;
+
             double range = Math.Abs(yMax - yMin) < double.Epsilon ? 1 : yMax - yMin;
             // X pixel position where value == 0 (the origin line for the bars)
             double x0 = PaddingLeft + (0 - yMin) / range * plotWidth;
@@ -317,7 +324,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 double xTick = PaddingLeft + (tick - yMin) / range * plotWidth;
                 if (xTick < PaddingLeft - 1 || xTick > PaddingLeft + plotWidth + 1) continue;
                 if (options.YAxis.GridLineVisible)
-                    sb.AppendLine($"  <line class=\"grid-line\" stroke=\"{Escape(barGc)}\" x1=\"{F(xTick)}\" y1=\"{PaddingTop}\" x2=\"{F(xTick)}\" y2=\"{PaddingTop + plotHeight}\"/>");
+                    sb.AppendLine($"  <line class=\"grid-line\" stroke=\"{Escape(barGc)}\"{(options.Theme.ModernStyle ? " stroke-opacity=\"0.45\"" : string.Empty)} x1=\"{F(xTick)}\" y1=\"{PaddingTop}\" x2=\"{F(xTick)}\" y2=\"{PaddingTop + plotHeight}\"/>");
                 sb.AppendLine($"  <text class=\"axis-label\" x=\"{F(xTick)}\" y=\"{PaddingTop + plotHeight + 16}\" text-anchor=\"middle\" fill=\"{Escape(options.Theme.TextColor)}\">{FormatAxisTick(tick, options.YAxis.LabelFormat)}</text>");
             }
 
@@ -382,19 +389,20 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 sb.AppendLine($"  <g>");
                 if (bAnim)
                 {
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x0)}\" y=\"{F(barY)}\" width=\"0\" height=\"{F(barH)}\" fill=\"{barFill}\" fill-opacity=\"{barOp}\"{BuildRectBorderAttr(series)}>");
+                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x0)}\" y=\"{F(barY)}\" width=\"0\" height=\"{F(barH)}\" fill=\"{barFill}\" fill-opacity=\"{barOp}\"{barShadow}{BuildRectBorderAttr(series, options)}>");
                     sb.AppendLine($"      <animate attributeName=\"width\" from=\"0\" to=\"{F(barW)}\" dur=\"{bDur}\" fill=\"freeze\"{bEase}/>");
                     if (v < 0) sb.AppendLine($"      <animate attributeName=\"x\" from=\"{F(x0)}\" to=\"{F(barX)}\" dur=\"{bDur}\" fill=\"freeze\"{bEase}/>");
                     sb.AppendLine($"    </rect>");
                 }
                 else
                 {
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" fill=\"{barFill}\" fill-opacity=\"{barOp}\"{BuildRectBorderAttr(series)}/>");
+                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" fill=\"{barFill}\" fill-opacity=\"{barOp}\"{barShadow}{BuildRectBorderAttr(series, options)}/>");
                 }
                 sb.AppendLine($"  </g>");
                 if (options.RenderMode != SvgMode.Static)
                 {
                     tooltipLayer.AppendLine($"  <g class=\"data-point\">");
+                    AppendHoverBandH(tooltipLayer, options, PaddingTop + groupH * i + groupH / 2.0, groupH, plotWidth);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, barX + barW / 2, barY + barH / 2, series.Name, v, svgWidth, svgHeight, options.Tooltip, color);
                     tooltipLayer.AppendLine($"  </g>");

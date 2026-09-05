@@ -283,6 +283,10 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
             // --- Plot area clip ---
             sb.AppendLine($"  <clipPath id=\"{clipId}\"><rect x=\"{PaddingLeft}\" y=\"{PaddingTop}\" width=\"{plotWidth}\" height=\"{plotHeight}\"/></clipPath>");
 
+            // --- Modern soft-shadow filter (opt-in) referenced by column/bar rects for subtle elevation ---
+            if (options.Theme.ModernStyle)
+                AppendSoftShadowFilter(sb, clipId + "-shadow");
+
             // --- Grid & axes ---
             // When inside a translate group, pass (svgHeight - topLegendOffset) so the
             // x-axis title (at y = svgHeight_arg - 8) ends up at the correct absolute position.
@@ -339,8 +343,55 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
                 AppendDataTable(sb, options, svgWidth, tableY, tableRowCount);
             }
 
+            // --- Attribution / branding label (corner) ---
+            AppendCredits(sb, options, svgWidth, svgHeight);
+
             sb.AppendLine("</svg>");
             return sb.ToString();
+        }
+
+        // Renders the optional attribution / branding label in a chart corner. The label always
+        // renders as text; a hyperlink is emitted only for http/https targets (and is clickable
+        // only when the SVG is inline in a page — rasterised/exported output keeps the text).
+        private static void AppendCredits(StringBuilder sb, ChartOptions options, int svgWidth, int svgHeight)
+        {
+            var cr = options.Credits;
+            if (cr == null || !cr.Enabled || string.IsNullOrWhiteSpace(cr.Text)) return;
+
+            double fs     = cr.FontSize > 0 ? cr.FontSize : 9;
+            string color  = Escape(cr.Color ?? options.Theme.TextColor);
+            string op     = F(Math.Max(0.0, Math.Min(1.0, cr.Opacity)));
+            const double margin = 10.0;
+
+            bool right = cr.Position == CreditsPosition.BottomRight || cr.Position == CreditsPosition.TopRight;
+            bool top   = cr.Position == CreditsPosition.TopRight    || cr.Position == CreditsPosition.TopLeft;
+
+            double x = right ? svgWidth - margin : margin;
+            double y = top ? margin + fs : svgHeight - 7.0;
+            string anchor = right ? "end" : "start";
+            string label  = Escape(cr.Text);
+
+            // Inherit the theme font from the base text{} rule; only override size/fill/opacity here.
+            string textEl = $"<text x=\"{F(x)}\" y=\"{F(y)}\" text-anchor=\"{anchor}\" "
+                          + $"font-size=\"{F(fs)}\" fill=\"{color}\" fill-opacity=\"{op}\">{label}</text>";
+
+            bool linkable = !string.IsNullOrWhiteSpace(cr.Href)
+                && (cr.Href.StartsWith("http://",  StringComparison.OrdinalIgnoreCase)
+                 || cr.Href.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+            sb.AppendLine($"  <g class=\"tf-credit\" aria-label=\"{label}\">");
+            if (linkable)
+            {
+                sb.AppendLine($"    <a href=\"{Escape(cr.Href)}\" target=\"_blank\" rel=\"noopener noreferrer\">");
+                sb.AppendLine($"      <title>{label}</title>");
+                sb.AppendLine("      " + textEl);
+                sb.AppendLine("    </a>");
+            }
+            else
+            {
+                sb.AppendLine("    " + textEl);
+            }
+            sb.AppendLine("  </g>");
         }
 
         // Horizontal bar charts draw category labels in the left gutter (anchored at PaddingLeft - 8).

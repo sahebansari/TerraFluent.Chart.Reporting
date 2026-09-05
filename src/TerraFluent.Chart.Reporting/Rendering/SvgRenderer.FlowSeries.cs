@@ -52,6 +52,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 {
                     double hitH = Math.Max(Math.Abs(yLo - yHi) + dotR * 2, dotR * 4);
                     tooltipLayer.AppendLine("  <g class=\"data-point\">");
+                    AppendHoverBandV(tooltipLayer, options, cx, step, plotHeight);
                     tooltipLayer.AppendLine($"  <rect x=\"{F(cx - step / 2)}\" y=\"{F(yHi - dotR)}\" width=\"{F(step)}\" height=\"{F(hitH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, cx, yHi - dotR - 10,
                         $"{series.Name}: {FormatTick(ptLo)}\u2013{FormatTick(ptHi)}", ptHi, svgWidth, svgHeight,
@@ -191,6 +192,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (options.RenderMode != SvgMode.Static)
                 {
                     tooltipLayer.AppendLine("  <g class=\"data-point\">");
+                    AppendHoverBandH(tooltipLayer, options, PaddingTop + i * rowH + rowH / 2.0, rowH, plotWidth);
                     tooltipLayer.AppendLine($"  <rect x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, barX + barW / 2, barY - 8,
                         $"{task.Name}: {FormatTick(task.Start)}\u2013{FormatTick(task.End)}",

@@ -374,19 +374,77 @@ namespace TerraFluent.Chart.Reporting.Rendering
         /// <summary>
         /// Returns SVG stroke and rx attributes for bar, column, and waterfall rectangles,
         /// driven by <see cref="Series.BorderColor"/>, <see cref="Series.BorderWidth"/>
-        /// and <see cref="Series.BorderRadius"/>.
+        /// and <see cref="Series.BorderRadius"/>. When the theme opts into
+        /// <see cref="ChartTheme.ModernStyle"/> and no explicit radius is set, a small default
+        /// corner radius is applied for a softer look.
         /// </summary>
-        private static string BuildRectBorderAttr(Series series)
+        private static string BuildRectBorderAttr(Series series, ChartOptions options)
         {
             var attr = new System.Text.StringBuilder();
-            if (series.BorderRadius > 0)
-                attr.Append($" rx=\"{series.BorderRadius}\"");
+            int radius = series.BorderRadius > 0
+                ? series.BorderRadius
+                : (options.Theme.ModernStyle ? 3 : 0);
+            if (radius > 0)
+                attr.Append($" rx=\"{radius}\"");
             if (series.BorderWidth > 0 && !string.IsNullOrEmpty(series.BorderColor))
             {
                 attr.Append($" stroke=\"{Escape(series.BorderColor!)}\"" );
                 attr.Append($" stroke-width=\"{series.BorderWidth}\"");
             }
             return attr.ToString();
+        }
+
+        // True when the colour is a plain 6-digit hex string (e.g. "#7CB5EC"); gradient helpers
+        // that call ChartColor.Lighten require this form and fall back to a flat fill otherwise.
+        private static bool IsHex6(string? c) => !string.IsNullOrEmpty(c) && c!.Length == 7 && c[0] == '#';
+
+        // Modern-style bar/column fill: when the theme opts into ModernStyle and the colour is a
+        // plain hex, emits a subtle sheen gradient (a lightened tint fading to the base colour) and
+        // returns its url(); otherwise returns <paramref name="plainFill"/> unchanged. The gradient
+        // is geometry-only so it renders identically in Static, Animated and Interactive modes.
+        private static string ModernBarFill(StringBuilder sb, ChartOptions options, string color,
+            string plainFill, string gradId, bool horizontal)
+        {
+            if (!options.Theme.ModernStyle || !IsHex6(color))
+                return plainFill;
+
+            string light = ChartColor.Lighten(color, 0.22);
+            string x2 = horizontal ? "1" : "0";
+            string y2 = horizontal ? "0" : "1";
+            sb.AppendLine($"  <linearGradient id=\"{Escape(gradId)}\" x1=\"0\" y1=\"0\" x2=\"{x2}\" y2=\"{y2}\">");
+            sb.AppendLine($"    <stop offset=\"0\" stop-color=\"{Escape(light)}\"/>");
+            sb.AppendLine($"    <stop offset=\"1\" stop-color=\"{Escape(color)}\"/>");
+            sb.AppendLine("  </linearGradient>");
+            return $"url(#{gradId})";
+        }
+
+        // Emits a subtle soft drop-shadow filter used for modern-style bar/column elevation.
+        // feDropShadow is a single geometry-only primitive so it renders in every mode.
+        private static void AppendSoftShadowFilter(StringBuilder sb, string filterId)
+        {
+            sb.AppendLine($"  <filter id=\"{Escape(filterId)}\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\">");
+            sb.AppendLine("    <feDropShadow dx=\"0\" dy=\"1\" stdDeviation=\"1.5\" flood-color=\"#000000\" flood-opacity=\"0.22\"/>");
+            sb.AppendLine("  </filter>");
+        }
+
+        // Emits a modern vertical hover-highlight band centred on a category slot (full plot height).
+        // No-op unless ModernStyle + interactive mode + tooltips are enabled.
+        private static void AppendHoverBandV(StringBuilder layer, ChartOptions options,
+            double xCenter, double slotWidth, int plotHeight)
+        {
+            if (slotWidth <= 0 || !options.Theme.ModernStyle || !options.Tooltip.Enabled
+                || options.RenderMode == SvgMode.Static) return;
+            layer.AppendLine($"    <rect class=\"hover-band\" x=\"{F(xCenter - slotWidth / 2.0)}\" y=\"{PaddingTop}\" width=\"{F(slotWidth)}\" height=\"{plotHeight}\" rx=\"6\" fill=\"{ApplyAlpha(options.Theme.TextColor, 0.10)}\"/>");
+        }
+
+        // Modern horizontal hover-highlight band centred on a category row (full plot width) — for
+        // horizontal bar / Gantt charts. No-op unless ModernStyle + interactive mode + tooltips are on.
+        private static void AppendHoverBandH(StringBuilder layer, ChartOptions options,
+            double yCenter, double slotHeight, int plotWidth)
+        {
+            if (slotHeight <= 0 || !options.Theme.ModernStyle || !options.Tooltip.Enabled
+                || options.RenderMode == SvgMode.Static) return;
+            layer.AppendLine($"    <rect class=\"hover-band\" x=\"{PaddingLeft}\" y=\"{F(yCenter - slotHeight / 2.0)}\" width=\"{plotWidth}\" height=\"{F(slotHeight)}\" rx=\"6\" fill=\"{ApplyAlpha(options.Theme.TextColor, 0.10)}\"/>");
         }
 
         // ------------------------------------------------------------------ gradient / pattern defs
@@ -568,14 +626,14 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
                 if (animated)
                 {
-                    sb.AppendLine($"  <rect clip-path=\"url(#{clipId})\" x=\"{F(baseXPx)}\" y=\"{F(barY)}\" width=\"0\" height=\"{F(barH)}\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series)}>");
+                    sb.AppendLine($"  <rect clip-path=\"url(#{clipId})\" x=\"{F(baseXPx)}\" y=\"{F(barY)}\" width=\"0\" height=\"{F(barH)}\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series, options)}>");
                     sb.AppendLine($"    <animate attributeName=\"width\" from=\"0\" to=\"{F(barW)}\" dur=\"{dur}\" fill=\"freeze\"{easing}/>");
                     if (v < 0) sb.AppendLine($"    <animate attributeName=\"x\" from=\"{F(baseXPx)}\" to=\"{F(barX)}\" dur=\"{dur}\" fill=\"freeze\"{easing}/>");
                     sb.AppendLine($"  </rect>");
                 }
                 else
                 {
-                    sb.AppendLine($"  <rect clip-path=\"url(#{clipId})\" x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series)}/>");
+                    sb.AppendLine($"  <rect clip-path=\"url(#{clipId})\" x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series, options)}/>");
                 }
 
                 if (series.DataLabel.Enabled && barW > 18)
@@ -586,6 +644,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (options.RenderMode != SvgMode.Static)
                 {
                     tooltipLayer.AppendLine($"  <g class=\"data-point\">");
+                    AppendHoverBandH(tooltipLayer, options, PaddingTop + groupH * i + groupH / 2.0, groupH, plotWidth);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, barX + barW / 2, barY + barH / 2, series.Name, v, svgWidth, svgHeight, options.Tooltip, color);
                     tooltipLayer.AppendLine($"  </g>");
@@ -676,14 +735,14 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 // Shape in sb (no data-point wrapper)
                 if (animated)
                 {
-                    sb.AppendLine($"  <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseYPx)}\" width=\"{F(barWidth)}\" height=\"0\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series)}>");
+                    sb.AppendLine($"  <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseYPx)}\" width=\"{F(barWidth)}\" height=\"0\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series, options)}>");
                     sb.AppendLine($"    <animate attributeName=\"height\" from=\"0\" to=\"{F(barH)}\" dur=\"{dur}\" fill=\"freeze\"{easing}/>");
                     sb.AppendLine($"    <animate attributeName=\"y\" from=\"{F(baseYPx)}\" to=\"{F(y)}\" dur=\"{dur}\" fill=\"freeze\"{easing}/>");
                     sb.AppendLine($"  </rect>");
                 }
                 else
                 {
-                    sb.AppendLine($"  <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barH)}\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series)}/>");
+                    sb.AppendLine($"  <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barH)}\" fill=\"{Escape(color)}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series, options)}/>");
                 }
 
                 if (series.DataLabel.Enabled && barH > 12)
@@ -694,6 +753,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (options.RenderMode != SvgMode.Static)
                 {
                     tooltipLayer.AppendLine($"  <g class=\"data-point\">");
+                    AppendHoverBandV(tooltipLayer, options, PaddingLeft + groupWidth * i + groupWidth / 2.0, groupWidth, plotHeight);
                     tooltipLayer.AppendLine($"  <rect x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, x + barWidth / 2, y - 8, series.Name, v, svgWidth, svgHeight, options.Tooltip,
                         color, PaddingTop, PaddingTop + plotHeight);

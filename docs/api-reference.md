@@ -18,6 +18,7 @@ All fluent methods return the builder they were called on, so every call can be 
 - [SeriesBuilder](#seriesbuilder) — per-series styling
 - [LegendBuilder](#legendbuilder)
 - [TooltipBuilder](#tooltipbuilder)
+- [Credits / branding](#credits--branding)
 - [AnimationBuilder](#animationbuilder)
 - [AnnotationBuilder](#annotationbuilder)
 - [LabelLayoutBuilder](#labellayoutbuilder)
@@ -126,6 +127,16 @@ These set the fallback type used by the generic `Series(s => s.Add(...))` method
 | `HideLegend()` | Hides the legend. |
 | `Tooltip(Action<TooltipBuilder> configure)` | Configures tooltips. See [TooltipBuilder](#tooltipbuilder). |
 | `DisableTooltip()` | Disables tooltips. |
+
+### Credits / branding
+
+| Method | Description |
+|---|---|
+| `ShowCredits()` | Shows the fixed TerraFluent attribution label (`terrafluent.dev`). |
+| `ShowCredits(CreditsPosition position)` | Shows the label in a chosen corner. |
+| `HideCredits()` | Removes the attribution label. |
+
+The label is **shown by default** and links to `https://terrafluent.dev`. Its **text and link are fixed** (set by the library) so output cannot be re-branded — callers may only show/hide it and choose its corner. It always renders as text; the hyperlink is clickable only when the SVG is embedded **inline** in a page — rasterised (PNG/JPEG/PDF) or `<img>`-loaded output keeps the visible text but not the link.
 
 ### Animation
 
@@ -385,6 +396,25 @@ Format tokens: `{label}`, `{value}`, `{series}`.
 
 ---
 
+## Credits / branding
+
+The chart carries a fixed **`terrafluent.dev`** attribution label (bottom-right by default). Its text and link are set by the library and cannot be changed, so output cannot be re-branded. Callers control only visibility and corner:
+
+```csharp
+ChartBuilder.Create()
+    .Series(s => s.AddColumn("Sales", data))
+    // shown by default; move it or remove it:
+    .ShowCredits(CreditsPosition.BottomLeft)
+    .RenderToSvg();
+
+// Remove branding entirely:
+ChartBuilder.Create()....HideCredits().RenderToSvg();
+```
+
+Renders in **all** modes (including `Static`), is script/CSS-free, and survives export as text.
+
+---
+
 ## AnimationBuilder
 
 `Animation(a => …)`
@@ -469,6 +499,9 @@ Accessed via `cfg.DonutCenter` on pie/donut and data-ring series.
 
 ### MarkerSymbol
 `Circle` · `Square` · `Diamond` · `Triangle` · `TriangleDown`.
+
+### CreditsPosition
+`BottomRight` (default) · `BottomLeft` · `TopRight` · `TopLeft`.
 
 ### AxisType
 `Linear` · `Logarithmic` · `DateTime`.

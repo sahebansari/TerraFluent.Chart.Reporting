@@ -294,6 +294,28 @@ namespace TerraFluent.Chart.Reporting.Models
             AccentColor         = "#003399"
         };
 
+        /// <summary>
+        /// Modern theme (soft off-white background, Material palette) with
+        /// <see cref="ModernStyle"/> enabled — softly rounded columns/bars, a subtle sheen
+        /// gradient, and lighter horizontal-only grid lines out of the box.
+        /// </summary>
+        public static readonly ChartTheme Modern = new ChartTheme
+        {
+            BackgroundColor     = ChartColor.GhostWhite,
+            PlotBackgroundColor = ChartColor.None,
+            GridLineColor       = ChartColor.GrayMist,
+            TextColor           = ChartColor.WetAsphalt,
+            AxisLineColor       = ChartColor.GrayMist,
+            Colors              = ChartColor.Palette.Material,
+            FontFamily          = "Inter, Segoe UI, Helvetica Neue, Arial, sans-serif",
+            TooltipBackground   = ChartColor.WithOpacity(ChartColor.WetAsphalt, 0.92),
+            TooltipTextColor    = ChartColor.White,
+            PositiveColor       = ChartColor.VividGreen,
+            NegativeColor       = ChartColor.VividRed,
+            AccentColor         = ChartColor.VividBlue,
+            ModernStyle         = true
+        };
+
         // ------------------------------------------------------------------ factory
 
         /// <summary>
@@ -376,6 +398,15 @@ namespace TerraFluent.Chart.Reporting.Models
 
         /// <summary>Ordered colour palette used for series and pie slices.</summary>
         public string[] Colors { get; set; } = ChartColor.Palette.Default;
+
+        /// <summary>
+        /// Modern styling applied uniformly across all render modes (including
+        /// <see cref="Enums.SvgMode.Static"/>): softly rounded column/bar corners, a subtle
+        /// top-lighter fill gradient with soft elevation shadow, hollow-ring line markers,
+        /// crisper pie separators, fading area fills, and lighter horizontal-only grid lines.
+        /// <c>true</c> by default for every theme; set to <c>false</c> for the classic flat look.
+        /// </summary>
+        public bool ModernStyle { get; set; } = true;
 
         /// <summary>
         /// Tooltip box fill colour derived from the theme.

@@ -41,6 +41,13 @@ namespace TerraFluent.Chart.Reporting.Rendering
             double barWidth = (groupWidth - barPadding * 2) / Math.Max(colSeriesCount, 1);
             bool yLog = IsLog(series.YAxisIndex == 1 ? options.YAxis2 : options.YAxis);
 
+            // Modern sheen gradient (opt-in) applies when no custom fill/zones override the colour.
+            if (fillPaint == null && series.Zones.Count == 0)
+                barFill = ModernBarFill(sb, options, color, barFill, $"{clipId}-mcol-{colSeriesIndex}", horizontal: false);
+
+            // Modern soft-shadow elevation (opt-in).
+            string barShadow = options.Theme.ModernStyle ? $" filter=\"url(#{clipId}-shadow)\"" : string.Empty;
+
             for (int i = 0; i < n; i++)
             {
                 if (series.Data[i] is null) continue;
@@ -65,14 +72,14 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     string cdur    = F(options.Animation.Duration.TotalSeconds) + "s";
                     string ceasing = SmilEasing(options.Animation.Easing);
                     double baseY   = PaddingTop + plotHeight - zeroFrac * plotHeight;
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseY)}\" width=\"{F(barWidth)}\" height=\"0\" fill=\"{thisBarFill}\" fill-opacity=\"{barOp}\"{BuildRectBorderAttr(series)}>");
+                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseY)}\" width=\"{F(barWidth)}\" height=\"0\" fill=\"{thisBarFill}\" fill-opacity=\"{barOp}\"{barShadow}{BuildRectBorderAttr(series, options)}>");
                     sb.AppendLine($"      <animate attributeName=\"height\" from=\"0\" to=\"{F(barH)}\" dur=\"{cdur}\" fill=\"freeze\"{ceasing}/>");
                     sb.AppendLine($"      <animate attributeName=\"y\" from=\"{F(baseY)}\" to=\"{F(y)}\" dur=\"{cdur}\" fill=\"freeze\"{ceasing}/>");
                     sb.AppendLine($"    </rect>");
                 }
                 else
                 {
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barH)}\" fill=\"{thisBarFill}\" fill-opacity=\"{barOp}\"{BuildRectBorderAttr(series)}/>");
+                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barH)}\" fill=\"{thisBarFill}\" fill-opacity=\"{barOp}\"{barShadow}{BuildRectBorderAttr(series, options)}/>");
                 }
 
                 sb.AppendLine($"  </g>");
@@ -86,6 +93,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 {
                     string colXLabel = options.XAxis.Categories?.Count > i ? Escape(options.XAxis.Categories[i]) : i.ToString(CultureInfo.InvariantCulture);
                     tooltipLayer.AppendLine($"  <g class=\"data-point\" data-di=\"{i}\" data-val=\"{Escape(FormatTick(v))}\" data-name=\"{Escape(series.Name)}\" data-color=\"{Escape(color)}\" data-ax=\"{F(x + barWidth / 2)}\" data-ay=\"{F(y - 10)}\" data-xlabel=\"{colXLabel}\">");
+                    AppendHoverBandV(tooltipLayer, options, PaddingLeft + groupWidth * i + groupWidth / 2.0, groupWidth, plotHeight);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, x + barWidth / 2, y - 10, series.Name, v, svgWidth, svgHeight, options.Tooltip,
                         color, PaddingTop, PaddingTop + plotHeight);
@@ -113,6 +121,10 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
             double holePercent = Math.Max(0.0, Math.Min(0.99, series.DonutHolePercent));
             double holeR       = radius * holePercent;
+
+            // Modern style widens the inter-slice separator and rounds its joins for a crisper look.
+            string pieStrokeW = options.Theme.ModernStyle ? "3" : "2";
+            string pieJoin    = options.Theme.ModernStyle ? " stroke-linejoin=\"round\"" : string.Empty;
 
             // Deferred label data: collected in phase 1, rendered in phase 4 so labels sit above
             // the animated cover circle and are not hidden during the sweep.
@@ -143,7 +155,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                                   $" A{radius.ToString("F2", CultureInfo.InvariantCulture)},{radius.ToString("F2", CultureInfo.InvariantCulture)}" +
                                   $" 0 {largeArc},1 {x2.ToString("F2", CultureInfo.InvariantCulture)},{y2.ToString("F2", CultureInfo.InvariantCulture)} Z";
 
-                sb.AppendLine($"  <path d=\"{piePathD}\" fill=\"{Escape(color)}\" stroke=\"{Escape(options.ResolvedBackgroundColor)}\" stroke-width=\"2\"/>");
+                sb.AppendLine($"  <path d=\"{piePathD}\" fill=\"{Escape(color)}\" stroke=\"{Escape(options.ResolvedBackgroundColor)}\" stroke-width=\"{pieStrokeW}\"{pieJoin}/>");
 
                 // Tooltip hit-area goes to overlay layer so it's always on top of all slices
                 if (options.RenderMode != SvgMode.Static)
@@ -472,20 +484,21 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (animated)
                 {
                     double baseYPx = PaddingTop + plotHeight;
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseYPx)}\" width=\"{F(barW)}\" height=\"0\" fill=\"{barColor}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series)}>");
+                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseYPx)}\" width=\"{F(barW)}\" height=\"0\" fill=\"{barColor}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series, options)}>");
                     sb.AppendLine($"      <animate attributeName=\"height\" from=\"0\" to=\"{F(bH)}\" dur=\"{dur}\" fill=\"freeze\"{aEasing}/>");
                     sb.AppendLine($"      <animate attributeName=\"y\" from=\"{F(baseYPx)}\" to=\"{F(yRect)}\" dur=\"{dur}\" fill=\"freeze\"{aEasing}/>");
                     sb.AppendLine($"    </rect>");
                 }
                 else
                 {
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(yRect)}\" width=\"{F(barW)}\" height=\"{F(bH)}\" fill=\"{barColor}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series)}/>");
+                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(yRect)}\" width=\"{F(barW)}\" height=\"{F(bH)}\" fill=\"{barColor}\" fill-opacity=\"0.85\"{BuildRectBorderAttr(series, options)}/>");
                 }
                 sb.AppendLine($"  </g>");
 
                 if (options.RenderMode != SvgMode.Static)
                 {
                     tooltipLayer.AppendLine($"  <g class=\"data-point\">");
+                    AppendHoverBandV(tooltipLayer, options, PaddingLeft + groupW * i + groupW / 2.0, groupW, plotHeight);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(x)}\" y=\"{F(yRect)}\" width=\"{F(barW)}\" height=\"{F(bH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, x + barW / 2, yRect - 8, series.Name, v, svgWidth, svgHeight, options.Tooltip, color);
                     tooltipLayer.AppendLine($"  </g>");

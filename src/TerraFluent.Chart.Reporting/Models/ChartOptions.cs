@@ -19,6 +19,9 @@ namespace TerraFluent.Chart.Reporting.Models
         public Legend Legend { get; set; } = new Legend();
         /// <summary>Tooltip (hover popup) configuration.</summary>
         public TooltipOptions Tooltip { get; set; } = new TooltipOptions();
+
+        /// <summary>Optional attribution / branding label. Disabled by default.</summary>
+        public CreditsOptions Credits { get; set; } = new CreditsOptions();
         /// <summary>Collection of data series to render.</summary>
         public List<Series> Series { get; set; } = new List<Series>();
         /// <summary>Free-form annotations (labels, lines, rectangles, circles) drawn over the plot area.</summary>
@@ -209,6 +212,9 @@ namespace TerraFluent.Chart.Reporting.Models
 
             // Tooltip
             c.Tooltip = this.Tooltip.Clone();
+
+            // Credits
+            c.Credits = this.Credits.Clone();
 
             // Point click handler
             c.PointClickHandler = this.PointClickHandler;

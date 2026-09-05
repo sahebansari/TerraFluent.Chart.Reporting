@@ -250,6 +250,36 @@ namespace TerraFluent.Chart.Reporting.Rendering
             // ----- emit items -----
             // si >= 0: series-level item → wrap in a clickable <g> in Interactive mode.
             // si < 0:  slice-level item  → plain emit, no toggle wrapper.
+
+            // Emits one legend swatch: a marker glyph (with a connector for line/spline) for
+            // marker-based series, otherwise the classic rounded rectangle.
+            void EmitSwatch(double x, double sy, string swColor, int seriesIdx)
+            {
+                Models.Series? sr = (seriesIdx >= 0 && seriesIdx < options.Series.Count)
+                    ? options.Series[seriesIdx] : null;
+                bool markerBased = sr != null &&
+                    (sr.Type == ChartType.Line || sr.Type == ChartType.Spline || sr.Type == ChartType.Scatter);
+
+                if (!markerBased)
+                {
+                    sb.AppendLine($"  <rect x=\"{F(x)}\" y=\"{F(sy)}\" width=\"{symW}\" height=\"{symH}\" rx=\"{symR}\" fill=\"{Escape(swColor)}\"/>");
+                    return;
+                }
+
+                double mcx  = x + symW / 2.0;
+                double mcy  = sy + symH / 2.0;
+                double mSz  = Math.Min(4.0, Math.Min(symW, symH) / 2.0);
+                // Line/spline get a connector so the swatch reads as a line series; scatter is marker-only.
+                if (sr!.Type != ChartType.Scatter)
+                    sb.AppendLine($"  <line x1=\"{F(x)}\" y1=\"{F(mcy)}\" x2=\"{F(x + symW)}\" y2=\"{F(mcy)}\" stroke=\"{Escape(swColor)}\" stroke-width=\"2\" stroke-linecap=\"round\"/>");
+                // Match the on-chart marker treatment (hollow ring in modern style, filled otherwise).
+                bool hollow    = options.Theme.ModernStyle;
+                string mFill   = hollow ? Escape(options.ResolvedBackgroundColor) : Escape(swColor);
+                string mStroke = hollow ? Escape(swColor) : Escape(options.ResolvedBackgroundColor);
+                double mStrokeW = hollow ? 2.0 : 1.2;
+                sb.AppendLine("  " + MarkerShape(sr.MarkerSymbol, mcx, mcy, mSz, mFill, mStroke, mStrokeW));
+            }
+
             void EmitItem(double ix, double iy, string label, string color, int si)
             {
                 bool isTogglable = si >= 0 && options.RenderMode == SvgMode.Interactive;
@@ -265,12 +295,12 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     double cellContent = colW - colGap;
                     double iconX = ix + cellContent - symW;
                     double textX = ix + cellContent - symW - itemGap;
-                    sb.AppendLine($"  <rect x=\"{F(iconX)}\" y=\"{F(symY)}\" width=\"{symW}\" height=\"{symH}\" rx=\"{symR}\" fill=\"{Escape(color)}\"/>");
+                    EmitSwatch(iconX, symY, color, si);
                     sb.AppendLine($"  <text class=\"legend-label\" x=\"{F(textX)}\" y=\"{F(iy + leg.ItemFontSize)}\" text-anchor=\"end\" fill=\"{Escape(effectiveFill)}\"{itemSt}>{Escape(label)}</text>");
                 }
                 else
                 {
-                    sb.AppendLine($"  <rect x=\"{F(ix)}\" y=\"{F(symY)}\" width=\"{symW}\" height=\"{symH}\" rx=\"{symR}\" fill=\"{Escape(color)}\"/>");
+                    EmitSwatch(ix, symY, color, si);
                     sb.AppendLine($"  <text class=\"legend-label\" x=\"{F(ix + symW + itemGap)}\" y=\"{F(iy + leg.ItemFontSize)}\" fill=\"{Escape(effectiveFill)}\"{itemSt}>{Escape(label)}</text>");
                 }
 

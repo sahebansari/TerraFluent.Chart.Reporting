@@ -125,11 +125,14 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
             int lineMarkerR = series.MarkerSize ?? 4;
             double linePlotBottom = PaddingTop + plotHeight;
+            // Modern hover highlight band fill (interactive modes only).
+            string? lineBand = (options.Theme.ModernStyle && options.RenderMode != SvgMode.Static && options.Tooltip.Enabled)
+                ? ApplyAlpha(options.Theme.TextColor, 0.10) : null;
             foreach (var (px, py, value, idx) in points)
             {
                 string xLbl = options.XAxis.Categories?.Count > idx ? options.XAxis.Categories[idx] : idx.ToString(CultureInfo.InvariantCulture);
                 string markerColor = zoned ? ZoneColorFor(series.Zones, value, color) : color;
-                AppendDataPoint(sb, tooltipLayer, options.RenderMode, px, py, markerColor, series.Name, value, svgWidth, svgHeight, options.Tooltip, series.MarkerEnabled, lineMarkerR, options.ResolvedBackgroundColor, PaddingTop, linePlotBottom, idx, xLbl, series.MarkerSymbol, suppressVisibleMarker: isRsMode, rsGroupId: rsOrigId);
+                AppendDataPoint(sb, tooltipLayer, options.RenderMode, px, py, markerColor, series.Name, value, svgWidth, svgHeight, options.Tooltip, series.MarkerEnabled, lineMarkerR, options.ResolvedBackgroundColor, PaddingTop, linePlotBottom, idx, xLbl, series.MarkerSymbol, suppressVisibleMarker: isRsMode, rsGroupId: rsOrigId, hollowMarker: options.Theme.ModernStyle, bandWidth: step, bandFill: lineBand);
                 if (series.DataLabel.Enabled)
                     AppendDataLabel(sb, px, py - 10 + series.DataLabel.VerticalOffset.GetValueOrDefault(), FormatDataLabel(value, series.DataLabel.FormatString),
                         series.DataLabel.TextColor ?? options.Theme.TextColor, series.DataLabel.BackgroundColor, series.DataLabel.TextFontSize);
@@ -152,6 +155,19 @@ namespace TerraFluent.Chart.Reporting.Rendering
             bool customFill = fillPaint != null;
             string areaFill  = fillPaint ?? Escape(color);
             double areaOp    = customFill ? (series.Fill?.Opacity ?? 1.0) : (series.FillOpacity ?? 0.25);
+
+            // Modern style fades the area from a soft tint at the top to transparent at the baseline
+            // (skipped when the caller set an explicit fill opacity, which is honoured as a flat fill).
+            if (!customFill && series.FillOpacity == null && options.Theme.ModernStyle && IsHex6(color))
+            {
+                string gid = $"{clipId}-marea-{options.Series.IndexOf(series)}";
+                sb.AppendLine($"  <linearGradient id=\"{gid}\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">");
+                sb.AppendLine($"    <stop offset=\"0\" stop-color=\"{Escape(color)}\" stop-opacity=\"0.35\"/>");
+                sb.AppendLine($"    <stop offset=\"1\" stop-color=\"{Escape(color)}\" stop-opacity=\"0.03\"/>");
+                sb.AppendLine("  </linearGradient>");
+                areaFill = $"url(#{gid})";
+                areaOp   = 1.0;
+            }
 
             // Split into contiguous segments at nulls (or apply GapPolicy.Connect/Zero).
             bool yLog = IsLog(series.YAxisIndex == 1 ? options.YAxis2 : options.YAxis);
@@ -226,10 +242,12 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
             int nonStackedAreaMarkerR = series.MarkerSize ?? 4;
             double areaPB = PaddingTop + plotHeight;
+            string? areaBand = (options.Theme.ModernStyle && options.RenderMode != SvgMode.Static && options.Tooltip.Enabled)
+                ? ApplyAlpha(options.Theme.TextColor, 0.10) : null;
             foreach (var (px, py, value, idx) in points)
             {
                 string xLbl = options.XAxis.Categories?.Count > idx ? options.XAxis.Categories[idx] : idx.ToString(CultureInfo.InvariantCulture);
-                AppendDataPoint(sb, tooltipLayer, options.RenderMode, px, py, color, series.Name, value, svgWidth, svgHeight, options.Tooltip, series.MarkerEnabled, nonStackedAreaMarkerR, options.ResolvedBackgroundColor, PaddingTop, areaPB, idx, xLbl, series.MarkerSymbol);
+                AppendDataPoint(sb, tooltipLayer, options.RenderMode, px, py, color, series.Name, value, svgWidth, svgHeight, options.Tooltip, series.MarkerEnabled, nonStackedAreaMarkerR, options.ResolvedBackgroundColor, PaddingTop, areaPB, idx, xLbl, series.MarkerSymbol, bandWidth: step, bandFill: areaBand);
             }
 
             if (series.AutoInsight != null)
