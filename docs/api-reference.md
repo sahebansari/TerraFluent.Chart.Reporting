@@ -542,10 +542,11 @@ Accessed via `cfg.DonutCenter` on pie/donut and data-ring series.
 | `Accessible` | Colour-blind-safe (Wong 2011). |
 | `Vivid` | Full-spectrum distinct palette. |
 | `HighContrast` | WCAG AA (≥ 4.5:1) palette. |
+| `Modern` | Material palette on ghost-white, with `ModernStyle` enabled (see below). |
 
 ### Properties
 
-`BackgroundColor`, `PlotBackgroundColor`, `GridLineColor`, `AxisLineColor`, `TextColor`, `FontFamily`, `FontScale` (default `1.0`), `Colors` (`string[]`), `TooltipBackground`, `TooltipTextColor`, `PositiveColor`, `NegativeColor`, `AccentColor`.
+`BackgroundColor`, `PlotBackgroundColor`, `GridLineColor`, `AxisLineColor`, `TextColor`, `FontFamily`, `FontScale` (default `1.0`), `Colors` (`string[]`), `ModernStyle` (`bool`, default `true` — see [Modern Styling](themes-and-styling.md#modern-styling)), `TooltipBackground`, `TooltipTextColor`, `PositiveColor`, `NegativeColor`, `AccentColor`.
 
 ### Factory
 
@@ -567,7 +568,7 @@ ChartTheme Clone();   // copy an existing theme (e.g. to tweak FontScale)
 
 `TerraFluent.Chart.Reporting.Models.ChartColor`
 
-130+ named `const string` colour constants plus curated palettes and utilities.
+400+ named `const string` colour constants plus curated palettes and utilities.
 
 ### Series palette constants
 

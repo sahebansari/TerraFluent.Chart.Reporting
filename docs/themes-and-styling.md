@@ -20,6 +20,22 @@ ChartBuilder.Create()
 | `ChartTheme.Dark` | `#1a1a2e` navy | `#f0f0ff` light | Neon-adjacent bright palette | Browser dashboards |
 | `ChartTheme.Pastel` | `#fafafa` off-white | `#555555` grey | Soft muted palette | Presentations, reports |
 | `ChartTheme.Monochrome` | `#ffffff` white | `#000000` black | Greyscale only | Print, greyscale PDFs |
+| `ChartTheme.Ocean` | `#0d1b2a` deep navy | `#c8e6ff` pale blue | Blue-teal palette | Analytics dashboards |
+| `ChartTheme.Sunset` | `#1a0a2e` purple-navy | `#ffe8c8` warm cream | Vivid warm palette | Editorial, marketing |
+| `ChartTheme.Forest` | `#f6f4ee` warm cream | `#2c2a1a` earthy brown | Earthy greens | Nature / ESG reporting |
+| `ChartTheme.Neon` | `#0a0a0a` near-black | `#f0f0ff` light | Electric high-contrast palette | Dark dashboards, streaming overlays |
+| `ChartTheme.Minimal` | `#ffffff` white | `#333333` graphite | Muted professional palette | Clean editorial reports |
+| `ChartTheme.Warm` | `#faf3e0` parchment | `#3e2723` espresso | Amber-brown earth tones | Warm, print-style reports |
+| `ChartTheme.Arctic` | `#f0f8ff` ice blue | `#1c2e4a` polar navy | Cool crisp blues | Clean corporate dashboards |
+| `ChartTheme.Business` | `#ffffff` white | `#333333` graphite | Corporate blue-red palette | Executive summaries |
+| `ChartTheme.Material` | `#ffffff` white | `#444444` charcoal | Material Design 500-level palette | Modern web dashboards |
+| `ChartTheme.TrafficLight` | `#fafafa` off-white | `#333333` graphite | Green/amber/red status palette | KPI / status dashboards |
+| `ChartTheme.Accessible` | `#ffffff` white | `#333333` graphite | Colour-blind-safe (Wong 2011) | Accessibility-critical charts |
+| `ChartTheme.Vivid` | `#ffffff` white | `#2c3e50` slate | Full-spectrum distinct palette | High-impact presentations |
+| `ChartTheme.HighContrast` | `#ffffff` white | `#000000` black | WCAG AA (≥ 4.5:1) palette | Accessibility-critical charts |
+| `ChartTheme.Modern` | `#f8f8ff` ghost white | `#2c3e50` slate | Material palette + `ModernStyle` on | Default recommendation for new dashboards |
+
+See [Modern Styling](#modern-styling) below for what `ModernStyle` changes, and [ChartColor Catalogue](#chartcolor-catalogue) for the exact hex values behind each palette.
 
 ### Dark Theme Example
 
@@ -56,6 +72,37 @@ string svg = ChartBuilder.Create()
 ```
 
 **Output:** Off-white `#fafafa` background, very light grid lines, soft muted palette (`#a8d8ea`, `#aa96da`, …). Suitable for presentations and printed reports.
+
+---
+
+## Modern Styling
+
+Every built-in theme — including `Default` — has `ChartTheme.ModernStyle` set to `true`. It applies a consistent set of refinements uniformly across **Static**, **Animated**, and **Interactive** render modes:
+
+- Softly rounded corners on column/bar rectangles.
+- A subtle top-lighter fill gradient with soft elevation shadow on columns, bars, and areas.
+- Hollow-ring line/scatter markers instead of solid dots.
+- Crisper separators between pie/donut slices.
+- Fading (gradient) area-chart fills instead of a flat opacity.
+- Lighter, horizontal-only grid lines.
+- In **Interactive** mode only: a full-height/width **hover band** that highlights the entire category column or row on mouse-over, in addition to the point-level tooltip.
+
+`ChartTheme.Modern` is a dedicated preset (Material palette on a ghost-white background) for teams that want the modern look front-and-centre, but the styling itself is not tied to that one preset — it is on by default for every theme above.
+
+To opt out and get the classic flat look, clone a theme and turn it off:
+
+```csharp
+var classic = ChartTheme.Dark.Clone();
+classic.ModernStyle = false;
+
+string svg = ChartBuilder.Create()
+    .Theme(classic)
+    .AsInteractive()
+    .Series(s => s.AddColumn("Sales", new double[] { 420, 380, 510, 490 }))
+    .RenderToSvg();
+```
+
+With `ModernStyle = false`, columns/bars render with sharp corners and a flat fill, markers render as solid dots, and hover bands are omitted from Interactive output.
 
 ---
 
@@ -131,7 +178,7 @@ Colours wrap: if you have 5 series and 3 colours, series 4 and 5 use colours 1 a
 
 ## ChartColor Catalogue
 
-`ChartColor` (namespace `TerraFluent.Chart.Reporting.Models`) provides 130+ named colour constants as `public const string` values. Use them anywhere a colour string is accepted — no hex codes to remember.
+`ChartColor` (namespace `TerraFluent.Chart.Reporting.Models`) provides 400+ named colour constants as `public const string` values. Use them anywhere a colour string is accepted — no hex codes to remember.
 
 ```csharp
 using TerraFluent.Chart.Reporting.Models;
@@ -204,7 +251,7 @@ string custom  = ChartColor.FromRgb(124, 181, 236);
 string mixed   = ChartColor.Mix(ChartColor.ChartBlue, ChartColor.White, 0.5);
 ```
 
-> The full catalogue (130+ constants: CSS named colours, web-safe primaries, chart palette, pastels, and more) is defined in `Models/ChartColor.cs`.
+> The full catalogue (400+ constants: CSS named colours, web-safe primaries, chart palette, pastels, theme-specific tokens, and more) is defined in `Models/ChartColor.cs`.
 
 ---
 

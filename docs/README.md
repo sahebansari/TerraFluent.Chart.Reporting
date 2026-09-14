@@ -60,7 +60,8 @@ Paste it directly into HTML or save it with `.RenderToFile("chart.svg")`.
 | **Output** | Self-contained SVG string |
 | **Chart types** | 26 types (Line, Spline, Area, Column, Bar, Pie/Donut, Scatter, Waterfall, Gauge, DataRing, Bubble, Heatmap, ColumnRange, AreaRange, Funnel, Treemap, Radar, BoxPlot, ErrorBar, Candlestick, OHLC, Dumbbell, Stream, Gantt, Sankey, Parliament) |
 | **Render modes** | Static (PDF/email safe), Animated (SMIL), Interactive (JS) |
-| **Built-in themes** | Default, Dark, Pastel, Monochrome, Ocean, Sunset, Forest, Neon, Minimal, Warm, Arctic, Business, Material, TrafficLight, Accessible, Vivid, HighContrast, + Custom |
+| **Built-in themes** | Default, Dark, Pastel, Monochrome, Ocean, Sunset, Forest, Neon, Minimal, Warm, Arctic, Business, Material, TrafficLight, Accessible, Vivid, HighContrast, Modern, + Custom |
+| **Modern styling** | `ChartTheme.ModernStyle` (on by default) — rounded bars, gradient fills, hollow markers, hover bands. See [Themes & Styling](themes-and-styling.md#modern-styling). |
 
 ---
 
@@ -78,7 +79,7 @@ TerraFluent.Chart.Reporting
 ├── Models/
 │   ├── ChartOptions          ← raw options snapshot
 │   ├── ChartTheme            ← theme palette and typography
-│   ├── ChartColor            ← 130+ named colour constants + utility methods
+│   ├── ChartColor            ← 400+ named colour constants + utility methods
 │   ├── Series                ← per-series data and settings
 │   ├── Axis                  ← X or Y axis config
 │   ├── DataLabelOptions      ← .DataLabel.Show().Format("…")
@@ -87,7 +88,7 @@ TerraFluent.Chart.Reporting
 │   ├── RangePoint(Low,High)  ← column/area range data point
 │   └── HeatmapPoint(Col,Row,Value) ← heatmap cell
 ├── Enums/
-│   ├── ChartType             ← 16 values
+│   ├── ChartType             ← 26 values
 │   ├── SvgMode               ← Static | Animated | Interactive
 │   ├── Stacking              ← None | Normal | Percent
 │   └── Easing                ← EaseOut | EaseIn | EaseInOut | Linear | Bounce | Elastic
