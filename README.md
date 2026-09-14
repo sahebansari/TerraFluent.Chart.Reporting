@@ -2,7 +2,7 @@
 
 A fluent C# library for generating **SVG charts server-side** — zero JavaScript dependency, zero external NuGet dependencies.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/LICENSE)
 [![CI](https://github.com/sahebansari/TerraFluent.Chart.Reporting/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/sahebansari/TerraFluent.Chart.Reporting/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-netstandard2.0%20%7C%202.1%20%7C%206%20%7C%208%20%7C%2010-512BD4.svg)](#supported-targets)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](#supported-targets)
@@ -82,23 +82,23 @@ string svg = ChartBuilder.Create()
 
 ## Documentation
 
-The full guide lives in [docs/](docs/README.md):
+The full guide lives in [docs/](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/README.md):
 
 | Guide | What it covers |
 |---|---|
-| [Getting Started](docs/getting-started.md) | Install, first chart, ASP.NET Core / Blazor integration |
-| [Chart Showcase](docs/showcase.md) | Live visual gallery of every chart type and feature |
-| [Chart Types](docs/chart-types.md) | All 26 chart types with full code + SVG output |
-| [Themes & Styling](docs/themes-and-styling.md) | Built-in themes, modern styling, custom themes, colour catalogue |
-| [Advanced Features](docs/advanced.md) | Render modes, output methods, axes, stacking, Fork, DI |
-| [API Reference](docs/api-reference.md) | Complete method reference for every builder, enum, and data type |
-| [Troubleshooting & FAQ](docs/troubleshooting.md) | Common issues, exceptions, and integration answers |
+| [Getting Started](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/getting-started.md) | Install, first chart, ASP.NET Core / Blazor integration |
+| [Chart Showcase](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/showcase.md) | Live visual gallery of every chart type and feature |
+| [Chart Types](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/chart-types.md) | All 26 chart types with full code + SVG output |
+| [Themes & Styling](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/themes-and-styling.md) | Built-in themes, modern styling, custom themes, colour catalogue |
+| [Advanced Features](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/advanced.md) | Render modes, output methods, axes, stacking, Fork, DI |
+| [API Reference](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/api-reference.md) | Complete method reference for every builder, enum, and data type |
+| [Troubleshooting & FAQ](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/troubleshooting.md) | Common issues, exceptions, and integration answers |
 
 ---
 
 ## Chart Types
 
-26 chart types are supported. See the [Chart Types guide](docs/chart-types.md) for full examples.
+26 chart types are supported. See the [Chart Types guide](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/chart-types.md) for full examples.
 
 | Type | Method | Type | Method |
 |---|---|---|---|
@@ -130,7 +130,7 @@ The full guide lives in [docs/](docs/README.md):
 
 ## Themes
 
-18 built-in themes are included — `Default`, `Dark`, `Pastel`, `Monochrome`, `Ocean`, `Sunset`, `Forest`, `Neon`, `Minimal`, `Warm`, `Arctic`, `Business`, `Material`, `TrafficLight`, `Accessible`, `Vivid`, `HighContrast`, and `Modern`. See [Themes & Styling](docs/themes-and-styling.md) for the full catalogue.
+18 built-in themes are included — `Default`, `Dark`, `Pastel`, `Monochrome`, `Ocean`, `Sunset`, `Forest`, `Neon`, `Minimal`, `Warm`, `Arctic`, `Business`, `Material`, `TrafficLight`, `Accessible`, `Vivid`, `HighContrast`, and `Modern`. See [Themes & Styling](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/themes-and-styling.md) for the full catalogue.
 
 ```csharp
 // Built-in themes
@@ -151,7 +151,7 @@ The full guide lives in [docs/](docs/README.md):
 .Colors("#e63946", "#457b9d", "#2a9d8f")
 ```
 
-Every theme ships with `ModernStyle` on — rounded bars, gradient fills, hollow-ring markers, and (in Interactive mode) hover bands. Clone a theme and set `ModernStyle = false` for the classic flat look; see [Modern Styling](docs/themes-and-styling.md#modern-styling).
+Every theme ships with `ModernStyle` on — rounded bars, gradient fills, hollow-ring markers, and (in Interactive mode) hover bands. Clone a theme and set `ModernStyle = false` for the classic flat look; see [Modern Styling](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/themes-and-styling.md#modern-styling).
 
 ---
 
@@ -292,6 +292,6 @@ The library targets `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`, and 
 
 ## License
 
-Released under the **MIT License** — free for commercial and personal use, modification, and redistribution. See [LICENSE](LICENSE) for the full text.
+Released under the **MIT License** — free for commercial and personal use, modification, and redistribution. See [LICENSE](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/LICENSE) for the full text.
 
 

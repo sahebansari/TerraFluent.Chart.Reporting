@@ -1,0 +1,102 @@
+name: Publish to NuGet
+
+# Releasing is tag-driven: pushing a "vX.Y.Z" tag is what ships a new version.
+# The tag is the single source of truth for the package version — it overrides
+# the placeholder <Version> in TerraFluent.Chart.Reporting.csproj via -p:Version,
+# so there is no separate "bump the csproj" step to remember before tagging.
+#
+# Publishing uses NuGet.org Trusted Publishing (OIDC) instead of a stored API key:
+# no NUGET_API_KEY secret to create, rotate, or leak. One-time setup required:
+#   1. On nuget.org: profile menu -> Trusted Publishing -> Add policy, with
+#      Repository Owner = sahebansari, Repository = TerraFluent.Chart.Reporting,
+#      Workflow File = publish.yml, Environment = (blank).
+#   2. In this repo's GitHub Actions secrets, add NUGET_USER = your nuget.org username
+#      (not sensitive by itself, but keeping it out of the workflow file makes it easy
+#      to change without editing YAML).
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write # required so the job can request a GitHub OIDC token for NuGet trusted publishing
+
+jobs:
+  publish:
+    name: Pack & Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so SourceLink can resolve commits
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.x
+            8.x
+            10.x
+
+      - name: Derive package version from tag
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "Publishing version $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore TerraFluent.Chart.Reporting.sln
+
+      - name: Build (Release)
+        run: >
+          dotnet build TerraFluent.Chart.Reporting.sln
+          --configuration Release
+          --no-restore
+          -p:Version=${{ steps.version.outputs.version }}
+
+      # Publishing is gated on the full test suite passing for this exact version.
+      - name: Test (Release)
+        run: >
+          dotnet test TerraFluent.Chart.Reporting.sln
+          --configuration Release
+          --no-build
+          --logger "console;verbosity=minimal"
+
+      - name: Pack
+        run: >
+          dotnet pack src/TerraFluent.Chart.Reporting/TerraFluent.Chart.Reporting.csproj
+          --configuration Release
+          --no-build
+          --output ./artifacts
+          -p:Version=${{ steps.version.outputs.version }}
+
+      # Trusted Publishing: exchange this job's GitHub OIDC token for a NuGet.org API key
+      # that is scoped to this exact repo/workflow and expires in about an hour. Requires a
+      # Trusted Publishing policy configured on nuget.org (see NUGET_USER secret note below).
+      - name: NuGet login (OIDC → temporary API key)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      # --no-symbols: symbols are pushed explicitly in the next step instead of relying on
+      # dotnet nuget push's default behavior of auto-pushing a same-folder matching .snupkg.
+      - name: Push package to NuGet.org
+        run: >
+          dotnet nuget push "./artifacts/*.nupkg"
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --no-symbols
+          --skip-duplicate
+
+      # NuGet.org's V3 source routes a pushed .snupkg to its symbol server automatically —
+      # no separate --symbol-source/--symbol-api-key needed for nuget.org specifically.
+      - name: Push symbols to NuGet.org
+        run: >
+          dotnet nuget push "./artifacts/*.snupkg"
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

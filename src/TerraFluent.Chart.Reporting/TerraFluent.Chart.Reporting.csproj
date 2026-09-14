@@ -8,24 +8,38 @@
     <RootNamespace>TerraFluent.Chart.Reporting</RootNamespace>
     <AssemblyName>TerraFluent.Chart.Reporting</AssemblyName>
 
-    <!-- Assembly versioning -->
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <InformationalVersion>1.0.0</InformationalVersion>
+    <!--
+      Assembly versioning.
+      AssemblyVersion is pinned to the major version only (bump it solely on a breaking/major
+      release) so consumers never hit binding-redirect churn from a routine patch or minor update.
+      FileVersion is explicitly tied to Version below — left unset, it would default to
+      AssemblyVersion instead (the .NET SDK's GetAssemblyVersion target), which would freeze it at
+      this value forever. InformationalVersion is left unset so the SDK derives it from Version and
+      appends the source commit hash automatically.
+    -->
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
 
     <!-- NuGet Package Metadata -->
     <PackageId>TerraFluent.Chart.Reporting</PackageId>
-    <Version>1.0.0</Version>
+    <!--
+      Version is the source of truth for local/manual `dotnet pack` runs only. Real releases are
+      published by .github/workflows/publish.yml, which is triggered by pushing a `vX.Y.Z` tag and
+      overrides this value with -p:Version=X.Y.Z taken from that tag — so the tag, not this file,
+      is the source of truth for what actually ships to nuget.org.
+    -->
+    <Version>2.0.0</Version>
+    <FileVersion>$(Version)</FileVersion>
     <Authors>Saheb Ansari, TerraFluent</Authors>
     <Company>TerraFluent</Company>
     <Copyright>Copyright © Saheb Ansari 2026</Copyright>
-    <Description>A fluent C# library for generating SVG charts — server-side, with zero JavaScript and zero external dependencies. 26 chart types including Line, Spline, Area, Column, Bar, Pie/Donut, Scatter, Bubble, Heatmap, Waterfall, Gauge, DataRing, Radar, BoxPlot, Candlestick, OHLC, Funnel, Treemap, Gantt, Sankey and Parliament, across Static, Animated, and Interactive render modes.</Description>
-    <PackageTags>svg;chart;reporting;fluent;dotnet;server-side;blazor;pdf;email</PackageTags>
+    <Description>A fluent C#/.NET library for server-side SVG chart and data-visualization generation — zero JavaScript, zero external dependencies. Renders 26 chart types (Line, Spline, Area, Column, Bar, Pie/Donut, Scatter, Bubble, Heatmap, Waterfall, Gauge, DataRing, Radar, BoxPlot, Candlestick, OHLC, Funnel, Treemap, Gantt, Sankey, Parliament, and more) as Static, Animated, or Interactive SVG — ideal for PDF reports, email, dashboards, ASP.NET Core, and Blazor.</Description>
+    <PackageTags>svg;chart;charts;charting;chart-library;chart-generator;svg-generator;data-visualization;visualization;reporting;reports;dashboard;pdf;email;html;server-side;fluent;zero-dependency;dotnet;csharp;aspnetcore;blazor;netstandard;gantt;sankey;candlestick;waterfall;treemap;radar;gauge;heatmap;funnel</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/sahebansari/TerraFluent.Chart.Reporting</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sahebansari/TerraFluent.Chart.Reporting</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageReleaseNotes>Initial release — fluent SVG chart generation with zero external dependencies.</PackageReleaseNotes>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -38,10 +52,14 @@
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
 
-    <!-- Detect API breaking changes against last published baseline -->
+    <!--
+      Detect API breaking changes against the last published baseline.
+      There is nothing on nuget.org to diff against yet, so leave PackageValidationBaselineVersion
+      unset until 2.0.0 ships. As soon as it does, uncomment the line below (set to "2.0.0") before
+      preparing 2.0.1, and bump it to each new released version thereafter.
+    -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <!-- Uncomment and set once 1.0.0 is published:
-    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion> -->
+    <!-- <PackageValidationBaselineVersion>2.0.0</PackageValidationBaselineVersion> -->
   </PropertyGroup>
 
   <!-- Suppress warnings when a language feature is not available in older targets -->
@@ -54,14 +72,25 @@
     <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- Bundle the README into the NuGet package -->
+  <!--
+    Microsoft.SourceLink.GitHub's build-time-only dependency chain now pulls in a System.IO.Hashing
+    version that only declares support for net8.0+. It still works correctly on net6.0 (net6.0 is
+    a supported, tested target of this library) — this is a dev-time source-link build tool, never a
+    dependency of consumers — so the "untested TFM" warning is suppressed rather than acted on.
+  -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net6.0'">
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
+
+  <!-- Bundle the README and package icon into the NuGet package -->
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!-- SourceLink: embeds source-control info for debuggability -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.400" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>
