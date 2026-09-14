@@ -2,6 +2,7 @@
 
 A fluent C# library for generating **SVG charts server-side** — zero JavaScript dependency, zero external NuGet dependencies.
 
+[![Website](https://img.shields.io/badge/website-terrafluent.dev%2Fchart-blue.svg)](https://terrafluent.dev/chart/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/LICENSE)
 [![CI](https://github.com/sahebansari/TerraFluent.Chart.Reporting/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/sahebansari/TerraFluent.Chart.Reporting/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-netstandard2.0%20%7C%202.1%20%7C%206%20%7C%208%20%7C%2010-512BD4.svg)](#supported-targets)
@@ -293,5 +294,9 @@ The library targets `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`, and 
 ## License
 
 Released under the **MIT License** — free for commercial and personal use, modification, and redistribution. See [LICENSE](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/LICENSE) for the full text.
+
+---
+
+Project website: **[terrafluent.dev/chart](https://terrafluent.dev/chart/)**
 
 
