@@ -10,9 +10,14 @@ name: Publish to NuGet
 #   1. On nuget.org: profile menu -> Trusted Publishing -> Add policy, with
 #      Repository Owner = sahebansari, Repository = TerraFluent.Chart.Reporting,
 #      Workflow File = publish.yml, Environment = (blank).
-#   2. In this repo's GitHub Actions secrets, add NUGET_USER = your nuget.org username
-#      (not sensitive by itself, but keeping it out of the workflow file makes it easy
-#      to change without editing YAML).
+#   2. In this repo's GitHub Actions secrets, add NUGET_USER = the nuget.org username of
+#      whoever was actually logged in when creating that policy (the "policy creator").
+#      This is NOT the same as the policy's "Policy Owner" field: Policy Owner can be set
+#      to an organization (e.g. a "TerraFluent" org account) so the resulting package is
+#      owned by that org, but NUGET_USER must still be the individual account that created
+#      the policy — e.g. sahebansari, never the org/company name. Passing the wrong one
+#      here produces: "Token exchange failed (401): No matching trust policy owned by
+#      user '***' was found."
 on:
   push:
     tags:
