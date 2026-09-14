@@ -6,7 +6,7 @@ A live visual catalogue of every chart type and feature in TerraFluent.Chart.Rep
 
 For copy-paste code behind each chart type, see **[Chart Types](chart-types.md)**.
 
-_Catalogue of 102 charts · generated 2026-09-05 UTC._
+_Catalogue of 102 charts · generated 2026-09-06 UTC._
 
 | # | Chart | What it demonstrates |
 |---|---|---|
