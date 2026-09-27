@@ -23,6 +23,7 @@ A fluent C# library for generating **SVG charts server-side** — zero JavaScrip
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Documentation](#documentation)
+- [AI Agent Skill](#ai-agent-skill)
 - [Chart Types](#chart-types)
 - [Render Modes](#render-modes)
 - [Themes](#themes)
@@ -97,6 +98,30 @@ The full guide lives in [docs/](https://github.com/sahebansari/TerraFluent.Chart
 
 ---
 
+## AI Agent Skill
+
+[`skills/terrafluent-chart/`](https://github.com/sahebansari/TerraFluent.Chart.Reporting/tree/master/skills/terrafluent-chart) is an [Agent Skill](https://agentskills.io) that teaches coding agents (Claude Code, GitHub Copilot, and other agents that support `SKILL.md`) to turn a prompt such as *"make a donut chart of revenue by region for our PDF report"* into working TerraFluent code, and then check the SVG it produces.
+
+The skill includes:
+
+- **`SKILL.md`**: the workflow the agent follows: extract a chart spec from the prompt, choose the chart type, choose the render mode, write the code, and verify the result.
+- **`references/`**: a guide for mapping prompts to chart types, an API cheatsheet checked against the source, recipes for console, ASP.NET Core, Blazor, HTML report, email, and DI, and a list of common mistakes.
+- **`scripts/check-svg.cs`**: a validator with no dependencies (`dotnet run --file …`, .NET 10 SDK). It checks that the SVG is well-formed, that the chart is not empty, and that the output is safe for the render mode.
+
+To install it, copy the folder into your agent's skills directory:
+
+```bash
+# Claude Code (this project only, or ~/.claude/skills/ for all projects)
+cp -r skills/terrafluent-chart <your-repo>/.claude/skills/
+
+# GitHub Copilot
+cp -r skills/terrafluent-chart <your-repo>/.github/skills/
+```
+
+For other agents, see their documentation for where skills go. Agents load the skill automatically when a request mentions charts or graphs in a .NET project.
+
+---
+
 ## Chart Types
 
 26 chart types are supported. See the [Chart Types guide](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/chart-types.md) for full examples.
@@ -162,10 +187,13 @@ Every theme ships with `ModernStyle` on — rounded bars, gradient fills, hollow
 string svg = ChartBuilder.Create()
     .Title("Browser Share")
     .AsPie()
+    .Labels("Chrome", "Safari", "Edge", "Firefox")
     .Series(s => s
-        .Add("Shares", new double[] { 61, 25, 9, 5 }, cfg => cfg
-            .DonutHolePercent(50)
-            .DonutCenter("Browsers")))
+        .Add("Shares", new double[] { 61, 25, 9, 5 }, cfg =>
+        {
+            cfg.DonutHole(0.5);                         // hole radius as a fraction (0–1)
+            cfg.DonutCenter.Show().Title("Browsers");   // caption above the auto total
+        }))
     .RenderToSvg();
 ```
 
@@ -175,8 +203,8 @@ string svg = ChartBuilder.Create()
 
 ```csharp
 .XAxisFormat("{value} kg")          // label format string
-.XAxisTickInterval("every 5")       // tick interval hint
-.YAxisTickInterval("10")
+.XAxisTickInterval(5)               // tick interval in data units (> 0)
+.YAxisTickInterval(10)
 ```
 
 ---
