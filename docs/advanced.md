@@ -247,6 +247,8 @@ string svg = ChartBuilder.Create()
 
 **Output:** Columns scaled against the left axis (0–510+). The margin line floats independently scaled against the right axis (0–50 %). Both axis labels are visible.
 
+Each axis is sized only from its own series. The left axis ignores series bound with `OnSecondaryAxis()`, and with stacking it spans the stack totals. Axis ticks, bars, lines, plot bands and annotations all share the same range.
+
 ---
 
 ## Plot Bands & Reference Lines
@@ -487,6 +489,20 @@ A `null` in a data array is treated as a missing value — the chart skips that 
 ```
 
 **Output:** Two separate line segments — one covering Jan, then a gap, then Apr–Jun. Useful for representing missing data without introducing zero distortion.
+
+---
+
+## Performance Tips
+
+Rendering is fast for typical charts: a small column chart takes well under 1 ms. For large or dense data:
+
+- **Prefer `Static` mode for big series.** In Animated and Interactive modes every data point carries its own hover tooltip markup, about 1.8 KB per point, so a 5,000-point interactive line produces about 9 MB of SVG. Static output is several times smaller and faster to render and to display.
+- **Data labels scale linearly.** Collision-aware placement uses a spatial index: a 2,000-point labelled line renders in about 150 ms. Labels on thousands of points are rarely readable, though; label a single series or rely on tooltips.
+- **Stream large output.** `RenderToStream` / `RenderToStreamAsync` encode through a small buffer instead of allocating one byte array the size of the SVG.
+- **Thin the data before charting.** 50,000 points in a 700px-wide plot can't be told apart. Downsample on the server first.
+- **Faster on modern runtimes.** On `netstandard2.1` and later, coordinate formatting is allocation-free. `netstandard2.0` falls back to string formatting.
+
+Benchmarks for typical and large charts live in [`tests/TerraFluent.Chart.Reporting.Benchmarks`](../tests/TerraFluent.Chart.Reporting.Benchmarks/README.md).
 
 ---
 

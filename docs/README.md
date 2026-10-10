@@ -17,6 +17,7 @@ TerraFluent.Chart.Reporting generates fully self-contained SVG charts entirely i
 | [Advanced Features](advanced.md) | Render modes, output methods, axes, plot bands, stacking, Fork, DI |
 | [API Reference](api-reference.md) | Complete method reference for every builder, enum, theme, and data type |
 | [Troubleshooting & FAQ](troubleshooting.md) | Common issues, exceptions, and integration answers |
+| [Changelog](../CHANGELOG.md) | What changed in each release |
 
 ---
 
@@ -61,7 +62,8 @@ Paste it directly into HTML or save it with `.RenderToFile("chart.svg")`.
 | **Chart types** | 26 types (Line, Spline, Area, Column, Bar, Pie/Donut, Scatter, Waterfall, Gauge, DataRing, Bubble, Heatmap, ColumnRange, AreaRange, Funnel, Treemap, Radar, BoxPlot, ErrorBar, Candlestick, OHLC, Dumbbell, Stream, Gantt, Sankey, Parliament) |
 | **Render modes** | Static (PDF/email safe), Animated (SMIL), Interactive (JS) |
 | **Built-in themes** | Default, Dark, Pastel, Monochrome, Ocean, Sunset, Forest, Neon, Minimal, Warm, Arctic, Business, Material, TrafficLight, Accessible, Vivid, HighContrast, Modern, + Custom |
-| **Modern styling** | `ChartTheme.ModernStyle` (on by default) — rounded bars, gradient fills, hollow markers, hover bands. See [Themes & Styling](themes-and-styling.md#modern-styling). |
+| **Modern styling** | `ChartTheme.ModernStyle` (on by default) — rounded bar ends, gradient fills, hollow markers, hover bands. See [Themes & Styling](themes-and-styling.md#modern-styling). |
+| **Readable by default** | Collision-free data labels, width-aware axis-label thinning (incl. date axes), 12px axis labels with a 10px minimum. |
 
 ---
 

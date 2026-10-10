@@ -1078,12 +1078,16 @@ namespace TerraFluent.Chart.Reporting.Builder
         {
             string svg = RenderToSvg();
 
-            var sb = new System.Text.StringBuilder();
+            // Size the builder up front and append the trimmed SVG by range: avoids a TrimEnd()
+            // copy and repeated buffer growth, which matter for large charts.
+            int svgLen = svg.Length;
+            while (svgLen > 0 && char.IsWhiteSpace(svg[svgLen - 1])) svgLen--;
+            var sb = new System.Text.StringBuilder(svgLen + 512 + (caption?.Length ?? 0));
 
             string classAttr = string.IsNullOrWhiteSpace(cssClass) ? string.Empty : $" class=\"{HtmlEncode(cssClass)}\"";
             sb.AppendLine($"<figure{classAttr} style=\"margin:0;padding:0;display:inline-block;width:100%;\">");
             sb.AppendLine("  <div style=\"width:100%;overflow:hidden;\">");
-            sb.AppendLine(svg.TrimEnd());
+            sb.Append(svg, 0, svgLen).AppendLine();
             sb.AppendLine("  </div>");
 
             if (!string.IsNullOrEmpty(caption))
@@ -1138,9 +1142,15 @@ namespace TerraFluent.Chart.Reporting.Builder
         public void RenderToStream(System.IO.Stream stream)
         {
             if (stream is null) throw new ArgumentNullException(nameof(stream));
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(RenderToSvg());
-            stream.Write(bytes, 0, bytes.Length);
+            // Encode through a small buffer instead of materialising one byte[] the size of the
+            // whole SVG (a large-object-heap allocation for big charts). No BOM; stream left open.
+            using var writer = new System.IO.StreamWriter(stream, Utf8NoBom, StreamBufferSize, leaveOpen: true);
+            writer.Write(RenderToSvg());
         }
+
+        // UTF-8 without a byte-order mark — matches Encoding.UTF8.GetBytes output.
+        private static readonly System.Text.UTF8Encoding Utf8NoBom = new System.Text.UTF8Encoding(false);
+        private const int StreamBufferSize = 16 * 1024;
 
         /// <summary>
         /// Renders the chart and returns a Base64-encoded <c>data:</c> URI suitable for use as an
@@ -1164,8 +1174,13 @@ namespace TerraFluent.Chart.Reporting.Builder
             System.Threading.CancellationToken cancellationToken = default)
         {
             if (stream is null) throw new ArgumentNullException(nameof(stream));
-            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(RenderToSvg());
-            await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+            string svg = RenderToSvg();
+            var writer = new System.IO.StreamWriter(stream, Utf8NoBom, StreamBufferSize, leaveOpen: true);
+            await using (writer.ConfigureAwait(false))
+            {
+                await writer.WriteAsync(svg.AsMemory(), cancellationToken).ConfigureAwait(false);
+                await writer.FlushAsync().ConfigureAwait(false);
+            }
         }
 
         /// <summary>

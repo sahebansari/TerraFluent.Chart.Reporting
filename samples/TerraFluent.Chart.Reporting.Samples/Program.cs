@@ -457,6 +457,14 @@ internal static partial class Program
             "GridLines(false) / HideGridLines() — show or hide the background plot grid.",
             GridLinesToggleChart));
 
+        charts.Add(Run("103_daily_sales", "Daily Sales (10–31 Oct 2026)",
+            "XAxisDateTime(dates, \"dd-MMM-yyyy\") — 22 days of daily revenue and orders.",
+            DailySalesChart));
+
+        charts.Add(Run("104_multicolor_bars", "Multi-Colour Bars (ColorByPoint)",
+            "ColorByPoint() — every column or bar in its own colour, from the theme palette or a custom list.",
+            MultiColorBarsChart));
+
         Console.Write("  Generating index.html ... ");
         try
         {

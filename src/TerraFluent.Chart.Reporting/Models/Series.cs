@@ -103,6 +103,21 @@ namespace TerraFluent.Chart.Reporting.Models
         public List<SeriesZone> Zones { get; set; } = new List<SeriesZone>();
 
         /// <summary>
+        /// When <c>true</c>, each bar of a non-stacked Column or Bar series gets its own colour
+        /// (a multi-coloured bar chart) instead of the single series colour. Colours come from
+        /// <see cref="PointColors"/>, or from the theme palette when that list is empty, cycling
+        /// when there are more bars than colours. <see cref="Fill"/> and <see cref="Zones"/> take
+        /// precedence. Default <c>false</c>.
+        /// </summary>
+        public bool ColorByPoint { get; set; }
+
+        /// <summary>
+        /// Optional per-bar palette used when <see cref="ColorByPoint"/> is enabled; bar <c>i</c> is
+        /// painted <c>PointColors[i % Count]</c>. Empty = use the theme palette.
+        /// </summary>
+        public List<string> PointColors { get; set; } = new List<string>();
+
+        /// <summary>
         /// How null (missing) values are treated in Line, Spline, and Area series.
         /// <see cref="Enums.GapPolicy.Break"/> (default) leaves a visible gap;
         /// <see cref="Enums.GapPolicy.Connect"/> draws a straight line through the gap;

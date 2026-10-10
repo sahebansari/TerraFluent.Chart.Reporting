@@ -42,6 +42,7 @@ Match the user's words and the **shape of their data** to a series method. When 
 | "target", "goal", "threshold", "budget line" | `.PlotLine(value, ChartColor.Red, 2, "Target", "Dash")` or `cfg.TargetLine(value, "Target")` |
 | "acceptable range", "safe zone" | `.PlotBand(from, to, "rgba(46,204,113,0.15)", "Normal")` |
 | "red when below X" | `cfg.Zones((X, ChartColor.Red), (null, ChartColor.ChartGreen))` |
+| "each bar a different colour", "multi-coloured bars" | `cfg.ColorByPoint()` (or `cfg.ColorByPoint("#hex1", "#hex2", …)`) + `.HideLegend()` for a single series |
 | "show values", "labels on bars" | `cfg.DataLabel.Show().Format("{value}")` or `.ShowDataLabels()` for all series |
 | "two units", "revenue and margin %" | line `cfg.OnSecondaryAxis()` + `.YAxis2(y => { y.Title = "Margin (%)"; })` |
 | "log scale" | `.YAxisLogarithmic()` |

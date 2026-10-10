@@ -226,6 +226,27 @@ namespace TerraFluent.Chart.Reporting.Rendering
         /// <summary>Short-hand: format a coordinate to 1 decimal place, invariant culture.</summary>
         private static string F(double v) => v.ToString("F1", CultureInfo.InvariantCulture);
 
+        /// <summary>
+        /// Appends <paramref name="v"/> exactly as <see cref="F(double)"/> would format it, but
+        /// without allocating an intermediate string (on targets with span formatting). Use it in
+        /// per-point hot paths such as path data and markers.
+        /// </summary>
+        private static StringBuilder AppendF(StringBuilder sb, double v)
+        {
+#if NETSTANDARD2_0
+            return sb.Append(v.ToString("F1", CultureInfo.InvariantCulture));
+#else
+            Span<char> buf = stackalloc char[32];
+            return v.TryFormat(buf, out int written, "F1", CultureInfo.InvariantCulture)
+                ? sb.Append(buf.Slice(0, written))
+                : sb.Append(v.ToString("F1", CultureInfo.InvariantCulture));
+#endif
+        }
+
+        /// <summary>Appends an "x,y" coordinate pair formatted like <see cref="F(double)"/>.</summary>
+        private static StringBuilder AppendXY(StringBuilder sb, double x, double y)
+            => AppendF(AppendF(sb, x).Append(','), y);
+
         // ------------------------------------------------------------------ label layout
 
         private struct LabelLayoutResult
@@ -267,12 +288,12 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     ? (int)Math.Ceiling(cats.Count / 12.0)
                     : 1;
 
-                // Thin dense category axes so labels don't smear into an unreadable band
-                // (e.g. a scatter that emits one label per data point). Skip enough labels that
-                // the widest one fits within its (possibly rotated) slot.
-                if (!xIsDateLeg && step > 0)
+                // Thin dense category and date axes so labels don't smear into an unreadable band
+                // (e.g. a scatter that emits one label per data point, or long "dd-MMM-yyyy" dates).
+                // Skip enough labels that the widest one fits within its (possibly rotated) slot.
+                if (step > 0)
                 {
-                    double charWLeg = 11 * scale * CharWidthFactor;
+                    double charWLeg = AxisLabelPx(options) * CharWidthFactor;
                     double radLeg   = Math.Abs(rot) * Math.PI / 180.0;
                     double projWLeg = maxLen * charWLeg * Math.Cos(radLeg) + 13 * scale * Math.Sin(radLeg) + 6;
                     int neededLeg   = (int)Math.Ceiling(projWLeg / step);
@@ -283,7 +304,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 {
                     Rotation       = rot,
                     Stride         = strideLeg,
-                    FontSize       = Sz(11, scale),
+                    FontSize       = AxisLabelPx(options),
                     Stagger        = false,
                     StaggerOffset  = 10,
                     WordWrap       = false,
@@ -294,8 +315,10 @@ namespace TerraFluent.Chart.Reporting.Rendering
             // ---- Full collision-detection path ------------------------------------------
             int hPad = ll.HorizontalPadding;
             // Scale the configured font-size bounds so enlarged charts stay collision-free.
-            int scaledMax = Sz(ll.MaxFontSize, scale);
-            int scaledMin = Sz(ll.MinFontSize, scale);
+            // Both bounds are floored at MinAxisFontPx so auto-scaling never shrinks labels below it;
+            // overlap that remains at the floor is resolved by rotation / auto-skip instead.
+            int scaledMin = Math.Max(MinAxisFontPx, Sz(ll.MinFontSize, scale));
+            int scaledMax = Math.Max(scaledMin, Sz(ll.MaxFontSize, scale));
 
             // Estimate whether labels at given (fontSize, rotation, stride) fit without overlap
             bool FitsAt(int fs, int rot, int stride_)
@@ -492,12 +515,14 @@ namespace TerraFluent.Chart.Reporting.Rendering
         private static string BuildPath(List<(double x, double y, double value)> pts, bool smooth)
         {
             if (pts.Count == 0) return string.Empty;
-            var sb = new StringBuilder();
-            sb.Append($"M{F(pts[0].x)},{F(pts[0].y)}");
+            // Pre-size for ~14 chars per straight segment (~40 per Bézier) and append numbers
+            // directly — this runs once per point, so per-coordinate strings add up fast.
+            var sb = new StringBuilder(pts.Count * (smooth ? 40 : 14) + 16);
+            AppendXY(sb.Append('M'), pts[0].x, pts[0].y);
             if (!smooth || pts.Count < 3)
             {
                 for (int i = 1; i < pts.Count; i++)
-                    sb.Append($" L{F(pts[i].x)},{F(pts[i].y)}");
+                    AppendXY(sb.Append(" L"), pts[i].x, pts[i].y);
             }
             else
             {
@@ -512,7 +537,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     double cp1y = p1.y + (p2.y - p0.y) / 6.0;
                     double cp2x = p2.x - (p3.x - p1.x) / 6.0;
                     double cp2y = p2.y - (p3.y - p1.y) / 6.0;
-                    sb.Append($" C{F(cp1x)},{F(cp1y)} {F(cp2x)},{F(cp2y)} {F(p2.x)},{F(p2.y)}");
+                    AppendXY(sb.Append(" C"), cp1x, cp1y);
+                    AppendXY(sb.Append(' '),  cp2x, cp2y);
+                    AppendXY(sb.Append(' '),  p2.x, p2.y);
                 }
             }
             return sb.ToString();

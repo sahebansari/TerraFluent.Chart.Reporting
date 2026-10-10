@@ -61,15 +61,16 @@ namespace TerraFluent.Chart.Reporting.Models
 
         /// <summary>
         /// Minimum font size in pixels the auto-scaler may shrink to. Default 8.
+        /// The renderer never draws axis labels below 10px, so values under 10 act as 10.
         /// </summary>
         public int MinFontSize { get; set; } = 8;
 
         /// <summary>
-        /// Maximum / base font size in pixels. Default 11.
+        /// Maximum / base font size in pixels. Default 12.
         /// The renderer starts at this size and scales down toward <see cref="MinFontSize"/>
         /// as needed.
         /// </summary>
-        public int MaxFontSize { get; set; } = 11;
+        public int MaxFontSize { get; set; } = 12;
 
         /// <summary>
         /// When <c>true</c> (default), the renderer automatically reduces the font size before

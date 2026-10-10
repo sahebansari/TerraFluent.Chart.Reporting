@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -14,7 +14,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             int plotWidth, int plotHeight, string clipId)
         {
             bool yLog = IsLog(options.YAxis);
-            var (yMin, yMax) = ResolveYBounds(options.YAxis, options.Series);
+            var (yMin, yMax) = ResolvePrimaryYBounds(options);
 
             var cats = options.XAxis.Categories;
             bool hasCats = cats != null && cats.Count > 0;

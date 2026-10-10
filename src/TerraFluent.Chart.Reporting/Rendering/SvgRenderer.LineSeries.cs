@@ -65,6 +65,11 @@ namespace TerraFluent.Chart.Reporting.Rendering
             string? rsOrigId = rsPathId; // save before the segments loop nulls it
             bool   isRsMode  = rsPathId != null;
 
+            // Let data labels steer clear of the drawn line. Splines are approximated by their chords,
+            // so they get a little extra clearance for the curve's bulge.
+            foreach (var seg in segments)
+                RegisterLineObstacle(seg, series.LineWidth + (smooth ? 4 : 0));
+
             // One path per contiguous segment (a lone point yields no visible line, only a marker).
             foreach (var seg in segments)
             {
@@ -132,9 +137,11 @@ namespace TerraFluent.Chart.Reporting.Rendering
             {
                 string xLbl = options.XAxis.Categories?.Count > idx ? options.XAxis.Categories[idx] : idx.ToString(CultureInfo.InvariantCulture);
                 string markerColor = zoned ? ZoneColorFor(series.Zones, value, color) : color;
+                if (series.MarkerEnabled) RegisterMarkerObstacle(px, py, lineMarkerR);
                 AppendDataPoint(sb, tooltipLayer, options.RenderMode, px, py, markerColor, series.Name, value, svgWidth, svgHeight, options.Tooltip, series.MarkerEnabled, lineMarkerR, options.ResolvedBackgroundColor, PaddingTop, linePlotBottom, idx, xLbl, series.MarkerSymbol, suppressVisibleMarker: isRsMode, rsGroupId: rsOrigId, hollowMarker: options.Theme.ModernStyle, bandWidth: step, bandFill: lineBand);
                 if (series.DataLabel.Enabled)
-                    AppendDataLabel(sb, px, py - 10 + series.DataLabel.VerticalOffset.GetValueOrDefault(), FormatDataLabel(value, series.DataLabel.FormatString),
+                    AppendMovableDataLabel(sb, px, py, py - 10 + series.DataLabel.VerticalOffset.GetValueOrDefault(), lineMarkerR,
+                        FormatDataLabel(value, series.DataLabel.FormatString),
                         series.DataLabel.TextColor ?? options.Theme.TextColor, series.DataLabel.BackgroundColor, series.DataLabel.TextFontSize);
             }
 

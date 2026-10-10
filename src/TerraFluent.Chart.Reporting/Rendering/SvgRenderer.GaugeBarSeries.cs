@@ -296,11 +296,15 @@ namespace TerraFluent.Chart.Reporting.Rendering
             bool hasCats  = options.XAxis.Categories?.Count > 0;
             int catCount  = hasCats ? options.XAxis.Categories!.Count : n;
             double groupH = (double)plotHeight / catCount;
-            double barPad = groupH * 0.1;
-            double barH   = (groupH - barPad * 2) / Math.Max(barCount, 1);
+            int barGroupCount = Math.Max(barCount, 1);
+            double barH   = Math.Min(groupH * 0.8 / barGroupCount, MaxBarThickness);
+            double barPad = (groupH - barH * barGroupCount) / 2.0;
+
+            // Per-bar colours (ColorByPoint) apply when no custom fill overrides the colour.
+            bool byPoint = fillPaint == null && series.ColorByPoint;
 
             // Modern sheen gradient (opt-in) — lighter at the free (right) end of each bar.
-            if (fillPaint == null)
+            if (fillPaint == null && !byPoint)
                 barFill = ModernBarFill(sb, options, color, barFill, $"{clipId}-mbar-{barIdx}", horizontal: true);
 
             // Modern soft-shadow elevation (opt-in).
@@ -386,25 +390,28 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 double barX = v >= 0 ? x0 : x0 - barW;
                 double barY = PaddingTop + groupH * i + barPad + barH * barIdx;
 
+                // ColorByPoint: each bar gets its own colour (with its own sheen gradient).
+                string pointColor  = color;
+                string thisBarFill = barFill;
+                if (byPoint && PointColorFor(series, options, i) is string pc)
+                {
+                    pointColor  = pc;
+                    thisBarFill = ModernBarFill(sb, options, pc, Escape(pc), $"{clipId}-mbar-{barIdx}-p{i}", horizontal: true);
+                }
+
                 sb.AppendLine($"  <g>");
-                if (bAnim)
-                {
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x0)}\" y=\"{F(barY)}\" width=\"0\" height=\"{F(barH)}\" fill=\"{barFill}\" fill-opacity=\"{barOp}\"{barShadow}{BuildRectBorderAttr(series, options)}>");
-                    sb.AppendLine($"      <animate attributeName=\"width\" from=\"0\" to=\"{F(barW)}\" dur=\"{bDur}\" fill=\"freeze\"{bEase}/>");
-                    if (v < 0) sb.AppendLine($"      <animate attributeName=\"x\" from=\"{F(x0)}\" to=\"{F(barX)}\" dur=\"{bDur}\" fill=\"freeze\"{bEase}/>");
-                    sb.AppendLine($"    </rect>");
-                }
-                else
-                {
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" fill=\"{barFill}\" fill-opacity=\"{barOp}\"{barShadow}{BuildRectBorderAttr(series, options)}/>");
-                }
+                // Only the free end of the bar is rounded: right for positive, left for negative.
+                AppendBarShape(sb, "    ", clipId, barX, barY, barW, barH,
+                    v >= 0 ? BarEnd.Right : BarEnd.Left,
+                    thisBarFill, barOp, barShadow, series, options,
+                    bAnim, x0, barY, 0, barH, bDur, bEase);
                 sb.AppendLine($"  </g>");
                 if (options.RenderMode != SvgMode.Static)
                 {
                     tooltipLayer.AppendLine($"  <g class=\"data-point\">");
                     AppendHoverBandH(tooltipLayer, options, PaddingTop + groupH * i + groupH / 2.0, groupH, plotWidth);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(barX)}\" y=\"{F(barY)}\" width=\"{F(barW)}\" height=\"{F(barH)}\" class=\"hit-area\" stroke=\"none\"/>");
-                    AppendTooltip(tooltipLayer, barX + barW / 2, barY + barH / 2, series.Name, v, svgWidth, svgHeight, options.Tooltip, color);
+                    AppendTooltip(tooltipLayer, barX + barW / 2, barY + barH / 2, series.Name, v, svgWidth, svgHeight, options.Tooltip, pointColor);
                     tooltipLayer.AppendLine($"  </g>");
                 }
             }

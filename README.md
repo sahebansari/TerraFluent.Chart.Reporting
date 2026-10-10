@@ -2,6 +2,7 @@
 
 A fluent C# library for generating **SVG charts server-side** — zero JavaScript dependency, zero external NuGet dependencies.
 
+[![NuGet](https://img.shields.io/nuget/v/TerraFluent.Chart.Reporting.svg)](https://www.nuget.org/packages/TerraFluent.Chart.Reporting)
 [![Website](https://img.shields.io/badge/website-terrafluent.dev%2Fchart-blue.svg)](https://terrafluent.dev/chart/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/LICENSE)
 [![CI](https://github.com/sahebansari/TerraFluent.Chart.Reporting/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/sahebansari/TerraFluent.Chart.Reporting/actions/workflows/ci.yml)
@@ -13,12 +14,27 @@ A fluent C# library for generating **SVG charts server-side** — zero JavaScrip
 - **26 chart types** — line, bar, pie, financial, flow, and specialist types, all through one fluent API.
 - **Three render modes** — Static (PDF/email-safe), Animated (SMIL), Interactive (JS, browser-only).
 - **18 built-in themes** plus a `ChartTheme.Custom(...)` factory for fully custom palettes.
+- **Readable by default** — collision-free data labels, width-aware axis-label thinning, and a 10px minimum text size.
 - **Multi-target** — `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`, `net10.0` from one codebase.
+
+---
+
+## What's New in 2.1
+
+- **Multi-colour bars:** `ColorByPoint()` gives every column or bar its own colour, from the theme palette or your own list.
+- **Collision-aware data labels:** labels steer clear of each other, of lines and of markers. Bar labels slide within their segment; line labels move above, below or beside their point.
+- **Cleaner bars:** bars are at most 64px thick, and rounded corners sit only on the free end. In a stack, only the outermost segment is rounded.
+- **More readable text:** 12px axis labels, 13px axis titles and 11px data labels, never below 10px. Date-axis labels are thinned by width, so long formats such as `dd-MMM-yyyy` don't overlap.
+- **Fixed:** the left Y-axis now matches the bars on charts with a secondary axis or stacking.
+- **Faster:** dense labelled charts render up to 60× faster, with far less memory.
+
+2.1 adds API without breaking any, but default visuals change. See the [Changelog](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/CHANGELOG.md) for details.
 
 ---
 
 ## Table of Contents
 
+- [What's New in 2.1](#whats-new-in-21)
 - [Supported Targets](#supported-targets)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -52,7 +68,7 @@ A fluent C# library for generating **SVG charts server-side** — zero JavaScrip
 
 ## Installation
 
-**Via NuGet** (once published):
+**Via NuGet:**
 
 ```bash
 dotnet add package TerraFluent.Chart.Reporting
@@ -95,6 +111,7 @@ The full guide lives in [docs/](https://github.com/sahebansari/TerraFluent.Chart
 | [Advanced Features](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/advanced.md) | Render modes, output methods, axes, stacking, Fork, DI |
 | [API Reference](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/api-reference.md) | Complete method reference for every builder, enum, and data type |
 | [Troubleshooting & FAQ](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/troubleshooting.md) | Common issues, exceptions, and integration answers |
+| [Changelog](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/CHANGELOG.md) | What changed in each release |
 
 ---
 
@@ -142,6 +159,17 @@ For other agents, see their documentation for where skills go. Agents load the s
 | Stream | `AddStream` | Gantt | `AddGantt` |
 | Sankey | `AddSankey` | Parliament | `AddParliament` |
 
+### Multi-Colour Bars
+
+Give every column or bar its own colour:
+
+```csharp
+.Series(s => s.AddColumn("Sales", data, cfg => cfg.ColorByPoint()))                       // theme palette
+.Series(s => s.AddBar("Sales", data, cfg => cfg.ColorByPoint("#0EA5E9", "#22C55E", "#F59E0B"))) // custom, cycled
+```
+
+See [Multi-Colour Bars](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/themes-and-styling.md#multi-colour-bars).
+
 ---
 
 ## Render Modes
@@ -177,7 +205,7 @@ For other agents, see their documentation for where skills go. Agents load the s
 .Colors("#e63946", "#457b9d", "#2a9d8f")
 ```
 
-Every theme ships with `ModernStyle` on — rounded bars, gradient fills, hollow-ring markers, and (in Interactive mode) hover bands. Clone a theme and set `ModernStyle = false` for the classic flat look; see [Modern Styling](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/themes-and-styling.md#modern-styling).
+Every theme ships with `ModernStyle` on — rounded bar ends, gradient fills, hollow-ring markers, and (in Interactive mode) hover bands. Clone a theme and set `ModernStyle = false` for the classic flat look; see [Modern Styling](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/docs/themes-and-styling.md#modern-styling).
 
 ---
 
@@ -316,6 +344,18 @@ dotnet test tests/TerraFluent.Chart.Reporting.Tests/TerraFluent.Chart.Reporting.
 ```
 
 The library targets `netstandard2.0`, `netstandard2.1`, `net6.0`, `net8.0`, and `net10.0` from a single project — building it requires the .NET 10 SDK (which includes the earlier runtimes needed to build the older targets).
+
+### Benchmarks
+
+Rendering performance is tracked in [`tests/TerraFluent.Chart.Reporting.Benchmarks`](https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/tests/TerraFluent.Chart.Reporting.Benchmarks/README.md):
+
+```bash
+# Quick before/after check (seconds)
+dotnet run -c Release --project tests/TerraFluent.Chart.Reporting.Benchmarks -- quick
+
+# Full BenchmarkDotNet run (minutes) — pick a suite, or pass --filter
+dotnet run -c Release --project tests/TerraFluent.Chart.Reporting.Benchmarks
+```
 
 ---
 

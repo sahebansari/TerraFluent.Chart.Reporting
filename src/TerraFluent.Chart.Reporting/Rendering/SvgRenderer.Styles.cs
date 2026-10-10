@@ -21,9 +21,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
             double fs = t.FontScale <= 0 ? 1.0 : t.FontScale;
             int titlePx    = Sz(16, fs);
             int subtitlePx = Sz(12, fs);
-            int axisLblPx  = Sz(11, fs);
-            int axisTtlPx  = Sz(12, fs);
-            int dataLblPx  = Sz(10, fs);
+            int axisLblPx  = AxisLabelPx(options);
+            int axisTtlPx  = Math.Max(MinAxisFontPx, Sz(AxisTitleBasePx, fs));
+            int dataLblPx  = Math.Max(MinDataLabelFontPx, Sz(11, fs));
             double legendPx = options.Legend.ItemFontSize * fs;
 
             sb.AppendLine("  <style>");
@@ -213,6 +213,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
         // Scales a base pixel size by the font scale and rounds to the nearest whole pixel.
         private static int Sz(double basePx, double scale) => (int)Math.Round(basePx * scale);
+
+        // Axis tick-label size: AxisLabelBasePx × theme FontScale, never below MinAxisFontPx.
+        private static int AxisLabelPx(ChartOptions options) => Math.Max(MinAxisFontPx, Sz(AxisLabelBasePx, FontScaleOf(options)));
 
         // ------------------------------------------------------------------ axes
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -28,6 +28,21 @@ namespace TerraFluent.Chart.Reporting.Rendering
         private const int PaddingRight  = 32;
         private const int PaddingTop    = 92;
         private const int PaddingBottom = 96;
+
+        // Maximum thickness (px) of a single Column/Bar rect. When the category slot is wider,
+        // the bar (or group of side-by-side bars) is capped and centred within the slot.
+        private const double MaxBarThickness = 64.0;
+
+        // Readability floor (px) for axis tick labels and axis titles. Neither a FontScale below 1
+        // nor LabelLayout auto-scaling may shrink axis text under this size.
+        private const int MinAxisFontPx = 10;
+
+        // Base (FontScale = 1) sizes for axis tick labels and axis titles.
+        private const int AxisLabelBasePx = 12;
+        private const int AxisTitleBasePx = 13;
+
+        // Readability floor (px) for data labels, including an explicit DataLabel.FontSize.
+        private const int MinDataLabelFontPx = 10;
 
         // Thread-safe counter — ensures every Render() call gets a unique ID,
         // preventing clipPath conflicts when multiple SVGs share one HTML document.
@@ -414,8 +429,8 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
                 }
                 if (maxLen == 0) return PaddingLeftDefault;
 
-                // .axis-label is 11px (× scale); estimated glyph width ≈ fontSize × 0.6.
-                int catLabelWidth = (int)Math.Ceiling(maxLen * 11 * scale * 0.6);
+                // .axis-label is AxisLabelBasePx (× scale, floored at MinAxisFontPx); glyph width ≈ fontSize × 0.6.
+                int catLabelWidth = (int)Math.Ceiling(maxLen * AxisLabelPx(options) * 0.6);
 
                 // Category labels grow LEFTWARD from x = PaddingLeft − 8. When a category-axis
                 // title is present it is drawn rotated at x = CanvasPadding, so reserve an extra
@@ -451,7 +466,7 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
             if (options.YAxis == null || !options.YAxis.Visible) return 0;
 
             bool yLog = IsLog(options.YAxis);
-            var (yMinRaw, yMaxRaw) = ResolveYBounds(options.YAxis, options.Series);
+            var (yMinRaw, yMaxRaw) = ResolvePrimaryYBounds(options);
             string? yTickFmt = options.YAxis.LabelFormat
                 ?? (options.Stacking == Stacking.Percent ? "{value}%" : null);
 
@@ -477,8 +492,8 @@ sb.AppendLine($"  <rect aria-hidden=\"true\" width=\"{svgWidth}\" height=\"{svgH
             }
             if (maxLen == 0) return 0;
 
-            // .axis-label is 11px (× scale); estimated glyph width ≈ fontSize × 0.6.
-            return (int)Math.Ceiling(maxLen * 11 * FontScaleOf(options) * 0.6);
+            // .axis-label is AxisLabelBasePx (× scale, floored at MinAxisFontPx); glyph width ≈ fontSize × 0.6.
+            return (int)Math.Ceiling(maxLen * AxisLabelPx(options) * 0.6);
         }
 
     }

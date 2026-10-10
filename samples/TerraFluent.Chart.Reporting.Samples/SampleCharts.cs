@@ -2349,4 +2349,88 @@ internal static partial class Program
 
         return $"<div style=\"display:flex;gap:12px;flex-wrap:wrap;justify-content:center\">{withGrid}{noGrid}</div>";
     }
+
+    // ================================================================== 103
+
+    private static string DailySalesChart()
+    {
+        // Daily sales, 10-Oct-2026 to 31-Oct-2026 inclusive (22 days), labelled with the full date.
+        var start = new DateTime(2026, 10, 10);
+        var dates = new List<DateTime>();
+        for (int i = 0; i < 22; i++) dates.Add(start.AddDays(i));
+
+        double?[] revenue =
+        {
+            18.4, 15.2, 21.7, 23.9, 22.1, 26.8, 31.5, 28.2, 19.6, 22.4, 24.0,
+            25.3, 23.8, 29.1, 33.7, 30.2, 21.5, 23.6, 26.2, 27.9, 30.4, 35.8,
+        };   // $k
+        double?[] orders =
+        {
+            212, 178, 245, 268, 251, 297, 342, 315, 224, 250, 266,
+            281, 262, 318, 365, 331, 238, 259, 289, 304, 330, 388,
+        };
+
+        return ChartBuilder.Create()
+            .Theme(GlobalTheme)
+            .Title("Daily Sales — 10 to 31 Oct 2026")
+            .Subtitle("XAxisDateTime(dates, \"dd-MMM-yyyy\") · revenue columns with an orders line on a secondary axis")
+            .Size(760, 420)
+            .AsInteractive()
+            .Animate()
+            .XAxis(x => x.Title = "Date")
+            .XAxisDateTime(dates, "dd-MMM-yyyy")
+            .YAxis("Revenue ($k)", min: 0)
+            .YAxisFormat("${value}k")
+            .YAxis2(y => { y.Title = "Orders"; y.Min = 0; y.Max = 400; })
+            .ShowDataLabels()
+            .Legend(l => l.AtTop().AlignCenter().Horizontal())
+            .Series(s => s
+                .AddColumn("Revenue", revenue,
+                    cfg => cfg.Label(dl => dl.Format("${value}k")))
+                .AddLine("Orders", orders,
+                    cfg => cfg
+                        .LineWidth(3)
+                        .OnSecondaryAxis()))
+            .RenderToSvg();
+    }
+
+    // ================================================================== 104
+
+    private static string MultiColorBarsChart()
+    {
+        string[] regions = { "North", "South", "East", "West", "Central", "Online" };
+        double?[] sales  = { 42, 58, 35, 64, 47, 71 };
+
+        // Left: columns coloured from the theme palette — ColorByPoint() with no arguments.
+        string columns = ChartBuilder.Create()
+            .Theme(GlobalTheme)
+            .Title("Sales by Region")
+            .Subtitle("ColorByPoint() — theme palette")
+            .Size(560, 380)
+            .AsInteractive()
+            .Animate()
+            .HideLegend()
+            .XAxis(x => x.Categories.AddRange(regions))
+            .YAxis("Sales ($k)", min: 0)
+            .ShowDataLabels()
+            .Series(s => s.AddColumn("Sales", sales, cfg => cfg.ColorByPoint()))
+            .RenderToSvg();
+
+        // Right: horizontal bars with a custom palette — ColorByPoint(colors...).
+        string bars = ChartBuilder.Create()
+            .Theme(GlobalTheme)
+            .Title("Sales by Region")
+            .Subtitle("ColorByPoint(\"#0EA5E9\", \"#22C55E\", …) — custom palette")
+            .Size(560, 380)
+            .AsInteractive()
+            .Animate()
+            .HideLegend()
+            .XAxis(x => x.Categories.AddRange(regions))
+            .YAxis("Sales ($k)", min: 0)
+            .Series(s => s.AddBar("Sales", sales,
+                cfg => cfg.ColorByPoint("#0EA5E9", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899")))
+            .RenderToSvg();
+
+        return $"<div style=\"display:flex;gap:12px;flex-wrap:wrap;justify-content:center\">{columns}{bars}</div>";
+    }
 }

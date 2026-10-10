@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -38,7 +38,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             if (options.YAxis.Visible)
             {
                 bool yLog = IsLog(options.YAxis);
-                var (yMinRaw, yMaxRaw) = ResolveYBounds(options.YAxis, options.Series);
+                var (yMinRaw, yMaxRaw) = ResolvePrimaryYBounds(options);
                 // Swap pixel-mapping bounds when inverted; tick generation always uses raw (ascending) range.
                 bool yInv  = options.YAxis.Inverted;
                 double yMinP = yInv ? yMaxRaw : yMinRaw;
@@ -101,13 +101,22 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     bool xIsDate = options.XAxis.Type == Enums.AxisType.DateTime;
                     if (options.LabelLayout == null && xIsDate && cats.Count > 12)
                         labelStride = Math.Max(labelStride, (int)Math.Ceiling(cats.Count / 12.0));
-                    string fontSizeAttr = (ll.FontSize != 11) ? $" font-size=\"{ll.FontSize}\"" : string.Empty;
+                    // Inline style (not a font-size attribute) so the resolved size beats the
+                    // .axis-label CSS rule; omitted when it matches the class default.
+                    string fontSizeAttr = (ll.FontSize != AxisLabelPx(options)) ? $" style=\"font-size:{ll.FontSize}px\"" : string.Empty;
 
                     bool rsXGroup = svgId != null
                         && options.RangeSelector.Enabled
                         && options.RenderMode == SvgMode.Interactive;
                     if (rsXGroup)
                         sb.AppendLine($"  <g id=\"{svgId}-rs-xg\">");
+
+                    // The last label is always shown so the axis ends on its final value. When it
+                    // falls off the stride grid it sits closer than one stride to the last strided
+                    // label, so that crowded neighbour is dropped (never the first label).
+                    int lastIdx       = cats.Count - 1;
+                    int lastStrideIdx = lastIdx / labelStride * labelStride;
+                    int crowdedIdx    = (labelStride > 1 && lastStrideIdx != lastIdx && lastStrideIdx > 0) ? lastStrideIdx : -1;
 
                     string? lastShownLabel = null;
                     for (int i = 0; i < cats.Count; i++)
@@ -117,7 +126,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                         // Stagger: every other label drops by StaggerOffset pixels
                         double staggerY = (ll.Stagger && i % 2 == 1) ? ll.StaggerOffset : 0.0;
 
-                        bool showLabel = (i % labelStride == 0) || i == cats.Count - 1;
+                        bool showLabel = ((i % labelStride == 0) && i != crowdedIdx) || i == lastIdx;
                         if (!showLabel) continue;
 
                         // For date/time axes, suppress a repeated label (e.g. two "Dec 2024"
@@ -200,7 +209,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             if (options.YAxis.Visible && options.YAxis.PlotBands.Count > 0)
             {
                 bool yLogPB = IsLog(options.YAxis);
-                var (yMinPBRaw, yMaxPBRaw) = ResolveYBounds(options.YAxis, options.Series);
+                var (yMinPBRaw, yMaxPBRaw) = ResolvePrimaryYBounds(options);
                 bool yInvPB = options.YAxis.Inverted;
                 double yMinPB = yInvPB ? yMaxPBRaw : yMinPBRaw;
                 double yMaxPB = yInvPB ? yMinPBRaw : yMaxPBRaw;
@@ -224,7 +233,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             if (options.YAxis.Visible && options.YAxis.PlotLines.Count > 0)
             {
                 bool yLogPL = IsLog(options.YAxis);
-                var (yMinPLRaw, yMaxPLRaw) = ResolveYBounds(options.YAxis, options.Series);
+                var (yMinPLRaw, yMaxPLRaw) = ResolvePrimaryYBounds(options);
                 bool yInvPL = options.YAxis.Inverted;
                 double yMinPL = yInvPL ? yMaxPLRaw : yMinPLRaw;
                 double yMaxPL = yInvPL ? yMinPLRaw : yMaxPLRaw;

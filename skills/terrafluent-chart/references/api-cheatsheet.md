@@ -1,4 +1,4 @@
-# API cheatsheet (verified against source, v2.0.0)
+# API cheatsheet (verified against source, v2.1.0)
 
 Every method below exists. **If you need something that isn't here, it probably doesn't exist.** Check `ChartBuilder.GetOptions()` (the raw `ChartOptions` model) before inventing an API.
 
@@ -131,6 +131,10 @@ RadialGradientFill(params (double offset, string color)[] stops)
 PatternFill(PatternKind, string foreground, string? background = null, double size = 8)
       // PatternKind: Dots | DiagonalLines | HorizontalLines | VerticalLines | Grid | CrossHatch  (in .Models)
 Border(string color, int width = 1, int radius = 0)  BorderColor(string)  BorderWidth(int)  BorderRadius(int)
+      // radius rounds only the bar's free end; in a stack only the outermost segment
+ColorByPoint(params string[] colors)  ColorByPoint(bool enabled)
+      // non-stacked Column/Bar: each bar its own colour (theme palette, or the given colours cycled)
+      // Fill(...) and Zones(...) win over it; legend still shows one swatch → HideLegend() for a single series
 MarkerSize(int)  MarkerEnabled(bool = true)  MarkerSymbol(MarkerSymbol)   // Circle|Square|Diamond|Triangle|TriangleDown
 Zone(double? upTo, string color)   Zones(params (double? upTo, string color)[])
 NullGap(GapPolicy)                 // Break | Connect | Zero

@@ -79,7 +79,7 @@ string svg = ChartBuilder.Create()
 
 Every built-in theme — including `Default` — has `ChartTheme.ModernStyle` set to `true`. It applies a consistent set of refinements uniformly across **Static**, **Animated**, and **Interactive** render modes:
 
-- Softly rounded corners on column/bar rectangles.
+- Softly rounded corners (3px) on the free end of each column/bar — the top of a positive column, the right end of a positive bar. The base stays square, and in a stack only the outermost segment is rounded.
 - A subtle top-lighter fill gradient with soft elevation shadow on columns, bars, and areas.
 - Hollow-ring line/scatter markers instead of solid dots.
 - Crisper separators between pie/donut slices.
@@ -354,6 +354,78 @@ string svg = ChartBuilder.Create()
 
 **Output:** Three grouped column series. Revenue has rounded tops with a blue border; Cost has a dark orange border with subtle corners; Profit has a dark green thick border and sharp square corners.
 
+**How the radius is applied:**
+
+- **Free end only.** Only the bar's free (outer) end is rounded. That's the top of a positive column and the bottom of a negative one; the right end of a positive bar and the left end of a negative one. The base that sits on the axis stays square.
+- **Stacks.** Only the outermost segment of each stack is rounded, so inner segments join cleanly.
+- **Short bars.** The radius is capped at half the bar's thickness and at its length.
+
+**Bar thickness:** each column or bar is at most **64px** thick. When a category slot is wider than that, as in a chart with few categories, the bar is centred in its slot. In grouped charts, the cap applies to each bar of the group.
+
+---
+
+## Multi-Colour Bars
+
+Give every bar of a Column or Bar series its own colour with `ColorByPoint()`:
+
+```csharp
+// Theme palette: bar i gets palette colour i
+s.AddColumn("Sales", data, cfg => cfg.ColorByPoint());
+
+// Custom colours, used in order and cycled when there are more bars than colours
+s.AddBar("Sales", data, cfg => cfg.ColorByPoint("#0EA5E9", "#22C55E", "#F59E0B", "#EF4444"));
+```
+
+**Example:**
+
+```csharp
+string svg = ChartBuilder.Create()
+    .Title("Sales by Region")
+    .Size(560, 380)
+    .HideLegend()                 // one series → a single legend swatch would be misleading
+    .XAxis(x => x.Categories.AddRange(new[] { "North", "South", "East", "West", "Central", "Online" }))
+    .YAxis("Sales ($k)", min: 0)
+    .ShowDataLabels()
+    .Series(s => s.AddColumn("Sales", new double[] { 42, 58, 35, 64, 47, 71 },
+        cfg => cfg.ColorByPoint()))
+    .RenderToSvg();
+```
+
+**Output:** Six columns, each in the next theme colour. Under `ModernStyle` each one gets its own sheen gradient, and Interactive tooltips use the bar's own colour.
+
+**Notes:**
+
+- **Precedence.** `Fill(...)` (gradient or pattern) wins over `Zones(...)`, which wins over per-bar colours.
+- **Stacked charts.** Per-bar colours don't apply, because segments are already coloured by series.
+- **Legend.** It shows the series colour, so hide it for a single multi-coloured series.
+
+---
+
+## Text Sizes & Readability
+
+Default text sizes, before `ChartTheme.FontScale` is applied:
+
+| Text | Default |
+|---|---|
+| Chart title / subtitle | 16px bold / 12px |
+| Axis tick labels | 12px |
+| Axis titles | 13px |
+| Data labels | 11px bold |
+| Legend items | 12px (`Legend(l => l.ItemFontSize(…))`) |
+
+`FontScale` multiplies all of these, for example `1.25` for presentation slides. Axis labels, axis titles and data labels are never drawn smaller than **10px**:
+
+- **Small `FontScale`.** A value below 1 can shrink them, but only down to the floor.
+- **Label auto-scaling.** It stops at 10px, and any remaining overlap is resolved by rotating or skipping labels.
+- **Explicit sizes.** An explicit `DataLabel.FontSize(…)` below 10 is drawn at 10px.
+
+```csharp
+var large = ChartTheme.Default.Clone();
+large.FontScale = 1.25;   // 15px axis labels, 16px axis titles, …
+```
+
+> **Tip:** text that looks small in a browser is often a display-scaling effect, not the font size. A chart rendered at `Size(900, …)` but shown in a 450px-wide container is drawn at half size, text included. Render at roughly the width it will be displayed at.
+
 ---
 
 ## Scatter Marker Styling
@@ -398,7 +470,7 @@ ChartBuilder.Create()
 | `.Format("{value}%")` | `38%` | Value with suffix |
 | `.Format("${value}k")` | `$320k` | Currency format |
 | `.Color(ChartColor.White)` | — | White text on coloured background |
-| `.FontSize(11)` | — | Smaller text for dense charts |
+| `.FontSize(11)` | — | Text size in px (default 11; minimum 10) |
 | `.Background(ChartColor.ChartBlue)` | — | Solid pill background |
 | `.Background("rgba(…,0.25)")` | — | Tinted transparent pill |
 | `.Radius(1.25)` | — | Pie: label outside with connector |
@@ -440,6 +512,16 @@ string svg = ChartBuilder.Create()
 
 **Output:** Revenue labels appear as solid blue pills. Expense column labels float above each bar with a light orange tint. Profit spline labels use a green-tinted background with larger text.
 
+### Automatic label placement
+
+On cartesian charts, data labels are positioned so they stay readable. They avoid each other, the lines of line/spline series, and point markers:
+
+- **Stacked column and bar labels** stay inside their own segment but slide along it to get clear of a line crossing the segment.
+- **Labels above a column** can step up one tier, or drop just inside the column top.
+- **Line and spline labels** try, in order: above the marker, below it, a second tier above or below, then the right or left side.
+
+Bar labels are placed first because they have the least room to move; point labels follow. If every position collides, as on a very dense chart where each label is wider than its column, the label takes the least-overlapping spot. For charts like that, consider labelling only one series or relying on tooltips.
+
 ---
 
 ## Pie / Donut Label Placement
@@ -450,7 +532,7 @@ Use `DataLabel.Radius(fraction)` to position slice labels:
 |---|---|---|
 | `0.6` | Inside the slice | No |
 | `1.0` | At the slice edge | No |
-| `> 1.0` e.g. `1.25` | Outside the pie | Yes — spline connector |
+| `> 1.0` e.g. `1.25` | Outside the pie | Yes — leader line with a short horizontal bend |
 
 ```csharp
 string svg = ChartBuilder.Create()
@@ -471,7 +553,7 @@ string svg = ChartBuilder.Create()
     .RenderToSvg();
 ```
 
-**Output:** Each slice has a label outside the pie arc, connected to its slice by a thin curved spline line. Labels show "38%", "24%", etc. on a semi-transparent white pill.
+**Output:** Each slice has a label outside the pie arc, connected to its slice by a thin leader line that ends in a short horizontal run into the label. Labels show "38%", "24%", etc. on a semi-transparent white pill.
 
 ---
 

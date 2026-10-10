@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -277,7 +277,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 string mFill   = hollow ? Escape(options.ResolvedBackgroundColor) : Escape(swColor);
                 string mStroke = hollow ? Escape(swColor) : Escape(options.ResolvedBackgroundColor);
                 double mStrokeW = hollow ? 2.0 : 1.2;
-                sb.AppendLine("  " + MarkerShape(sr.MarkerSymbol, mcx, mcy, mSz, mFill, mStroke, mStrokeW));
+                AppendMarkerShape(sb.Append("  "), sr.MarkerSymbol, mcx, mcy, mSz, mFill, mStroke, mStrokeW).AppendLine();
             }
 
             void EmitItem(double ix, double iy, string label, string color, int si)

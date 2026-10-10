@@ -207,6 +207,29 @@ string svg = ChartBuilder.Create()
 
 **Rendered output:** Each column fills the full chart height (100 %). Three colour segments per column show the proportional contribution of each product. Data labels show percentages inside each segment.
 
+```csharp
+// Multi-coloured columns — every column in its own colour
+string svg = ChartBuilder.Create()
+    .Title("Sales by Region")
+    .Size(560, 380)
+    .HideLegend()
+    .XAxis("Region", "North","South","East","West","Central","Online")
+    .YAxis("Sales ($k)", min: 0)
+    .Series(s => s
+        .AddColumn("Sales", new double[] { 42, 58, 35, 64, 47, 71 },
+            cfg => cfg.ColorByPoint()))          // or ColorByPoint("#0EA5E9", "#22C55E", …)
+    .RenderToSvg();
+```
+
+**Rendered output:** Six columns, each in the next theme-palette colour (or the custom colours, cycled). See [Multi-Colour Bars](themes-and-styling.md#multi-colour-bars).
+
+**Layout notes:**
+
+- **Width.** Columns are at most **64px** wide and centred in their category slot, so a chart with few categories doesn't get slab-like columns.
+- **Rounding.** Under `ModernStyle`, only the free end of each column is rounded; in a stack, only the top segment.
+- **Stacked axis.** The Y-axis covers the stack totals.
+- **Secondary axis.** A series on the secondary axis (`OnSecondaryAxis()`) doesn't affect the left axis's range.
+
 ---
 
 ## 5. Bar (Horizontal)
@@ -229,6 +252,8 @@ string svg = ChartBuilder.Create()
 ```
 
 **Rendered output:** Six horizontal blue bars grow left-to-right from the Y-axis. Tokyo's bar is the longest. City names appear on the vertical axis.
+
+Bars follow the same rules as columns: at most **64px** thick, rounded only at their free (right/left) end, and `ColorByPoint(...)` gives each bar its own colour.
 
 ---
 

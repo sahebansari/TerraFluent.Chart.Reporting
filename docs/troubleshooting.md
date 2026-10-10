@@ -49,6 +49,25 @@ Use `LabelLayout` to rotate, wrap, skip, or shrink dense labels:
 
 Long horizontal **Bar** category labels widen the left gutter automatically; very long labels can still be wrapped with `.LabelLayout(l => l.Wrap(14))`.
 
+Date axes (`XAxisDateTime`) thin their labels by rendered width automatically, so long formats such as `"dd-MMM-yyyy"` over many days stay legible and the axis always ends on the last date.
+
+### Chart text looks too small
+Axis labels default to 12px, axis titles to 13px and data labels to 11px. Axis and data-label text is never drawn below 10px. If text still looks small, check these in order:
+
+1. **Display scaling.** An SVG rendered with `Size(900, …)` but shown in a 450px-wide container is drawn at half size, text included. Render at roughly the width it will be displayed at.
+2. **`ChartTheme.FontScale`.** Raise it on a cloned theme, for example `theme.FontScale = 1.25`, to enlarge all text uniformly.
+3. **Per-element sizes.** For example `DataLabel.FontSize(…)` or `Legend(l => l.ItemFontSize(…))`.
+
+### Data labels overlap each other or a line
+Labels are placed automatically to avoid other labels, line series and markers. Bar and column labels slide within their segment, and line labels move above, below or beside their marker. Overlap can only remain when there is no free space at all, typically when every label is wider than its column on a very dense chart. In that case:
+
+- **Label less.** Show labels on fewer series: enable them per series with `cfg.DataLabel.Show()` instead of `ShowDataLabels()`.
+- **Thin the data.** Widen the chart or show fewer categories.
+- **Use tooltips.** Turn labels off and rely on tooltips in Animated/Interactive modes.
+
+### Left Y-axis numbers don't match the bars
+Fixed in 2.1.0. Earlier versions sized the left axis from all series, including series on the secondary axis and the individual values of stacked series, so its tick labels could disagree with the bars. Upgrade to 2.1.0 or later.
+
 ---
 
 ## Data & series

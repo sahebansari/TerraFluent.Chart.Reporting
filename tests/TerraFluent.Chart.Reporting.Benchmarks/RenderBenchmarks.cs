@@ -1,11 +1,8 @@
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Running;
 using TerraFluent.Chart.Reporting.Builder;
 using TerraFluent.Chart.Reporting.Models;
 
-// Run: dotnet run -c Release --project tests/TerraFluent.Chart.Reporting.Benchmarks
-BenchmarkRunner.Run<RenderBenchmarks>();
-
+// Small/typical charts. See Program.cs for how to run.
 [MemoryDiagnoser]
 [SimpleJob]
 public class RenderBenchmarks

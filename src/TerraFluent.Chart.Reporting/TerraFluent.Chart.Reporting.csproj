@@ -27,7 +27,7 @@
       overrides this value with -p:Version=X.Y.Z taken from that tag — so the tag, not this file,
       is the source of truth for what actually ships to nuget.org.
     -->
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <FileVersion>$(Version)</FileVersion>
     <Authors>Saheb Ansari, TerraFluent</Authors>
     <Company>TerraFluent</Company>
@@ -40,7 +40,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageReleaseNotes>Initial release — fluent SVG chart generation with zero external dependencies.</PackageReleaseNotes>
+    <PackageReleaseNotes>2.1.0 — Multi-colour bars (ColorByPoint), collision-aware data labels, 64px bar thickness cap, rounded corners on the free bar end only, larger default text with a 10px minimum, width-aware date-axis label thinning. Fixes left Y-axis range with a secondary axis or stacking. Up to 60× faster rendering of dense labelled charts. Full notes: https://github.com/sahebansari/TerraFluent.Chart.Reporting/blob/master/CHANGELOG.md</PackageReleaseNotes>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
@@ -54,12 +54,11 @@
 
     <!--
       Detect API breaking changes against the last published baseline.
-      There is nothing on nuget.org to diff against yet, so leave PackageValidationBaselineVersion
-      unset until 2.0.0 ships. As soon as it does, uncomment the line below (set to "2.0.0") before
-      preparing 2.0.1, and bump it to each new released version thereafter.
+      2.0.0 is on nuget.org, so `dotnet pack` diffs the public API against it and fails on any
+      breaking change. After each release ships, bump this to that released version.
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
-    <!-- <PackageValidationBaselineVersion>2.0.0</PackageValidationBaselineVersion> -->
+    <PackageValidationBaselineVersion>2.0.0</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <!-- Suppress warnings when a language feature is not available in older targets -->

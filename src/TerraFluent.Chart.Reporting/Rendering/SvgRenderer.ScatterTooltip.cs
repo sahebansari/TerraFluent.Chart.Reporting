@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -65,7 +65,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                     }
                     else
                     {
-                        sb.AppendLine("  " + MarkerShape(series.MarkerSymbol, px, py, scR, Escape(color), scStroke, scStrokeWv, $" clip-path=\"url(#{clipId})\""));
+                        AppendMarkerShape(sb.Append("  "), series.MarkerSymbol, px, py, scR, Escape(color), scStroke, scStrokeWv, $" clip-path=\"url(#{clipId})\"").AppendLine();
                     }
                 }
                 // Tooltip in overlay layer
@@ -103,9 +103,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
             {
                 // Modern hollow ring: background-filled dot outlined in the series colour.
                 if (hollowMarker)
-                    sb.AppendLine("  " + MarkerShape(markerSymbol, cx, cy, markerSize, Escape(markerBorderColor), Escape(color), 2.0));
+                    AppendMarkerShape(sb.Append("  "), markerSymbol, cx, cy, markerSize, Escape(markerBorderColor), Escape(color), 2.0).AppendLine();
                 else
-                    sb.AppendLine("  " + MarkerShape(markerSymbol, cx, cy, markerSize, Escape(color), Escape(markerBorderColor), 1.5));
+                    AppendMarkerShape(sb.Append("  "), markerSymbol, cx, cy, markerSize, Escape(color), Escape(markerBorderColor), 1.5).AppendLine();
             }
             // Tooltip hit-area in overlay layer
             if (mode != SvgMode.Static)
@@ -132,22 +132,54 @@ namespace TerraFluent.Chart.Reporting.Rendering
         /// </summary>
         private static string MarkerShape(Enums.MarkerSymbol symbol, double cx, double cy, double size,
             string fill, string stroke, double strokeW, string extraAttr = "")
+            => AppendMarkerShape(new StringBuilder(160), symbol, cx, cy, size, fill, stroke, strokeW, extraAttr).ToString();
+
+        /// <summary>
+        /// Appends the marker element produced by <see cref="MarkerShape"/> directly to
+        /// <paramref name="sb"/> (no intermediate strings — markers are emitted once per point).
+        /// </summary>
+        private static StringBuilder AppendMarkerShape(StringBuilder sb, Enums.MarkerSymbol symbol,
+            double cx, double cy, double size, string fill, string stroke, double strokeW, string extraAttr = "")
         {
-            string common = $"fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{F(strokeW)}\"{extraAttr}";
             switch (symbol)
             {
                 case Enums.MarkerSymbol.Square:
-                    return $"<rect x=\"{F(cx - size)}\" y=\"{F(cy - size)}\" width=\"{F(size * 2)}\" height=\"{F(size * 2)}\" {common}/>";
+                    AppendF(sb.Append("<rect x=\""), cx - size);
+                    AppendF(sb.Append("\" y=\""), cy - size);
+                    AppendF(sb.Append("\" width=\""), size * 2);
+                    AppendF(sb.Append("\" height=\""), size * 2);
+                    sb.Append("\" ");
+                    break;
                 case Enums.MarkerSymbol.Diamond:
-                    return $"<polygon points=\"{F(cx)},{F(cy - size)} {F(cx + size)},{F(cy)} {F(cx)},{F(cy + size)} {F(cx - size)},{F(cy)}\" {common}/>";
+                    AppendXY(sb.Append("<polygon points=\""), cx, cy - size);
+                    AppendXY(sb.Append(' '), cx + size, cy);
+                    AppendXY(sb.Append(' '), cx, cy + size);
+                    AppendXY(sb.Append(' '), cx - size, cy);
+                    sb.Append("\" ");
+                    break;
                 case Enums.MarkerSymbol.Triangle:
-                    return $"<polygon points=\"{F(cx)},{F(cy - size)} {F(cx + size)},{F(cy + size)} {F(cx - size)},{F(cy + size)}\" {common}/>";
+                    AppendXY(sb.Append("<polygon points=\""), cx, cy - size);
+                    AppendXY(sb.Append(' '), cx + size, cy + size);
+                    AppendXY(sb.Append(' '), cx - size, cy + size);
+                    sb.Append("\" ");
+                    break;
                 case Enums.MarkerSymbol.TriangleDown:
-                    return $"<polygon points=\"{F(cx)},{F(cy + size)} {F(cx + size)},{F(cy - size)} {F(cx - size)},{F(cy - size)}\" {common}/>";
+                    AppendXY(sb.Append("<polygon points=\""), cx, cy + size);
+                    AppendXY(sb.Append(' '), cx + size, cy - size);
+                    AppendXY(sb.Append(' '), cx - size, cy - size);
+                    sb.Append("\" ");
+                    break;
                 case Enums.MarkerSymbol.Circle:
                 default:
-                    return $"<circle cx=\"{F(cx)}\" cy=\"{F(cy)}\" r=\"{F(size)}\" {common}/>";
+                    AppendF(sb.Append("<circle cx=\""), cx);
+                    AppendF(sb.Append("\" cy=\""), cy);
+                    AppendF(sb.Append("\" r=\""), size);
+                    sb.Append("\" ");
+                    break;
             }
+            sb.Append("fill=\"").Append(fill).Append("\" stroke=\"").Append(stroke).Append("\" stroke-width=\"");
+            AppendF(sb, strokeW).Append('"').Append(extraAttr).Append("/>");
+            return sb;
         }
 
         // ------------------------------------------------------------------ zones / thresholds

@@ -99,7 +99,7 @@ These set the fallback type used by the generic `Series(s => s.Add(...))` method
 | `XAxis(string title, params string[] categories)` | Sets X-axis title + category labels. |
 | `XAxisFormat(string format)` | X-axis tick-label format string, e.g. `"{value} kg"`. |
 | `XAxisTickInterval(double interval)` | X-axis tick interval in data units (> 0). |
-| `XAxisDateTime(IEnumerable<DateTime> values, string? format = null)` | Uses a datetime X-axis with auto tick thinning. |
+| `XAxisDateTime(IEnumerable<DateTime> values, string? format = null)` | Uses a datetime X-axis. Labels are thinned by their rendered width (so long formats such as `"dd-MMM-yyyy"` never overlap), and the axis always ends on the final date. |
 | `YAxis(Action<Axis> configure)` | Configures the primary Y-axis. |
 | `YAxis(string title, double? min = null, double? max = null)` | Sets Y-axis title + optional bounds. |
 | `YAxisFormat(string format)` | Y-axis tick-label format string. |
@@ -309,7 +309,16 @@ Passed to the `configure` lambda of every `Add*` method to style that one series
 | Method | Description |
 |---|---|
 | `Border(string color, int width = 1, int radius = 0)` | Sets border colour, width, and corner radius together. |
-| `BorderColor(string color)` · `BorderWidth(int px)` · `BorderRadius(int px)` | Individual border properties. |
+| `BorderColor(string color)` · `BorderWidth(int px)` · `BorderRadius(int px)` | Individual border properties. The radius rounds only the bar's free (outer) end; in a stack, only the outermost segment. |
+
+### Multi-colour bars
+
+| Method | Description |
+|---|---|
+| `ColorByPoint(params string[] colors)` | Paints every bar of a non-stacked Column/Bar series in its own colour. With no arguments it cycles the theme palette; with colours it uses them in order, cycling when there are more bars than colours. |
+| `ColorByPoint(bool enabled)` | Turns per-bar colouring on/off without changing a custom palette. |
+
+`Fill(...)` and `Zones(...)` take precedence over per-bar colours. Tooltips use each bar's own colour. The legend still shows a single series swatch, so consider `HideLegend()` for a single multi-coloured series.
 
 ### Markers
 
@@ -448,7 +457,7 @@ Renders in **all** modes (including `Static`), is script/CSS-free, and survives 
 | Rotation | `Rotation(int degrees)`, `AutoRotate(int maxDegrees = 90)`, `NoRotation()` |
 | Wrapping | `Wrap(int maxCharsPerLine = 12)`, `NoWrap()` |
 | Skipping | `Skip(int n)`, `AutoSkip(bool enabled = true)` |
-| Font scaling | `FontSizeRange(int min, int max)`, `NoAutoScale()` |
+| Font scaling | `FontSizeRange(int min, int max)` (defaults 8–12), `NoAutoScale()`. Labels are never drawn below **10px**: a smaller minimum acts as 10, and remaining overlap is resolved by rotation or skipping. |
 | Collision | `EnableCollisionDetection()`, `DisableCollisionDetection()` |
 | Positioning | `Stagger(int offsetPx = 10)`, `NoStagger()`, `HorizontalPadding(int px)` |
 
@@ -463,10 +472,17 @@ Accessed via `cfg.DataLabel` or `cfg.Label(dl => …)`.
 | `Show()` / `Hide()` | Enable/disable labels. |
 | `Format(string fmt)` | Format string, e.g. `"{value}%"`, `"${value}k"`. |
 | `Color(string color)` | Text colour. |
-| `FontSize(int px)` | Text size. |
+| `FontSize(int px)` | Text size (default 11px; values below **10px** are drawn at 10px). |
 | `Background(string color)` | Pill background colour. |
 | `Radius(double fraction)` | Pie/donut: label radius (`> 1` places labels outside with a connector). |
 | `OffsetY(double pixels)` | Vertical nudge. |
+
+**Automatic placement.** On cartesian charts, labels are placed so they don't overlap each other, line series or point markers:
+
+- **Column and bar labels** slide along their own segment, staying inside it, to get clear of a line passing through.
+- **Line and spline labels** try, in order: above the marker, below it, a second tier above or below, then the right or left side.
+
+If no free position exists, a label takes the least-overlapping one. Labels emitted by pie, heatmap and similar charts keep their fixed positions.
 
 ---
 

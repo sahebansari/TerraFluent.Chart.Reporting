@@ -275,6 +275,8 @@ namespace TerraFluent.Chart.Reporting.Models
                 cs.Fill = s.Fill?.Clone();
                 foreach (var z in s.Zones)
                     cs.Zones.Add(new SeriesZone(z.Value, z.Color));
+                cs.ColorByPoint = s.ColorByPoint;
+                cs.PointColors.AddRange(s.PointColors);
                 cs.NullGapPolicy = s.NullGapPolicy;
                 foreach (var tl in s.TargetLines)
                     cs.TargetLines.Add(new TargetLineOptions { Value = tl.Value, Label = tl.Label, Color = tl.Color, LineWidth = tl.LineWidth, DashStyle = tl.DashStyle });

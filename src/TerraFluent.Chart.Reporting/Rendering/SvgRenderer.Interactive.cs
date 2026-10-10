@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -640,7 +640,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 catsSb.Append(']');
 
                 // Compute y-axis bounds for path redraw (same as AppendSeries uses).
-                var (yMinRs, yMaxRs) = ResolveYBounds(options.YAxis, options.Series);
+                var (yMinRs, yMaxRs) = ResolvePrimaryYBounds(options);
 
                 // Serialize Line/Spline series data for JS path redraw.
                 // IDs must match the pattern used in AppendSeries: {svgId}-rs-lp-{si}

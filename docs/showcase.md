@@ -6,7 +6,7 @@ A live visual catalogue of every chart type and feature in TerraFluent.Chart.Rep
 
 For copy-paste code behind each chart type, see **[Chart Types](chart-types.md)**.
 
-_Catalogue of 102 charts · generated 2026-09-06 UTC._
+_Catalogue of 104 charts · generated 2026-10-10 UTC._
 
 | # | Chart | What it demonstrates |
 |---|---|---|
@@ -112,4 +112,6 @@ _Catalogue of 102 charts · generated 2026-09-06 UTC._
 | 100 | Synchronized Tooltips | SyncGroup() — two charts share the same hover group so tooltips mirror each other. |
 | 101 | Drill-Down Chart | WithDrilldown() — click a column to open a child detail chart; Back returns to overview. |
 | 102 | Grid Lines Toggle | GridLines(false) / HideGridLines() — show or hide the background plot grid. |
+| 103 | Daily Sales (10–31 Oct 2026) | XAxisDateTime(dates, "dd-MMM-yyyy") — 22 days of daily revenue and orders. |
+| 104 | Multi-Colour Bars (ColorByPoint) | ColorByPoint() — every column or bar in its own colour, from the theme palette or a custom list. |
 

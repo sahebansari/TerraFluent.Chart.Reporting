@@ -37,12 +37,16 @@ namespace TerraFluent.Chart.Reporting.Rendering
             bool hasCats = options.XAxis.Categories?.Count > 0;
             int catCount = hasCats ? options.XAxis.Categories!.Count : n;
             double groupWidth = (double)plotWidth / catCount;
-            double barPadding = groupWidth * 0.1;
-            double barWidth = (groupWidth - barPadding * 2) / Math.Max(colSeriesCount, 1);
+            int colGroupCount = Math.Max(colSeriesCount, 1);
+            double barWidth = Math.Min(groupWidth * 0.8 / colGroupCount, MaxBarThickness);
+            double barPadding = (groupWidth - barWidth * colGroupCount) / 2.0;
             bool yLog = IsLog(series.YAxisIndex == 1 ? options.YAxis2 : options.YAxis);
 
+            // Per-bar colours (ColorByPoint) apply when no custom fill or zones override the colour.
+            bool byPoint = fillPaint == null && series.Zones.Count == 0 && series.ColorByPoint;
+
             // Modern sheen gradient (opt-in) applies when no custom fill/zones override the colour.
-            if (fillPaint == null && series.Zones.Count == 0)
+            if (fillPaint == null && series.Zones.Count == 0 && !byPoint)
                 barFill = ModernBarFill(sb, options, color, barFill, $"{clipId}-mcol-{colSeriesIndex}", horizontal: false);
 
             // Modern soft-shadow elevation (opt-in).
@@ -63,40 +67,44 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 sb.AppendLine($"  <g>");
 
                 // Threshold colouring: when zones are set, each bar is painted by its value's zone.
-                string thisBarFill = series.Zones.Count > 0
-                    ? Escape(ZoneColorFor(series.Zones, v, color))
-                    : barFill;
+                // Otherwise ColorByPoint gives each bar its own colour (with its own sheen gradient).
+                string pointColor  = color;
+                string thisBarFill = barFill;
+                if (series.Zones.Count > 0)
+                    thisBarFill = Escape(ZoneColorFor(series.Zones, v, color));
+                else if (byPoint && PointColorFor(series, options, i) is string pc)
+                {
+                    pointColor  = pc;
+                    thisBarFill = ModernBarFill(sb, options, pc, Escape(pc), $"{clipId}-mcol-{colSeriesIndex}-p{i}", horizontal: false);
+                }
 
-                if (options.Animation.Enabled && options.RenderMode != SvgMode.Static)
-                {
-                    string cdur    = F(options.Animation.Duration.TotalSeconds) + "s";
-                    string ceasing = SmilEasing(options.Animation.Easing);
-                    double baseY   = PaddingTop + plotHeight - zeroFrac * plotHeight;
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(baseY)}\" width=\"{F(barWidth)}\" height=\"0\" fill=\"{thisBarFill}\" fill-opacity=\"{barOp}\"{barShadow}{BuildRectBorderAttr(series, options)}>");
-                    sb.AppendLine($"      <animate attributeName=\"height\" from=\"0\" to=\"{F(barH)}\" dur=\"{cdur}\" fill=\"freeze\"{ceasing}/>");
-                    sb.AppendLine($"      <animate attributeName=\"y\" from=\"{F(baseY)}\" to=\"{F(y)}\" dur=\"{cdur}\" fill=\"freeze\"{ceasing}/>");
-                    sb.AppendLine($"    </rect>");
-                }
-                else
-                {
-                    sb.AppendLine($"    <rect clip-path=\"url(#{clipId})\" x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barH)}\" fill=\"{thisBarFill}\" fill-opacity=\"{barOp}\"{barShadow}{BuildRectBorderAttr(series, options)}/>");
-                }
+                // Only the free end of the column is rounded: the top when it rises above the
+                // baseline, the bottom when it hangs below it.
+                bool cAnim   = options.Animation.Enabled && options.RenderMode != SvgMode.Static;
+                double baseY = PaddingTop + plotHeight - zeroFrac * plotHeight;
+                AppendBarShape(sb, "    ", clipId, x, y, barWidth, barH,
+                    vFrac >= zeroFrac ? BarEnd.Top : BarEnd.Bottom,
+                    thisBarFill, barOp, barShadow, series, options,
+                    cAnim, x, baseY, barWidth, 0,
+                    cAnim ? F(options.Animation.Duration.TotalSeconds) + "s" : string.Empty,
+                    cAnim ? SmilEasing(options.Animation.Easing) : string.Empty);
 
                 sb.AppendLine($"  </g>");
 
                 if (series.DataLabel.Enabled)
-                    AppendDataLabel(sb, x + barWidth / 2, y - 4 + series.DataLabel.VerticalOffset.GetValueOrDefault(), FormatDataLabel(v, series.DataLabel.FormatString),
+                    AppendColumnTopDataLabel(sb, x + barWidth / 2, y - 4 + series.DataLabel.VerticalOffset.GetValueOrDefault(), y, barH,
+                        FormatDataLabel(v, series.DataLabel.FormatString),
                         series.DataLabel.TextColor ?? options.Theme.TextColor, series.DataLabel.BackgroundColor, series.DataLabel.TextFontSize);
 
                 // Tooltip hit-area group goes to overlay so it's always on top
                 if (options.RenderMode != SvgMode.Static)
                 {
                     string colXLabel = options.XAxis.Categories?.Count > i ? Escape(options.XAxis.Categories[i]) : i.ToString(CultureInfo.InvariantCulture);
-                    tooltipLayer.AppendLine($"  <g class=\"data-point\" data-di=\"{i}\" data-val=\"{Escape(FormatTick(v))}\" data-name=\"{Escape(series.Name)}\" data-color=\"{Escape(color)}\" data-ax=\"{F(x + barWidth / 2)}\" data-ay=\"{F(y - 10)}\" data-xlabel=\"{colXLabel}\">");
+                    tooltipLayer.AppendLine($"  <g class=\"data-point\" data-di=\"{i}\" data-val=\"{Escape(FormatTick(v))}\" data-name=\"{Escape(series.Name)}\" data-color=\"{Escape(pointColor)}\" data-ax=\"{F(x + barWidth / 2)}\" data-ay=\"{F(y - 10)}\" data-xlabel=\"{colXLabel}\">");
                     AppendHoverBandV(tooltipLayer, options, PaddingLeft + groupWidth * i + groupWidth / 2.0, groupWidth, plotHeight);
                     tooltipLayer.AppendLine($"    <rect x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barH)}\" class=\"hit-area\" stroke=\"none\"/>");
                     AppendTooltip(tooltipLayer, x + barWidth / 2, y - 10, series.Name, v, svgWidth, svgHeight, options.Tooltip,
-                        color, PaddingTop, PaddingTop + plotHeight);
+                        pointColor, PaddingTop, PaddingTop + plotHeight);
                     tooltipLayer.AppendLine($"  </g>");
                 }
             }
@@ -321,9 +329,8 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 }
             }
 
-            double yMin = isPercent ? 0 : (options.YAxis.Min ?? ComputeStackedAreaYMin(options.Series));
-            double yMax = isPercent ? 100 : (options.YAxis.Max ?? ComputeStackedAreaYMax(options.Series));
-            if (Math.Abs(yMax - yMin) < double.Epsilon) yMax = yMin + 1;
+            // Same range the axis ticks use (stack totals, primary-axis series only).
+            var (yMin, yMax) = ResolvePrimaryYBounds(options);
 
             bool hasCats = options.XAxis.Categories?.Count > 0;
             double xOff  = hasCats ? step / 2.0 : 0;

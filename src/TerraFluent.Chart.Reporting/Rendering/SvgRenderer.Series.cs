@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -14,11 +14,9 @@ namespace TerraFluent.Chart.Reporting.Rendering
             int svgWidth, int svgHeight, int plotWidth, int plotHeight, string clipId,
             StringBuilder tooltipLayer, int xAxisTitleY = -1)
         {
-            // Pre-compute primary Y range (used for series on axis 0, or when no secondary axis)
-            var primarySeries = options.YAxis2 != null
-                ? options.Series.FindAll(s => s.Visible && s.YAxisIndex == 0)
-                : options.Series;
-            var (yMinPrimaryRaw, yMaxPrimaryRaw) = ResolveYBounds(options.YAxis, primarySeries);
+            // Pre-compute primary Y range (used for series on axis 0, or when no secondary axis).
+            // Shared with the axis ticks so labels and series always agree.
+            var (yMinPrimaryRaw, yMaxPrimaryRaw) = ResolvePrimaryYBounds(options);
             bool primaryInv = options.YAxis.Inverted;
             double yMinPrimary = primaryInv ? yMaxPrimaryRaw : yMinPrimaryRaw;
             double yMaxPrimary = primaryInv ? yMinPrimaryRaw : yMaxPrimaryRaw;
@@ -36,6 +34,10 @@ namespace TerraFluent.Chart.Reporting.Rendering
 
             // colourIdx tracks visible series so hidden/empty series don't shift the palette
             int colourIdx = 0;
+
+            // Collect data-label footprints so line labels can be placed clear of bar labels
+            // (no-op when no visible series shows data labels).
+            BeginDataLabelLayout(options, sb);
 
             for (int si = 0; si < options.Series.Count; si++)
             {
@@ -185,6 +187,8 @@ namespace TerraFluent.Chart.Reporting.Rendering
                 if (options.RenderMode == SvgMode.Interactive)
                     sb.AppendLine("  </g>");
             }
+
+            ResolvePendingDataLabels(sb, plotWidth, plotHeight);
         }
 
         private static void AppendSeriesTargetLines(StringBuilder sb, Series series, string seriesColor,

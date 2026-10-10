@@ -164,6 +164,35 @@ namespace TerraFluent.Chart.Reporting.Builder
             return this;
         }
 
+        // ------------------------------------------------------------------ multi-colour bars
+
+        /// <summary>
+        /// Paints every bar of this Column or Bar series in a different colour (a multi-coloured
+        /// bar chart). Pass your own <paramref name="colors"/> to use them in order (cycling when
+        /// there are more bars than colours), or none to cycle through the theme palette.
+        /// Applies to non-stacked Column and Bar series.
+        /// </summary>
+        /// <example><code>
+        /// s.AddColumn("Sales", data, c => c.ColorByPoint());                         // theme palette
+        /// s.AddBar("Sales", data, c => c.ColorByPoint("#4E79A7", "#F28E2B", "#E15759")); // custom
+        /// </code></example>
+        public SeriesBuilder ColorByPoint(params string[] colors)
+        {
+            _series.ColorByPoint = true;
+            _series.PointColors.Clear();
+            if (colors != null)
+                foreach (var c in colors)
+                    if (!string.IsNullOrWhiteSpace(c)) _series.PointColors.Add(c);
+            return this;
+        }
+
+        /// <summary>Turns per-bar colouring on or off without changing any custom palette.</summary>
+        public SeriesBuilder ColorByPoint(bool enabled)
+        {
+            _series.ColorByPoint = enabled;
+            return this;
+        }
+
         // ------------------------------------------------------------------ zones / threshold colour
 
         /// <summary>

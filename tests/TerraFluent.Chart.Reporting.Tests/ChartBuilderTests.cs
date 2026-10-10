@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using TerraFluent.Chart.Reporting.Builder;
 using TerraFluent.Chart.Reporting.Enums;
@@ -372,7 +372,21 @@ public class ChartBuilderTests
             .Series(s => s.AddColumn("Data", new double?[] { 50, 80, 60 }))
             .RenderToSvg();
 
-        // Grow-up animation animates both height and y attributes
+        // Rounded (ModernStyle default) columns grow by interpolating the path geometry
+        Assert.Contains("attributeName=\"d\"", svg);
+    }
+
+    [Fact]
+    public void RenderToSvg_AnimatedSquareColumn_AnimatesHeightAndY()
+    {
+        var svg = ChartBuilder.Create()
+            .AsAnimated()
+            .Animate()
+            .Theme(ClassicTheme())
+            .Series(s => s.AddColumn("Data", new double?[] { 50, 80, 60 }))
+            .RenderToSvg();
+
+        // Square columns stay <rect> and grow by animating height and y
         Assert.Contains("attributeName=\"height\"", svg);
         Assert.Contains("attributeName=\"y\"", svg);
     }
@@ -3059,7 +3073,8 @@ public class ChartBuilderTests
         var doc = System.Xml.Linq.XDocument.Parse(svg);
         System.Xml.Linq.XNamespace ns = "http://www.w3.org/2000/svg";
 
-        var barFills = doc.Descendants(ns + "rect")
+        // Rounded (ModernStyle) columns render as <path>, square ones as <rect>.
+        var barFills = doc.Descendants(ns + "rect").Concat(doc.Descendants(ns + "path"))
             .Select(r => (string?)r.Attribute("fill"))
             .Where(c => c == "#d64545" || c == "#2f9e44")
             .ToList();
@@ -3142,8 +3157,358 @@ public class ChartBuilderTests
             .LabelLayout(ll => ll.FontSizeRange(7, 11).NoRotation().AutoSkip(false))
             .RenderToSvg();
 
-        // Some font-size attribute should appear (scaled below the CSS default 11px)
-        Assert.Contains("font-size=", svg);
+        // An inline font-size should appear (scaled below the CSS default 12px)
+        Assert.Contains("style=\"font-size:", svg);
+        // ...but never below the 10px readability floor, even though the range allows 7px.
+        var sizes = System.Text.RegularExpressions.Regex.Matches(svg, "class=\"axis-label\" style=\"font-size:(\\d+)px\"")
+            .Select(m => int.Parse(m.Groups[1].Value)).ToList();
+        Assert.NotEmpty(sizes);
+        Assert.All(sizes, px => Assert.True(px >= 10, $"axis label font-size {px}px < 10px"));
+    }
+
+    [Fact]
+    public void AxisFonts_SmallFontScale_ClampedToTenPx()
+    {
+        var theme = new ChartTheme { FontScale = 0.5 };
+        var svg = ChartBuilder.Create()
+            .Theme(theme)
+            .XAxis(x => { x.Categories.AddRange(new[] { "A", "B" }); x.Title = "Category"; })
+            .YAxis(y => y.Title = "Value")
+            .Series(s => s.AddColumn("Data", new double?[] { 1, 2 }))
+            .RenderToSvg();
+
+        // FontScale 0.5 would give 6px labels / 6px titles; both are floored at 10px.
+        Assert.Matches(@"\.axis-label\s*\{ font: 10px", svg);
+        Assert.Matches(@"\.axis-title\s*\{ font: 10px", svg);
+    }
+
+    [Fact]
+    public void AxisFonts_DefaultSizes_AreTwelveAndThirteenPx()
+    {
+        var svg = ChartBuilder.Create()
+            .Series(s => s.AddColumn("Data", new double?[] { 1, 2 }))
+            .RenderToSvg();
+
+        Assert.Matches(@"\.axis-label\s*\{ font: 12px", svg);
+        Assert.Matches(@"\.axis-title\s*\{ font: 13px", svg);
+    }
+
+    [Fact]
+    public void DataLabels_LineOverStackedColumns_DoNotOverlap()
+    {
+        // Mirrors the Fluent API showcase: stacked column labels + a secondary-axis line whose
+        // point labels would otherwise land on top of the column segment labels.
+        var svg = ChartBuilder.Create()
+            .Size(820, 480)
+            .AsStatic()
+            .StackNormal()
+            .XAxis("Bi-Month", "Jan-Feb", "Mar-Apr", "May-Jun", "Jul-Aug", "Sep-Oct", "Nov-Dec")
+            .YAxis("Revenue ($k)", min: 0)
+            .YAxis2(y => { y.Title = "YoY Growth %"; y.Min = 0; y.Max = 50; })
+            .ShowDataLabels()
+            .Series(s => s
+                .AddColumn("Direct",   new double[] { 420, 490, 560, 620, 540, 610 }, c => c.Label(dl => dl.Format("${value}k")))
+                .AddColumn("Organic",  new double[] { 310, 390, 440, 470, 380, 430 }, c => c.Label(dl => dl.Format("${value}k")))
+                .AddColumn("Referral", new double[] { 180, 215, 250, 270, 210, 245 }, c => c.Label(dl => dl.Format("${value}k")))
+                .AddLine("YoY Growth %", new double[] { 12, 21, 28, 31, 24, 29 },
+                    c => c.OnSecondaryAxis().Label(dl => dl.Format("{value}%"))))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.DoesNotContain("<!--tf-dl-", svg);   // every placeholder was resolved
+
+        var doc = System.Xml.Linq.XDocument.Parse(svg);
+        var ns  = doc.Root!.Name.Namespace;
+        var boxes = doc.Descendants(ns + "text")
+            .Where(t => (string?)t.Attribute("class") == "data-label")
+            .Select(t =>
+            {
+                double x = double.Parse((string)t.Attribute("x")!, System.Globalization.CultureInfo.InvariantCulture);
+                double y = double.Parse((string)t.Attribute("y")!, System.Globalization.CultureInfo.InvariantCulture);
+                double halfW = t.Value.Length * 11 * 0.6 / 2;
+                return (t.Value, x1: x - halfW, y1: y - 10, x2: x + halfW, y2: y + 3);
+            })
+            .ToList();
+        Assert.Equal(24, boxes.Count);
+
+        for (int a = 0; a < boxes.Count; a++)
+            for (int b = a + 1; b < boxes.Count; b++)
+            {
+                var p = boxes[a]; var q = boxes[b];
+                bool overlap = p.x1 < q.x2 && q.x1 < p.x2 && p.y1 < q.y2 && q.y1 < p.y2;
+                Assert.False(overlap, $"data labels '{p.Value}' and '{q.Value}' overlap");
+            }
+
+        // The growth line (the only open M/L path) must not run through any data label.
+        var linePath = doc.Descendants(ns + "path")
+            .Select(e => (string?)e.Attribute("d") ?? string.Empty)
+            .Single(d => d.StartsWith("M") && d.Contains(" L") && !d.Contains("Z") && !d.Contains("A"));
+        var pts = System.Text.RegularExpressions.Regex.Matches(linePath, @"([\d.]+),([\d.]+)")
+            .Select(m => (x: double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture),
+                          y: double.Parse(m.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture)))
+            .ToList();
+        Assert.True(pts.Count >= 2);
+        foreach (var bx in boxes)
+            for (int i = 1; i < pts.Count; i++)
+                Assert.False(SegmentHitsBox(pts[i - 1], pts[i], bx.x1, bx.y1, bx.x2, bx.y2),
+                    $"line segment {i} crosses data label '{bx.Value}'");
+    }
+
+    // Liang–Barsky: true when segment a→b passes through the rectangle.
+    private static bool SegmentHitsBox((double x, double y) a, (double x, double y) b,
+        double x1, double y1, double x2, double y2)
+    {
+        double dx = b.x - a.x, dy = b.y - a.y, t0 = 0, t1 = 1;
+        double[] p = { -dx, dx, -dy, dy };
+        double[] q = { a.x - x1, x2 - a.x, a.y - y1, y2 - a.y };
+        for (int i = 0; i < 4; i++)
+        {
+            if (p[i] == 0) { if (q[i] < 0) return false; continue; }
+            double r = q[i] / p[i];
+            if (p[i] < 0) t0 = Math.Max(t0, r); else t1 = Math.Min(t1, r);
+            if (t0 > t1) return false;
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------ performance-path equivalence
+
+    [Fact]
+    public void AppendF_MatchesF_ForTrickyValues()
+    {
+        // The allocation-free number writer must produce exactly what F() produced.
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+        var t = typeof(TerraFluent.Chart.Reporting.Rendering.SvgRenderer);
+        var f       = t.GetMethod("F", flags, null, new[] { typeof(double) }, null)!;
+        var appendF = t.GetMethod("AppendF", flags)!;
+
+        double[] values =
+        {
+            0, -0.0, 0.05, 0.15, 0.25, 0.35, -0.05, -0.25, 1.45, 2.675, 99.95, -99.95,
+            123456.789, -123456.789, 1e15, -1e15, 1e300, double.Epsilon, double.MaxValue,
+            double.NaN, double.PositiveInfinity, double.NegativeInfinity,
+        };
+        foreach (double v in values)
+        {
+            var sb = new System.Text.StringBuilder();
+            appendF.Invoke(null, new object[] { sb, v });
+            Assert.Equal((string)f.Invoke(null, new object[] { v })!, sb.ToString());
+        }
+    }
+
+    [Fact]
+    public void RenderToStream_NoBom_LeavesStreamOpen_MatchesSvg()
+    {
+        var builder = ChartBuilder.Create()
+            .AsStatic()
+            .Title("Ünïcödé — chart")
+            .Series(s => s.AddColumn("A", new double?[] { 1, 2, 3 }));
+        using var ms = new System.IO.MemoryStream();
+        builder.RenderToStream(ms);
+
+        Assert.True(ms.CanWrite, "caller's stream must stay open");
+        byte[] bytes = ms.ToArray();
+        Assert.False(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF, "no UTF-8 BOM expected");
+
+        // Same document as RenderToSvg (modulo the per-render element id counter).
+        static string NormalizeIds(string s) => System.Text.RegularExpressions.Regex.Replace(s, @"pc-\d+", "pc-N");
+        Assert.Equal(NormalizeIds(builder.RenderToSvg()), NormalizeIds(System.Text.Encoding.UTF8.GetString(bytes)));
+    }
+
+    // ------------------------------------------------------------------ ColorByPoint (multi-colour bars)
+
+    private static System.Collections.Generic.List<string> BarFills(string svg, string barTag = "rect")
+    {
+        var doc = System.Xml.Linq.XDocument.Parse(svg);
+        var ns  = doc.Root!.Name.Namespace;
+        // Bar shapes carry clip-path + fill-opacity; plot background / hit-areas do not.
+        return doc.Descendants(ns + barTag)
+            .Where(e => e.Attribute("clip-path") != null && e.Attribute("fill-opacity") != null)
+            .Select(e => (string)e.Attribute("fill")!)
+            .ToList();
+    }
+
+    [Fact]
+    public void ColorByPoint_Column_ThemePalette_EachBarDifferent()
+    {
+        var theme = ClassicTheme();
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(theme)
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C", "D" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6, 9 }, c => c.ColorByPoint()))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        var fills = BarFills(svg);
+        Assert.Equal(theme.Colors.Take(4), fills);   // bar i uses palette colour i
+    }
+
+    [Fact]
+    public void ColorByPoint_Column_CustomPalette_CyclesInOrder()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ClassicTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C", "D", "E" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6, 9, 4 },
+                c => c.ColorByPoint("#111111", "#222222", "#333333")))
+            .RenderToSvg();
+
+        Assert.Equal(new[] { "#111111", "#222222", "#333333", "#111111", "#222222" }, BarFills(svg));
+    }
+
+    [Fact]
+    public void ColorByPoint_Bar_EachBarDifferent()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ClassicTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddBar("Sales", new double?[] { 5, 8, 6 },
+                c => c.ColorByPoint("#aa0000", "#00aa00", "#0000aa")))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        Assert.Equal(new[] { "#aa0000", "#00aa00", "#0000aa" }, BarFills(svg));
+    }
+
+    [Fact]
+    public void ColorByPoint_ModernStyle_EmitsOneGradientPerBar()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ModernTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 },
+                c => c.ColorByPoint("#aa0000", "#00aa00", "#0000aa")))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        var fills = BarFills(svg, "path");
+        Assert.Equal(3, fills.Distinct().Count());
+        Assert.All(fills, f => Assert.Matches(@"^url\(#.+-mcol-0-p\d\)$", f));
+        // Each gradient ends on its bar's own base colour.
+        Assert.Contains("stop-color=\"#aa0000\"", svg);
+        Assert.Contains("stop-color=\"#00aa00\"", svg);
+        Assert.Contains("stop-color=\"#0000aa\"", svg);
+    }
+
+    [Fact]
+    public void ColorByPoint_Off_KeepsSingleSeriesColour()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ClassicTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8, 6 }, c => c.Color("#123456")))
+            .RenderToSvg();
+
+        Assert.All(BarFills(svg), f => Assert.Equal("#123456", f));
+    }
+
+    [Fact]
+    public void ColorByPoint_InteractiveTooltip_UsesBarColour()
+    {
+        var svg = ChartBuilder.Create()
+            .AsInteractive()
+            .Theme(ClassicTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B" }))
+            .Series(s => s.AddColumn("Sales", new double?[] { 5, 8 }, c => c.ColorByPoint("#aa0000", "#00aa00")))
+            .RenderToSvg();
+
+        Assert.Contains("data-color=\"#aa0000\"", svg);
+        Assert.Contains("data-color=\"#00aa00\"", svg);
+    }
+
+    [Fact]
+    public void DateAxis_LongLabelsOverTenDays_AreThinnedWithoutOverlap()
+    {
+        var start = new DateTime(2026, 10, 10);
+        var dates = Enumerable.Range(0, 22).Select(i => start.AddDays(i)).ToList();
+        var svg = ChartBuilder.Create()
+            .Size(760, 420)
+            .AsStatic()
+            .XAxisDateTime(dates, "dd-MMM-yyyy")
+            .Series(s => s.AddColumn("Revenue", Enumerable.Range(0, 22).Select(i => (double?)(10 + i)).ToArray()))
+            .RenderToSvg();
+
+        var labels = System.Text.RegularExpressions.Regex.Matches(svg,
+                "<text class=\"axis-label\"[^>]*x=\"([\\d.]+)\"[^>]*>(\\d\\d-\\w{3}-\\d{4})<")
+            .Select(m => (x: double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), text: m.Groups[2].Value))
+            .ToList();
+
+        Assert.Equal("10-Oct-2026", labels.First().text);   // axis starts on the first date
+        Assert.Equal("31-Oct-2026", labels.Last().text);    // ...and ends on the last one
+        Assert.True(labels.Count < 22, "dense date labels should be thinned");
+
+        // Every pair of neighbours needs at least the slot the widest label occupies at -45°
+        // (≈ 11 chars × 12px × 0.6 × cos45 + line height × sin45) — the forced last label included.
+        double minGap = labels.Zip(labels.Skip(1), (a, b) => b.x - a.x).Min();
+        Assert.True(minGap >= 60, $"closest date labels are only {minGap:0.#}px apart");
+    }
+
+    [Fact]
+    public void PrimaryAxisTicks_IgnoreSecondaryAxisSeries()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B", "C" }))
+            .YAxis(y => y.Min = 0)
+            .YAxis2(y => { y.Min = 0; y.Max = 400; })
+            .Series(s => s
+                .AddColumn("Revenue", new double?[] { 18, 25, 36 })
+                .AddLine("Orders", new double?[] { 200, 300, 388 }, c => c.OnSecondaryAxis()))
+            .RenderToSvg();
+
+        // Left-axis ticks (x = PaddingLeft − 6, anchored end) must follow Revenue (≤ 36), not Orders.
+        var leftTicks = System.Text.RegularExpressions.Regex.Matches(svg,
+                "<text class=\"axis-label\" x=\"\\d+\" y=\"[\\d.]+\" text-anchor=\"end\"[^>]*>([\\d.,]+)<")
+            .Select(m => double.Parse(m.Groups[1].Value.Replace(",", ""), System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+        Assert.NotEmpty(leftTicks);
+        Assert.True(leftTicks.Max() <= 50, $"left axis runs to {leftTicks.Max()} — secondary series leaked in");
+    }
+
+    [Fact]
+    public void PrimaryAxisTicks_CoverStackedTotals()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .StackNormal()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B" }))
+            .YAxis(y => y.Min = 0)
+            .Series(s => s
+                .AddColumn("Direct",  new double?[] { 420, 620 })
+                .AddColumn("Organic", new double?[] { 310, 470 })
+                .AddColumn("Referral", new double?[] { 180, 270 }))
+            .RenderToSvg();
+
+        var ticks = System.Text.RegularExpressions.Regex.Matches(svg,
+                "<text class=\"axis-label\" x=\"\\d+\" y=\"[\\d.]+\" text-anchor=\"end\"[^>]*>([\\d.,k]+)<")
+            .Select(m => m.Groups[1].Value)
+            .Select(t => t.EndsWith("k") ? double.Parse(t.TrimEnd('k'), System.Globalization.CultureInfo.InvariantCulture) * 1000
+                                         : double.Parse(t.Replace(",", ""), System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+        Assert.NotEmpty(ticks);
+        // Tallest stack is 620 + 470 + 270 = 1360, so the axis spans 0–1360 and its highest
+        // labelled tick is 1200 (step 200). Scaling to the largest single value (620) would top
+        // out at 600 and mislabel every segment.
+        Assert.True(ticks.Max() >= 1200, $"axis tops out at {ticks.Max()} but the stack reaches 1360");
+    }
+
+    [Fact]
+    public void DataLabels_ExplicitTinyFontSize_ClampedToTenPx()
+    {
+        var svg = ChartBuilder.Create()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B" }))
+            .ShowDataLabels()
+            .Series(s => s.AddColumn("Data", new double?[] { 10, 20 },
+                cfg => cfg.Label(dl => dl.FontSize(7))))
+            .RenderToSvg();
+
+        Assert.Contains("font-size:10px", svg);
+        Assert.DoesNotContain("font-size:7px", svg);
     }
 
     [Fact]
@@ -4027,9 +4392,55 @@ public class ChartBuilderTests
             .RenderToSvg();
 
         SvgAssert.WellFormed(svg);
-        Assert.Contains("rx=\"3\"", svg);            // softly rounded column corners
+        Assert.Contains(" A3.0,3.0 0 0 1 ", svg);         // softly rounded column corners (outer end only)
         Assert.Contains("<linearGradient", svg);      // sheen gradient definition
         Assert.Contains("url(#", svg);                // bars reference the gradient
+    }
+
+    [Fact]
+    public void ModernStyle_Column_RoundsOnlyTopOfPositiveAndBottomOfNegative()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ModernTheme())
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B" }))
+            .Series(s => s.AddColumn("Delta", new double?[] { 50, -30 }))
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        var doc = System.Xml.Linq.XDocument.Parse(svg);
+        var ns  = doc.Root!.Name.Namespace;
+        var bars = doc.Descendants(ns + "path")
+            .Select(p => (string?)p.Attribute("d") ?? string.Empty)
+            .Where(d => d.Contains(" A3.0,3.0 "))
+            .ToList();
+        Assert.Equal(2, bars.Count);
+        // Each bar has exactly two rounded corners (one end), not four.
+        Assert.All(bars, d => Assert.Equal(2, d.Split(" A3.0,3.0 ").Length - 1));
+    }
+
+    [Fact]
+    public void ModernStyle_StackedColumn_RoundsOnlyOuterSegment()
+    {
+        var svg = ChartBuilder.Create()
+            .AsStatic()
+            .Theme(ModernTheme())
+            .StackNormal()
+            .XAxis(x => x.Categories.AddRange(new[] { "A", "B" }))
+            .Series(s =>
+            {
+                s.AddColumn("Bottom", new double?[] { 10, 20 });
+                s.AddColumn("Top",    new double?[] { 15, 5 });
+            })
+            .RenderToSvg();
+
+        SvgAssert.WellFormed(svg);
+        var doc = System.Xml.Linq.XDocument.Parse(svg);
+        var ns  = doc.Root!.Name.Namespace;
+        int rounded = doc.Descendants(ns + "path")
+            .Count(p => ((string?)p.Attribute("d") ?? string.Empty).Contains(" A3.0,3.0 "));
+        // Only the two top segments (one per category) are rounded; the bottom ones stay square rects.
+        Assert.Equal(2, rounded);
     }
 
     [Fact]
@@ -4101,7 +4512,7 @@ public class ChartBuilderTests
             .RenderToSvg();
 
         SvgAssert.WellFormed(svg);
-        Assert.Contains("rx=\"3\"", svg);
+        Assert.Contains(" A3.0,3.0 0 0 1 ", svg);
         Assert.Contains("<linearGradient", svg);
     }
 

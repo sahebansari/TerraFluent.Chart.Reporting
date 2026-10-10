@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -213,7 +213,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             int n = pts.Count;
 
             bool yLog = IsLog(options.YAxis);
-            var (yMin, yMax) = ResolveYBounds(options.YAxis, options.Series);
+            var (yMin, yMax) = ResolvePrimaryYBounds(options);
 
             bool hasCats = options.XAxis.Categories?.Count > 0;
             int catCount = hasCats ? options.XAxis.Categories!.Count : n;
@@ -290,7 +290,7 @@ namespace TerraFluent.Chart.Reporting.Rendering
             int n = pts.Count;
 
             bool yLog = IsLog(options.YAxis);
-            var (yMin, yMax) = ResolveYBounds(options.YAxis, options.Series);
+            var (yMin, yMax) = ResolvePrimaryYBounds(options);
 
             bool hasCats  = options.XAxis.Categories?.Count > 0;
             int catCount  = hasCats ? options.XAxis.Categories!.Count : n;
